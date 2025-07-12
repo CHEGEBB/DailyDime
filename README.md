@@ -47,82 +47,147 @@ DailyDime is not your typical budgeting app. It's a **smart financial companion*
 
 ---
 
-## 📁 MINIMUM Project Structure (First Project - Keep It Simple!)
+## 📁 Project Structure
 
 ```
 lib/
 ├── main.dart                         # App starts here
-├── screens/                          # Your app screens
-│   ├── splash_screen.dart           # Loading screen 
-│   ├── home_screen.dart             # Main dashboard
-│   ├── add_transaction_screen.dart  # Add expense/income
-│   ├── transactions_screen.dart     # List all transactions
-│   ├── budget_screen.dart           # View/create budget
-│   ├── savings_screen.dart          # Savings goals
-│   └── profile_screen.dart          # User settings
+├── config/                           # App configuration
+│   ├── theme.dart                   # Colors, fonts, button styles
+│   └── app_config.dart              # API keys and constants
 ├── models/                          # Data structures
-│   ├── transaction.dart             # What a transaction looks like
-│   ├── budget.dart                  # What a budget looks like
-│   └── savings_goal.dart            # What a savings goal looks like
-├── services/                        # API calls and logic
-│   ├── database_service.dart        # Save/load data locally
-│   ├── ai_service.dart              # Talk to Gemini AI
-│   └── sms_service.dart             # Read SMS messages
-└── widgets/                         # Reusable UI pieces
-    ├── transaction_card.dart        # Show a single transaction
-    ├── balance_card.dart            # Show current balance
-    └── custom_button.dart           # Custom styled button
+│   ├── transaction.dart             # Transaction data structure
+│   ├── budget.dart                  # Budget data structure
+│   ├── savings_goal.dart            # Savings goal data structure
+│   └── user.dart                    # User profile data structure
+├── services/                        # Business logic and API calls
+│   ├── database_service.dart        # Local storage (Hive)
+│   ├── ai_service.dart              # Gemini AI integration
+│   ├── sms_service.dart             # SMS reading for transactions
+│   ├── mpesa_service.dart           # M-Pesa API integration
+│   └── firebase_service.dart        # Firebase auth and cloud storage
+├── providers/                       # State management
+│   ├── auth_provider.dart           # User authentication state
+│   ├── transaction_provider.dart    # Transaction management
+│   ├── budget_provider.dart         # Budget management
+│   └── savings_provider.dart        # Savings goals management
+├── screens/                         # App screens
+│   ├── splash_screen.dart           # Loading screen
+│   ├── auth/                        # Authentication screens
+│   │   ├── login_screen.dart        # Phone login
+│   │   └── register_screen.dart     # User registration
+│   ├── home_screen.dart             # Main dashboard
+│   ├── transactions/                # Transaction screens
+│   │   ├── transactions_screen.dart # List all transactions
+│   │   ├── add_transaction_screen.dart # Add new transaction
+│   │   └── sms_transactions_screen.dart # SMS-detected transactions
+│   ├── budget/                      # Budget screens
+│   │   ├── budget_screen.dart       # View current budget
+│   │   └── create_budget_screen.dart # Create new budget
+│   ├── savings/                     # Savings screens
+│   │   ├── savings_screen.dart      # View all savings goals
+│   │   └── create_goal_screen.dart  # Create new savings goal
+│   ├── analytics_screen.dart        # Charts and insights
+│   ├── ai_chat_screen.dart          # Chat with AI coach
+│   └── profile_screen.dart          # User profile and settings
+└── widgets/                         # Reusable UI components
+    ├── common/                      # Common widgets
+    │   ├── custom_button.dart       # Styled buttons
+    │   ├── custom_text_field.dart   # Input fields
+    │   └── loading_widget.dart      # Loading indicator
+    ├── cards/                       # Card widgets
+    │   ├── balance_card.dart        # Balance display
+    │   ├── transaction_card.dart    # Transaction item
+    │   ├── budget_card.dart         # Budget progress
+    │   └── savings_card.dart        # Savings goal card
+    └── charts/                      # Chart widgets
+        ├── spending_chart.dart      # Spending breakdown
+        └── progress_chart.dart      # Progress visualization
 ```
 
-## 📝 **What Each File Actually Does (Super Simple)**
+## 📝 **What Each File Does (Clear Explanations)**
 
-### **MUST HAVE FILES (Start with these 4)**
-1. **`main.dart`** - App entry point (like App.js in React Native)
-2. **`home_screen.dart`** - Main screen users see
-3. **`transaction.dart`** - Defines what a transaction looks like
-4. **`database_service.dart`** - Saves data to phone
+### **CORE FILES (Start Here)**
+- **`main.dart`** - App entry point, starts everything
+- **`config/theme.dart`** - App colors, fonts, styling
+- **`config/app_config.dart`** - API keys, constants
 
-### **CORE SCREENS (Add these next)**
-5. **`add_transaction_screen.dart`** - Add new expense/income
-6. **`transactions_screen.dart`** - List all transactions
-7. **`budget_screen.dart`** - Budget management
-8. **`savings_screen.dart`** - Savings goals
+### **DATA LAYER**
+- **`models/`** - Data structures (like TypeScript interfaces)
+  - `transaction.dart` - What a transaction looks like
+  - `budget.dart` - Budget data structure
+  - `savings_goal.dart` - Savings goal structure
+  - `user.dart` - User profile data
 
-### **NICE TO HAVE (Add later)**
-9. **`ai_service.dart`** - AI budgeting suggestions
-10. **`sms_service.dart`** - Read M-Pesa SMS
-11. **`profile_screen.dart`** - Settings and profile
-12. **Widget files** - Make UI look nice
+### **BUSINESS LOGIC**
+- **`services/`** - Handle external APIs and storage
+  - `database_service.dart` - Save/load data locally
+  - `ai_service.dart` - Talk to Gemini AI
+  - `sms_service.dart` - Read SMS transactions
+  - `mpesa_service.dart` - M-Pesa integration
+  - `firebase_service.dart` - Cloud storage & auth
 
-### **TOTAL: Just 12 files to start!**
+- **`providers/`** - State management (like Redux)
+  - `auth_provider.dart` - Login/logout state
+  - `transaction_provider.dart` - Transaction operations
+  - `budget_provider.dart` - Budget management
+  - `savings_provider.dart` - Savings management
 
-## 🎯 **Build Order for Beginners:**
+### **UI LAYER**
+- **`screens/`** - Full-screen components
+  - Core screens: `home_screen.dart`, `profile_screen.dart`
+  - Auth screens: `login_screen.dart`, `register_screen.dart`
+  - Feature screens: transactions, budget, savings
+  - Advanced: `analytics_screen.dart`, `ai_chat_screen.dart`
 
-### **Week 1: Basic App**
-1. `main.dart` - Get app running
-2. `home_screen.dart` - Basic home screen
-3. `transaction.dart` - Transaction model
-4. `database_service.dart` - Save data locally
+- **`widgets/`** - Reusable UI components
+  - `common/` - Basic widgets used everywhere
+  - `cards/` - Card-style display components
+  - `charts/` - Data visualization components
 
-### **Week 2: Core Features**
-5. `add_transaction_screen.dart` - Add transactions
-6. `transactions_screen.dart` - View transactions
-7. `transaction_card.dart` - Display transaction nicely
+## 🎯 **Development Phases**
 
-### **Week 3: Advanced Features**
-8. `budget_screen.dart` - Budget management
-9. `savings_screen.dart` - Savings goals
-10. `ai_service.dart` - AI integration
+### **Phase 1: Foundation (Week 1-2)**
+1. `main.dart` + `config/theme.dart` - Basic app setup
+2. `models/transaction.dart` - Transaction structure
+3. `services/database_service.dart` - Local storage
+4. `screens/home_screen.dart` - Basic home screen
 
-### **Week 4: Polish**
-11. `sms_service.dart` - SMS reading
-12. `profile_screen.dart` - User settings
+### **Phase 2: Core Features (Week 3-4)**
+5. `providers/transaction_provider.dart` - Transaction state
+6. `screens/transactions/add_transaction_screen.dart` - Add transactions
+7. `screens/transactions/transactions_screen.dart` - View transactions
+8. `widgets/cards/transaction_card.dart` - Display transactions
 
-## 💡 **Why This Works:**
-- **Only 12 files** to start (vs 35+ before)
-- **One feature per file** - easy to understand
-- **Build step by step** - no overwhelming complexity
-- **Can add more later** - structure allows growth
+### **Phase 3: Advanced Features (Week 5-6)**
+9. `services/ai_service.dart` - AI integration
+10. `screens/budget/budget_screen.dart` - Budget management
+11. `screens/savings/savings_screen.dart` - Savings goals
+12. `services/sms_service.dart` - SMS reading
+
+### **Phase 4: Polish (Week 7-8)**
+13. `screens/auth/` - User authentication
+14. `screens/analytics_screen.dart` - Charts and insights
+15. `services/mpesa_service.dart` - M-Pesa integration
+16. `screens/ai_chat_screen.dart` - AI chat interface
+
+## 💡 **Why This Structure Works:**
+
+✅ **Not overwhelming** - 25 files total (manageable)
+✅ **Not too simple** - Has room for all features
+✅ **Logical organization** - Similar to React Native
+✅ **Clear progression** - Build step by step
+✅ **Professional structure** - Can show to employers
+✅ **Beginner-friendly** - Each file has one clear purpose
+
+## 🚀 **Total File Count:**
+- **Core**: 3 files
+- **Models**: 4 files  
+- **Services**: 5 files
+- **Providers**: 4 files
+- **Screens**: 14 files
+- **Widgets**: 9 files
+- **TOTAL**: 25 files (Perfect for learning!)
 
 ---
 
