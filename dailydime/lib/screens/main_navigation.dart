@@ -1,4 +1,3 @@
-// lib/screens/main_navigation.dart
 
 import 'package:dailydime/screens/transactions/add_transaction_screen.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +29,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const TransactionsScreen(),
     const BudgetScreen(),
     const SavingsScreen(),
+    const AIChatScreen(),
   ];
 
   void _navigateToTab(int index) {
