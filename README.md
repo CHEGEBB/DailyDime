@@ -445,37 +445,7 @@ We welcome contributions from:
 3. Make your changes
 4. Add tests for new features
 5. Submit a pull request
-
----
-
-## 📞 Support & Contact
-
-**Developer**: Brian Chege  
-📧 Email: chegephil24@gmail.com  
-🌐 Website: [brianchege.vercel.app](https://brianchege.vercel.app)  
-💻 GitHub: [CHEGEBB](https://github.com/CHEGEBB)
-
-### Beta Testing
-Interested in testing DailyDime? We're looking for beta testers, especially:
-- University students
-- Boda boda riders
-- Small business owners
-- Anyone interested in better financial management
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 💡 Vision Statement
-
-> "DailyDime isn't just about tracking money—it's about transforming how everyday Kenyans think about, save, and grow their money. We believe that with the right tools and AI-powered guidance, anyone can achieve financial freedom, one dime at a time."
-
----
-
+   
 ## 🎯 Project Goals
 
 ### Short-term (3-6 months)
