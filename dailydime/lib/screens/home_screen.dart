@@ -8,7 +8,22 @@ import 'package:dailydime/widgets/cards/transaction_card.dart';
 import 'package:dailydime/widgets/common/custom_button.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  final VoidCallback? onNavigateToTransactions;
+  final VoidCallback? onNavigateToBudget;
+  final VoidCallback? onNavigateToSavings;
+  final VoidCallback? onNavigateToAI;
+  final VoidCallback? onNavigateToProfile; // Added profile navigation
+  final VoidCallback? onAddTransaction;
+
+  const HomeScreen({
+    Key? key,
+    this.onNavigateToTransactions,
+    this.onNavigateToBudget,
+    this.onNavigateToSavings,
+    this.onNavigateToAI,
+    this.onNavigateToProfile, // Added profile navigation
+    this.onAddTransaction,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +38,7 @@ class HomeScreen extends StatelessWidget {
             SliverAppBar(
               pinned: true,
               floating: true,
+              backgroundColor: theme.colorScheme.background,
               title: Row(
                 children: [
                   Container(
@@ -53,7 +69,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.person_outline),
-                  onPressed: () {},
+                  onPressed: onNavigateToProfile, // Added profile navigation
                 ),
                 const SizedBox(width: 8),
               ],
@@ -74,54 +90,62 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   
                   // AI Suggestion Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: theme.colorScheme.secondary.withOpacity(0.3),
-                        width: 1,
+                  GestureDetector(
+                    onTap: onNavigateToAI,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.secondary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: theme.colorScheme.secondary.withOpacity(0.3),
+                          width: 1,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.secondary.withOpacity(0.2),
-                            shape: BoxShape.circle,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.secondary.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.lightbulb_outline,
+                              color: theme.colorScheme.secondary,
+                              size: 24,
+                            ),
                           ),
-                          child: Icon(
-                            Icons.lightbulb_outline,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '💡 AI Suggestion',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.secondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Skip eating out today and save KES 350 towards your laptop goal!',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 16,
                             color: theme.colorScheme.secondary,
-                            size: 24,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '💡 AI Suggestion',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.colorScheme.secondary,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                'Skip eating out today and save KES 350 towards your laptop goal!',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   
@@ -144,28 +168,32 @@ class HomeScreen extends StatelessWidget {
                         'Add\nExpense',
                         Icons.arrow_upward,
                         theme.colorScheme.error,
-                        () {},
+                        () {
+                          _showAddTransactionBottomSheet(context);
+                        },
                       ),
                       _buildQuickAction(
                         context,
                         'Add\nIncome',
                         Icons.arrow_downward,
                         theme.colorScheme.primary,
-                        () {},
+                        () {
+                          _showAddTransactionBottomSheet(context);
+                        },
                       ),
                       _buildQuickAction(
                         context,
                         'New\nBudget',
                         Icons.pie_chart_outline,
                         theme.colorScheme.secondary,
-                        () {},
+                        onNavigateToBudget ?? () {},
                       ),
                       _buildQuickAction(
                         context,
                         'Create\nGoal',
                         Icons.savings_outlined,
                         Colors.purple,
-                        () {},
+                        onNavigateToSavings ?? () {},
                       ),
                     ],
                   ),
@@ -185,7 +213,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: onNavigateToBudget,
                         child: const Text('See All'),
                       ),
                     ],
@@ -197,6 +225,7 @@ class HomeScreen extends StatelessWidget {
                     spent: 12300,
                     icon: Icons.restaurant,
                     color: Colors.orange,
+                    isOverBudget: true,
                   ),
                   const BudgetCard(
                     title: 'Transportation',
@@ -204,6 +233,7 @@ class HomeScreen extends StatelessWidget {
                     spent: 3200,
                     icon: Icons.directions_bus,
                     color: Colors.blue,
+                    isOverBudget: true,
                   ),
                   const BudgetCard(
                     title: 'Entertainment',
@@ -211,6 +241,7 @@ class HomeScreen extends StatelessWidget {
                     spent: 1500,
                     icon: Icons.movie,
                     color: Colors.purple,
+                    isOverBudget: true,
                   ),
                   
                   const SizedBox(height: 24),
@@ -228,7 +259,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: onNavigateToSavings,
                         child: const Text('See All'),
                       ),
                     ],
@@ -244,18 +275,33 @@ class HomeScreen extends StatelessWidget {
                           targetAmount: 80000,
                           savedAmount: 35000,
                           targetDate: DateTime(2026, 1, 15),
+                          onTap: () {
+                            if (onNavigateToSavings != null) {
+                              onNavigateToSavings!();
+                            }
+                          },
                         ),
                         SavingsCard(
                           title: 'Holiday Trip',
                           targetAmount: 45000,
                           savedAmount: 10000,
                           targetDate: DateTime(2025, 12, 20),
+                          onTap: () {
+                            if (onNavigateToSavings != null) {
+                              onNavigateToSavings!();
+                            }
+                          },
                         ),
                         SavingsCard(
                           title: 'Emergency Fund',
                           targetAmount: 100000,
                           savedAmount: 40000,
                           targetDate: DateTime(2026, 6, 30),
+                          onTap: () {
+                            if (onNavigateToSavings != null) {
+                              onNavigateToSavings!();
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -276,7 +322,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: onNavigateToTransactions,
                         child: const Text('See All'),
                       ),
                     ],
@@ -290,6 +336,7 @@ class HomeScreen extends StatelessWidget {
                     isExpense: true,
                     icon: Icons.shopping_basket,
                     color: Colors.orange,
+                    isSms: true,
                   ),
                   TransactionCard(
                     title: 'Salary Deposit',
@@ -299,6 +346,7 @@ class HomeScreen extends StatelessWidget {
                     isExpense: false,
                     icon: Icons.work,
                     color: theme.colorScheme.primary,
+                    isSms: true,
                   ),
                   TransactionCard(
                     title: 'Uber Ride',
@@ -308,14 +356,16 @@ class HomeScreen extends StatelessWidget {
                     isExpense: true,
                     icon: Icons.directions_car,
                     color: Colors.blue,
+                    isSms: true,
                   ),
                   
                   const SizedBox(height: 16),
                   
                   CustomButton(
                     text: 'View All Transactions',
-                    onPressed: () {},
+                    onPressed: onNavigateToTransactions ?? () {},
                     isOutlined: true,
+                    isSmall: false,
                   ),
                   
                   const SizedBox(height: 24),
@@ -324,41 +374,6 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showAddTransactionBottomSheet(context);
-        },
-        backgroundColor: theme.colorScheme.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        selectedItemColor: theme.colorScheme.primary,
-        unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.swap_horiz),
-            label: 'Transactions',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.pie_chart),
-            label: 'Budget',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.savings),
-            label: 'Savings',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.smart_toy),
-            label: 'AI Coach',
-          ),
-        ],
       ),
     );
   }
@@ -689,6 +704,7 @@ class HomeScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.pop(context);
                 },
+                isSmall: false,
               ),
             ],
           ),

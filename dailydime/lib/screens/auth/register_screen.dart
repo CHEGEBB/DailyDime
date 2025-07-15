@@ -320,6 +320,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   text: 'Create Account',
                   onPressed: _register,
                   isLoading: _isLoading,
+                  isSmall: false, // Add this line with the appropriate value
                 ),
                 const SizedBox(height: 20),
                 Center(

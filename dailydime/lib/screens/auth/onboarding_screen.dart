@@ -127,6 +127,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     text: _currentPage < _onboardingItems.length - 1 ? 'Next' : 'Get Started',
                     onPressed: _nextPage,
                     icon: _currentPage < _onboardingItems.length - 1 ? Icons.arrow_forward : Icons.check,
+                    isSmall: false, // or true, depending on your design choice
                   ),
                 ],
               ),

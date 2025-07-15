@@ -15,7 +15,7 @@ class SavingsCard extends StatelessWidget {
     required this.targetAmount,
     required this.savedAmount,
     required this.targetDate,
-    this.imageUrl,
+    this.imageUrl, required Null Function() onTap,
   }) : super(key: key);
 
   @override

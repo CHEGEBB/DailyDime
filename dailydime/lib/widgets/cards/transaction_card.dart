@@ -19,7 +19,7 @@ class TransactionCard extends StatelessWidget {
     required this.date,
     required this.isExpense,
     required this.icon,
-    required this.color,
+    required this.color, required bool isSms,
   }) : super(key: key);
 
   @override

@@ -15,7 +15,7 @@ class BudgetCard extends StatelessWidget {
     required this.amount,
     required this.spent,
     required this.icon,
-    required this.color,
+    required this.color, required bool isOverBudget,
   }) : super(key: key);
 
   @override

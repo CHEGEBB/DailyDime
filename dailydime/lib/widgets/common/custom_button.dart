@@ -17,7 +17,7 @@ class CustomButton extends StatelessWidget {
     this.isLoading = false,
     this.isOutlined = false,
     this.icon,
-    this.width = double.infinity,
+    this.width = double.infinity, required bool isSmall,
   }) : super(key: key);
 
   @override

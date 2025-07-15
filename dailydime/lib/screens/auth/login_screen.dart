@@ -153,6 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     text: 'Log In',
                     onPressed: _login,
                     isLoading: _isLoading,
+                    isSmall: false, // or true, depending on your design
                   ),
                   const SizedBox(height: 24),
                   Row(
