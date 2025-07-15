@@ -1,7 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:dailydime/screens/main_navigation.dart';
+import 'package:dailydime/screens/splash_screen.dart';
 import 'package:dailydime/config/theme.dart';
 
 void main() {
@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
       title: 'DailyDime',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme(),
-      home: const MainNavigation(),
+      home: const SplashScreen(), // Changed from MainNavigation to SplashScreen
     );
   }
 }
