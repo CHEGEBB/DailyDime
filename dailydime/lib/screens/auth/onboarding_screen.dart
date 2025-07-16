@@ -1,8 +1,7 @@
 // lib/screens/auth/onboarding_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:dailydime/widgets/common/custom_button.dart';
-import 'package:dailydime/screens/home_screen.dart';
+import 'package:dailydime/screens/auth/login_screen.dart';  // Changed from HomeScreen
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
@@ -82,9 +81,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         curve: Curves.easeInOut,
       );
     } else {
+      // Navigate to LoginScreen instead of HomeScreen
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -141,9 +141,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     // Skip button
                     TextButton(
                       onPressed: () {
+                        // Navigate to LoginScreen instead of HomeScreen
                         Navigator.of(context).pushReplacement(
                           PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+                            pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
                             transitionsBuilder: (context, animation, secondaryAnimation, child) {
                               return FadeTransition(opacity: animation, child: child);
                             },
@@ -582,21 +583,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
       ),
     );
-  }
-
-  IconData _getIconForPage(int page) {
-    switch (page) {
-      case 0:
-        return Icons.analytics_outlined;
-      case 1:
-        return Icons.account_balance_wallet_outlined;
-      case 2:
-        return Icons.savings_outlined;
-      case 3:
-        return Icons.sync_outlined;
-      default:
-        return Icons.analytics_outlined;
-    }
   }
 }
 
