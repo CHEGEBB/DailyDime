@@ -1,4 +1,3 @@
-// lib/screens/auth/register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dailydime/screens/home_screen.dart';
@@ -10,7 +9,7 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _currentStep = 0;
   bool _isLoading = false;
@@ -42,6 +41,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     4, 
     (index) => FocusNode(),
   );
+  
+  // Animation controllers
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _animationController.forward();
+  }
 
   @override
   void dispose() {
@@ -52,6 +68,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _lastNameController.dispose();
     _phoneController.dispose();
     _businessNameController.dispose();
+    _animationController.dispose();
     
     for (var controller in _otpControllers) {
       controller.dispose();
@@ -172,82 +189,190 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
     
     return Scaffold(
-      backgroundColor: theme.colorScheme.primary,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: _previousStep,
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header with progress indicator
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      body: Stack(
+        children: [
+          // Background image
+          Positioned(
+            top: -50,
+            left: 0,
+            right: 0,
+            height: size.height * 0.45,
+            child: Image.asset(
+              'assets/images/login.jpg', // You can use a different image for registration
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF2E8B57),
+                        Color(0xFF20B2AA),
+                        Color(0xFF48D1CC),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          
+          // Green gradient overlay
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: size.height * 0.45,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF2E8B57).withOpacity(0.8),
+                    Color(0xFF20B2AA).withOpacity(0.8),
+                    Color(0xFF48D1CC).withOpacity(0.8),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // Main content
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _currentStep == 0 ? 'Create Account' : _currentStep == 1 ? 'Complete Profile' : 'Verification',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
-                      color: Colors.white,
+                  // App bar with back button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: _previousStep,
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Step ${_currentStep + 1} of 3',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'Poppins',
-                      color: Colors.white.withOpacity(0.8),
+                  
+                  // Header section with progress
+                  Container(
+                    height: size.height * 0.17,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _currentStep == 0 ? 'Create Account' : _currentStep == 1 ? 'Complete Profile' : 'Verification',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Poppins',
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Step ${_currentStep + 1} of 3',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontFamily: 'Poppins',
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            value: (_currentStep + 1) / 3,
+                            backgroundColor: Colors.white.withOpacity(0.3),
+                            color: Colors.white,
+                            minHeight: 8,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: LinearProgressIndicator(
-                      value: (_currentStep + 1) / 3,
-                      backgroundColor: Colors.white.withOpacity(0.3),
-                      color: Colors.white,
-                      minHeight: 8,
+                  
+                  // Main form container
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(32),
+                          topRight: Radius.circular(32),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, -3),
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          // Decorative SVG elements
+                          Positioned(
+                            top: 20,
+                            right: 20,
+                            child: _buildCircleSvg(16, Colors.green.withOpacity(0.1)),
+                          ),
+                          Positioned(
+                            top: 100,
+                            left: 30,
+                            child: _buildCircleSvg(8, Colors.green.withOpacity(0.1)),
+                          ),
+                          Positioned(
+                            bottom: 80,
+                            right: 40,
+                            child: _buildCircleSvg(12, Colors.green.withOpacity(0.1)),
+                          ),
+                          Positioned(
+                            bottom: 140,
+                            left: 20,
+                            child: _buildCircleSvg(20, Colors.green.withOpacity(0.1)),
+                          ),
+                          
+                          // Page view for steps
+                          PageView(
+                            controller: _pageController,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: [
+                              _buildStep1(theme),
+                              _buildStep2(theme),
+                              _buildStep3(theme),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            
-            // Main content area
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
-                ),
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _buildStep1(theme),
-                    _buildStep2(theme),
-                    _buildStep3(theme),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper method to create circle SVG decorations
+  Widget _buildCircleSvg(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
       ),
     );
   }
@@ -297,7 +422,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     placeholderBuilder: (BuildContext context) => Container(
                       height: 120,
                       width: 120,
-                      color: Colors.transparent,
+                      child: Icon(
+                        Icons.person_add_alt_1,
+                        size: 60,
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -328,8 +457,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword 
-                      ? Icons.visibility_outlined 
-                      : Icons.visibility_off_outlined,
+                      ? Icons.visibility_off_outlined 
+                      : Icons.visibility_outlined,
                   color: theme.colorScheme.onSurface.withOpacity(0.4),
                 ),
                 onPressed: () {
@@ -351,6 +480,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 border: Border.all(
                   color: Colors.grey.shade200,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade200.withOpacity(0.5),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +526,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  elevation: 1,
+                  elevation: 0,
                 ),
                 child: const Text(
                   'Continue',
@@ -641,7 +777,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  elevation: 1,
+                  elevation: 0,
                 ),
                 child: const Text(
                   'Sign Up',
@@ -722,6 +858,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: theme.colorScheme.primary.withOpacity(0.3),
                     width: 1.5,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.shade200.withOpacity(0.5),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: TextFormField(
                   controller: _otpControllers[index],
@@ -763,7 +906,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                elevation: 1,
+                elevation: 0,
               ),
               child: _isLoading
                   ? const SizedBox(
@@ -866,60 +1009,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          validator: validator,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            fontFamily: 'Poppins',
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.shade200.withOpacity(0.5),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: TextStyle(
-              color: Colors.grey.shade400,
+          child: TextFormField(
+            controller: controller,
+            obscureText: obscureText,
+            keyboardType: keyboardType,
+            validator: validator,
+            style: const TextStyle(
               fontSize: 15,
+              fontWeight: FontWeight.w500,
               fontFamily: 'Poppins',
             ),
-            prefixIcon: Icon(
-              prefixIcon,
-              color: Theme.of(context).colorScheme.primary,
-              size: 20,
-            ),
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: Colors.grey.shade100,
-            contentPadding: const EdgeInsets.symmetric(vertical: 16),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: TextStyle(
+                color: Colors.grey.shade400,
+                fontSize: 15,
+                fontFamily: 'Poppins',
+              ),
+              prefixIcon: Icon(
+                prefixIcon,
                 color: Theme.of(context).colorScheme.primary,
-                width: 1.5,
+                size: 20,
               ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 1.5,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 1.5,
-              ),
+              suffixIcon: suffixIcon,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 16),
             ),
           ),
         ),
@@ -971,6 +1098,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
             color: borderColor,
             width: 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade200.withOpacity(0.5),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Center(
           child: Icon(
