@@ -201,7 +201,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             right: 0,
             height: size.height * 0.45,
             child: Image.asset(
-              'assets/images/login.jpg', // You can use a different image for registration
+              'assets/images/sign.jpg', // You can use a different image for registration
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
