@@ -105,54 +105,39 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Future<void> _loginWithGoogle() async {
-    // Implement Google Sign-In logic
     setState(() {
       _isLoading = true;
     });
-
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 2));
-
     setState(() {
       _isLoading = false;
     });
-
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const HomeScreen()),
     );
   }
 
   Future<void> _loginWithFacebook() async {
-    // Implement Facebook Sign-In logic
     setState(() {
       _isLoading = true;
     });
-
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 2));
-
     setState(() {
       _isLoading = false;
     });
-
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const HomeScreen()),
     );
   }
 
   Future<void> _loginWithApple() async {
-    // Implement Apple Sign-In logic
     setState(() {
       _isLoading = true;
     });
-
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 2));
-
     setState(() {
       _isLoading = false;
     });
-
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const HomeScreen()),
     );
@@ -192,13 +177,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         _isLoading = true;
       });
 
-      // Simulate network delay
       Future.delayed(const Duration(seconds: 2), () {
         setState(() {
           _isLoading = false;
         });
         
-        // Navigate to home screen
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
@@ -214,47 +197,51 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     return Scaffold(
       body: Stack(
         children: [
-          // Background gradient
+          // Main background image with green overlay
           Container(
             height: double.infinity,
             width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF2E8B57), // Sea green
-                  Color(0xFF20B2AA), // Light sea green
-                  Color(0xFF48D1CC), // Medium turquoise
-                ],
-              ),
-            ),
-          ),
-          
-          // Background pattern/decoration
-          Positioned(
-            top: -50,
-            right: -50,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          
-          Positioned(
-            top: 100,
-            left: -30,
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                shape: BoxShape.circle,
-              ),
+            child: Stack(
+              children: [
+                // Background image
+                Positioned.fill(
+                  child: Image.asset(
+                    'assets/images/login.jpg', // Main background image
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF2E8B57),
+                              Color(0xFF20B2AA),
+                              Color(0xFF48D1CC),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                // Green overlay
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF2E8B57).withOpacity(0.85),
+                          Color(0xFF20B2AA).withOpacity(0.85),
+                          Color(0xFF48D1CC).withOpacity(0.85),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           
@@ -264,57 +251,38 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               opacity: _fadeAnimation,
               child: Column(
                 children: [
-                  // Top section with logo and title
+                  // Top section with logo and title - reduced height
                   Container(
-                    height: size.height * 0.40,
+                    height: size.height * 0.32,
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 10),
                         
-                        // Large logo
+                        // Logo - bigger, no rounded border
                         SlideTransition(
                           position: _slideAnimation,
-                          child: Container(
-                            width: 160,
-                            height: 160,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 10),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            width: 140,
+                            height: 140,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 140,
+                                height: 140,
+                                child: const Icon(
+                                  Icons.account_balance_wallet,
+                                  size: 90,
+                                  color: Colors.white,
                                 ),
-                              ],
-                            ),
-                            child: Image.asset(
-                              'assets/images/logo.png',
-                              width: 160,
-                              height: 160,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  width: 160,
-                                  height: 160,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.account_balance_wallet,
-                                    size: 80,
-                                    color: Color(0xFF2E8B57),
-                                  ),
-                                );
-                              },
-                            ),
+                              );
+                            },
                           ),
                         ),
                         
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                         
                         // App name
                         SlideTransition(
@@ -322,7 +290,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           child: Text(
                             'DailyDime',
                             style: TextStyle(
-                              fontSize: 48,
+                              fontSize: 42,
                               fontWeight: FontWeight.w800,
                               fontFamily: 'Montserrat',
                               color: Colors.white,
@@ -338,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ),
                         
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         
                         // Subtitle
                         SlideTransition(
@@ -347,7 +315,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             'Smart budgeting with AI-powered insights\nfor your M-Pesa and financial goals',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 15,
                               fontFamily: 'Montserrat',
                               fontWeight: FontWeight.w500,
                               color: Colors.white.withOpacity(0.95),
@@ -359,7 +327,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     ),
                   ),
                   
-                  // Bottom white section with login form
+                  // Bottom white section with login form - increased height
                   Expanded(
                     child: SlideTransition(
                       position: _slideAnimation,
@@ -379,7 +347,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 16),
                                 
                                 // Login header
                                 Center(
@@ -443,7 +411,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   ),
                                 ),
                                 
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 
                                 // Remember me and forgot password
                                 Row(
@@ -597,7 +565,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   children: [
                                     _buildSocialButton(
                                       onPressed: _loginWithGoogle,
-                                      icon: Icons.email, // Replace with Google icon
+                                      icon: Icons.email,
                                       label: 'Google',
                                       color: const Color(0xFF4285F4),
                                     ),
@@ -616,7 +584,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   ],
                                 ),
                                 
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 32),
                                 
                                 // Don't have account
                                 Row(
@@ -659,7 +627,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   ],
                                 ),
                                 
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 24),
                               ],
                             ),
                           ),
