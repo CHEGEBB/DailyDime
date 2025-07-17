@@ -334,7 +334,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               top: 20,
               left: 60,
               child: _buildImageCard(
-                'images/onboarding_1.jpg',
+                'images/onboard1.png',
                 200,
                 160,
                 item.primaryColor,
@@ -347,7 +347,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               top: 0,
               right: 20,
               child: _buildImageCard(
-                'images/expense_card.jpg',
+                'images/onboard2.png',
                 100,
                 80,
                 item.secondaryColor,
@@ -360,7 +360,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               bottom: 0,
               left: 20,
               child: _buildImageCard(
-                'images/expense_category.jpg',
+                'images/onboard3.png',
                 120,
                 90,
                 item.primaryColor,
@@ -379,7 +379,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               top: 10,
               left: 40,
               child: _buildImageCard(
-                'images/budget_main.jpg',
+                'images/onboard4.png',
                 240,
                 180,
                 item.primaryColor,
@@ -392,7 +392,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               top: 40,
               right: 10,
               child: _buildImageCard(
-                'images/budget_calculator.jpg',
+                'images/onboard5',
                 80,
                 100,
                 item.secondaryColor,
@@ -405,7 +405,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               bottom: 10,
               left: 80,
               child: _buildImageCard(
-                'images/budget_progress.jpg',
+                'images/onboard9.png',
                 160,
                 60,
                 item.primaryColor.withOpacity(0.8),
@@ -424,7 +424,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               top: 30,
               left: 50,
               child: _buildImageCard(
-                'assets/images/goal_tracker.png',
+                'images/onboard6.png',
                 220,
                 160,
                 item.primaryColor,
@@ -437,7 +437,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               top: 0,
               right: 30,
               child: _buildImageCard(
-                'assets/images/goal_achievement.png',
+                'images/onboard7.png',
                 90,
                 90,
                 item.secondaryColor,
@@ -450,7 +450,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               bottom: 20,
               left: 10,
               child: _buildImageCard(
-                'assets/images/goal_progress.png',
+                'assets/images/onboard8.png',
                 100,
                 100,
                 item.primaryColor.withOpacity(0.8),
@@ -469,7 +469,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               top: 20,
               left: 80,
               child: _buildImageCard(
-                'assets/images/sync_phone.png',
+                'images/onboard10.png',
                 160,
                 200,
                 item.primaryColor,
@@ -482,7 +482,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               top: 0,
               left: 20,
               child: _buildImageCard(
-                'assets/images/sync_mpesa.png',
+                'images/onboard11.png',
                 100,
                 80,
                 item.secondaryColor,
@@ -495,7 +495,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               top: 60,
               right: 20,
               child: _buildImageCard(
-                'assets/images/sync_indicator.png',
+                'images/onboard12.png',
                 80,
                 80,
                 item.primaryColor.withOpacity(0.8),
@@ -508,7 +508,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               bottom: 0,
               left: 60,
               child: _buildImageCard(
-                'assets/images/sync_transactions.png',
+                'images/onboard13.png',
                 200,
                 70,
                 item.secondaryColor.withOpacity(0.7),
@@ -521,7 +521,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       
       default:
         return _buildImageCard(
-          'assets/images/default.png',
+          'images/onboard14.png',
           280,
           280,
           item.primaryColor,
