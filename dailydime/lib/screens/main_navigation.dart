@@ -15,8 +15,24 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation> with TickerProviderStateMixin {
   int _currentIndex = 0;
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   List<Widget> get _screens => [
     HomeScreen(
@@ -36,6 +52,9 @@ class _MainNavigationState extends State<MainNavigation> {
     setState(() {
       _currentIndex = index;
     });
+    _animationController.forward().then((_) {
+      _animationController.reverse();
+    });
   }
 
   void _navigateToProfile() {
@@ -50,6 +69,8 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
     
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
@@ -58,132 +79,176 @@ class _MainNavigationState extends State<MainNavigation> {
         children: _screens,
       ),
       bottomNavigationBar: Container(
+        margin: EdgeInsets.fromLTRB(
+          isSmallScreen ? 12 : 16, 
+          0, 
+          isSmallScreen ? 12 : 16, 
+          isSmallScreen ? 12 : 16
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
+          borderRadius: BorderRadius.circular(isSmallScreen ? 20 : 24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.07),
-              blurRadius: 15,
-              offset: const Offset(0, -3),
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
             ),
           ],
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
         ),
         child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            selectedItemColor: theme.colorScheme.primary,
-            unselectedItemColor: Colors.grey,
-            backgroundColor: Colors.white,
-            type: BottomNavigationBarType.fixed,
-            showUnselectedLabels: true,
-            elevation: 0,
-            selectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
+          borderRadius: BorderRadius.circular(isSmallScreen ? 20 : 24),
+          child: Container(
+            height: isSmallScreen ? 65 : 70,
+            child: Row(
+              children: [
+                _buildNavItem(
+                  icon: Icons.home_rounded,
+                  label: 'Home',
+                  index: 0,
+                  isSelected: _currentIndex == 0,
+                ),
+                _buildNavItem(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'Activity',
+                  index: 1,
+                  isSelected: _currentIndex == 1,
+                ),
+                // Center space for FAB
+                Expanded(
+                  child: Container(
+                    height: double.infinity,
+                    child: Center(
+                      child: Container(
+                        width: isSmallScreen ? 48 : 56,
+                        height: isSmallScreen ? 48 : 56,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFF10B981), // Emerald-500
+                              const Color(0xFF059669), // Emerald-600
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(isSmallScreen ? 24 : 28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF10B981).withOpacity(0.25),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(isSmallScreen ? 24 : 28),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AddTransactionScreen(),
+                                ),
+                              );
+                            },
+                            child: Icon(
+                              Icons.add_rounded,
+                              color: Colors.white,
+                              size: isSmallScreen ? 22 : 26,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                _buildNavItem(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Analytics',
+                  index: 4,
+                  isSelected: _currentIndex == 4,
+                ),
+                _buildNavItem(
+                  icon: Icons.person_rounded,
+                  label: 'Profile',
+                  index: 5,
+                  isSelected: false,
+                  onTap: _navigateToProfile,
+                ),
+              ],
             ),
-            unselectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 11,
-            ),
-            items: [
-              BottomNavigationBarItem(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _currentIndex == 0 
-                        ? theme.colorScheme.primary.withOpacity(0.1) 
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.home_rounded),
-                ),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _currentIndex == 1 
-                        ? theme.colorScheme.primary.withOpacity(0.1) 
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.sync_alt_rounded),
-                ),
-                label: 'Transactions',
-              ),
-              BottomNavigationBarItem(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _currentIndex == 2 
-                        ? theme.colorScheme.primary.withOpacity(0.1) 
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.pie_chart_rounded),
-                ),
-                label: 'Budget',
-              ),
-              BottomNavigationBarItem(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _currentIndex == 3 
-                        ? theme.colorScheme.primary.withOpacity(0.1) 
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.savings_rounded),
-                ),
-                label: 'Savings',
-              ),
-              BottomNavigationBarItem(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _currentIndex == 4 
-                        ? theme.colorScheme.primary.withOpacity(0.1) 
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.smart_toy_rounded),
-                ),
-                label: 'AI Coach',
-              ),
-            ],
           ),
         ),
       ),
-      floatingActionButton: _currentIndex == 1 ? FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddTransactionScreen(),
-            ),
-          );
-        },
-        backgroundColor: theme.colorScheme.primary,
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+      floatingActionButton: null, // Remove external FAB since we have integrated one
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+    required bool isSelected,
+    VoidCallback? onTap,
+  }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+    
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap ?? () => _navigateToTab(index),
+          child: AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              return Container(
+                height: double.infinity,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+                      decoration: BoxDecoration(
+                        color: isSelected 
+                            ? const Color(0xFF10B981).withOpacity(0.12)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        icon,
+                        size: isSmallScreen ? 20 : 22,
+                        color: isSelected 
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFF6B7280),
+                      ),
+                    ),
+                    SizedBox(height: isSmallScreen ? 2 : 3),
+                    Flexible(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 10 : 11,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected 
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFF6B7280),
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
-        child: const Icon(Icons.add, color: Colors.white),
-      ) : null,
+      ),
     );
   }
 }

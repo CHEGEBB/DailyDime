@@ -50,11 +50,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final size = MediaQuery.of(context).size;
-    final accentColor = Color(0xFF9AE62E); // Neon green accent from design
+    final accentColor = Color(0xFF26D07C); // Emerald green
+    final bool isSmallScreen = size.width < 380;
     
-    // Set status bar to match design
+    // Set status bar to match white theme
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
+      statusBarColor: Colors.white,
       statusBarIconBrightness: Brightness.dark,
     ));
     
@@ -66,114 +67,119 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Header with Pattern Background
+              // Top Header - White bar
               Container(
-                decoration: BoxDecoration(
-                  color: Color(0xFF2A2A2A), // Dark background for contrast
-                  image: DecorationImage(
-                    image: AssetImage('assets/images/pattern_bg.png'),
-                    fit: BoxFit.cover,
-                    opacity: 0.7, // Added opacity for better visibility
-                  ),
-                ),
-                child: Column(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // App Bar
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Menu Icon
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.menu,
-                              size: 24,
-                              color: Colors.white,
-                            ),
-                          ),
-                          
-                          Row(
-                            children: [
-                              // Notification Icon
-                              Container(
-                                margin: const EdgeInsets.only(right: 16),
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Stack(
-                                  children: [
-                                    Icon(
-                                      Icons.notifications_outlined,
-                                      size: 24,
-                                      color: Colors.white,
-                                    ),
-                                    Positioned(
-                                      right: 0,
-                                      top: 0,
-                                      child: Container(
-                                        width: 8,
-                                        height: 8,
-                                        decoration: BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(color: Colors.white, width: 1.5),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                    // App Name/Logo instead of hamburger
+                    Text(
+                      'Daily Dime',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    
+                    Row(
+                      children: [
+                        // Notification Icon
+                        Container(
+                          margin: const EdgeInsets.only(right: 16),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
                               ),
-                              
-                              // Profile Image
-                              GestureDetector(
-                                onTap: widget.onNavigateToProfile,
+                            ],
+                          ),
+                          child: Stack(
+                            children: [
+                              Icon(
+                                Icons.notifications_outlined,
+                                size: 24,
+                                color: Colors.black,
+                              ),
+                              Positioned(
+                                right: 0,
+                                top: 0,
                                 child: Container(
-                                  width: 40,
-                                  height: 40,
+                                  width: 8,
+                                  height: 8,
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.3),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(11),
-                                    child: Image.asset(
-                                      'assets/images/profile_placeholder.png',
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => 
-                                        Icon(Icons.person, color: Colors.white.withOpacity(0.8)),
-                                    ),
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 1.5),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                        
+                        // Profile Image
+                        GestureDetector(
+                          onTap: widget.onNavigateToProfile,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.asset(
+                                'assets/images/profile_placeholder.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => 
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade200,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(Icons.person, color: Colors.grey.shade600),
+                                  ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
               
-              const SizedBox(height: 10),
+              const SizedBox(height: 5),
               
-              // Wallet Balance Card
+              // Wallet Balance Card with pattern background
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: accentColor,
+                    gradient: LinearGradient(
+                      colors: [
+                        accentColor,
+                        accentColor.withOpacity(0.8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -182,6 +188,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         offset: const Offset(0, 8),
                       ),
                     ],
+                    image: DecorationImage(
+                      image: AssetImage('assets/images/pattern2.png'),
+                      fit: BoxFit.cover,
+                      opacity: 0.1,
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
@@ -194,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             Text(
                               'Wallet Balance',
                               style: TextStyle(
-                                color: Colors.black.withOpacity(0.7),
+                                color: Colors.white.withOpacity(0.9),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -202,13 +213,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.07),
+                                color: Colors.white.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 'KES',
                                 style: TextStyle(
-                                  color: Colors.black.withOpacity(0.7),
+                                  color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -220,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         Text(
                           'KES 24,550',
                           style: TextStyle(
-                            color: Colors.black.withOpacity(0.9),
+                            color: Colors.white,
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
                           ),
@@ -231,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             Text(
                               'Updated: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
                               style: TextStyle(
-                                color: Colors.black.withOpacity(0.5),
+                                color: Colors.white.withOpacity(0.8),
                                 fontSize: 12,
                               ),
                             ),
@@ -239,21 +250,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.2),
+                                color: Colors.white.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(30),
                               ),
                               child: Row(
                                 children: [
                                   Icon(
                                     Icons.trending_up,
-                                    color: Colors.green.shade800,
+                                    color: Colors.white,
                                     size: 14,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     '+8.2%',
                                     style: TextStyle(
-                                      color: Colors.green.shade800,
+                                      color: Colors.white,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -266,106 +277,62 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         const SizedBox(height: 24),
                         
                         // Income & Expense Stats
-                        Row(
-                          children: [
-                            // Expense
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(16),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            if (constraints.maxWidth < 300) {
+                              // Stack vertically on very small screens
+                              return Column(
+                                children: [
+                                  _buildWalletStatItem(
+                                    icon: Icons.arrow_upward_rounded,
+                                    iconColor: Colors.red,
+                                    bgColor: Colors.white.withOpacity(0.2),
+                                    iconBgColor: Colors.red.withOpacity(0.2),
+                                    title: 'Expense',
+                                    amount: 'KES 3,430',
+                                    isFullWidth: true,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildWalletStatItem(
+                                    icon: Icons.arrow_downward_rounded,
+                                    iconColor: Colors.white,
+                                    bgColor: Colors.white.withOpacity(0.2),
+                                    iconBgColor: Colors.white.withOpacity(0.2),
+                                    title: 'Income',
+                                    amount: 'KES 15,000',
+                                    isFullWidth: true,
+                                  ),
+                                ],
+                              );
+                            }
+                            
+                            // Side by side for normal screens
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: _buildWalletStatItem(
+                                    icon: Icons.arrow_upward_rounded,
+                                    iconColor: Colors.red,
+                                    bgColor: Colors.white.withOpacity(0.2),
+                                    iconBgColor: Colors.red.withOpacity(0.2),
+                                    title: 'Expense',
+                                    amount: 'KES 3,430',
+                                  ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.withOpacity(0.1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.arrow_upward_rounded,
-                                        color: Colors.red,
-                                        size: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Expense',
-                                          style: TextStyle(
-                                            color: Colors.black.withOpacity(0.6),
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          'KES 3,430',
-                                          style: TextStyle(
-                                            color: Colors.black.withOpacity(0.8),
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildWalletStatItem(
+                                    icon: Icons.arrow_downward_rounded,
+                                    iconColor: Colors.white,
+                                    bgColor: Colors.white.withOpacity(0.2),
+                                    iconBgColor: Colors.white.withOpacity(0.2),
+                                    title: 'Income',
+                                    amount: 'KES 15,000',
+                                  ),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Income
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.withOpacity(0.1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.arrow_downward_rounded,
-                                        color: Colors.green,
-                                        size: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Income',
-                                          style: TextStyle(
-                                            color: Colors.black.withOpacity(0.6),
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          'KES 15,000',
-                                          style: TextStyle(
-                                            color: Colors.black.withOpacity(0.8),
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -392,48 +359,110 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       decoration: BoxDecoration(
                         color: Colors.grey.withOpacity(0.05),
                         borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildQuickAction(
-                            context,
-                            icon: 'assets/icons/top_up.png',
-                            label: 'Top up',
-                            iconData: Icons.add,
-                            onTap: () {
-                              _showAddMoneyBottomSheet(context);
-                            },
-                          ),
-                          _buildQuickAction(
-                            context,
-                            icon: 'assets/icons/receive.png',
-                            label: 'Receive',
-                            iconData: Icons.qr_code_scanner_rounded,
-                            onTap: () {},
-                          ),
-                          _buildQuickAction(
-                            context,
-                            icon: 'assets/icons/send.png',
-                            label: 'Send',
-                            iconData: Icons.send_rounded,
-                            onTap: () {},
-                          ),
-                          _buildQuickAction(
-                            context,
-                            icon: 'assets/icons/payment.png',
-                            label: 'Payments',
-                            iconData: Icons.payment_rounded,
-                            onTap: () {},
-                          ),
-                          _buildQuickAction(
-                            context,
-                            icon: 'assets/icons/budget.png',
-                            label: 'Budget',
-                            iconData: Icons.pie_chart,
-                            onTap: widget.onNavigateToBudget ?? () {},
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
                           ),
                         ],
+                      ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final bool useCompactLayout = constraints.maxWidth < 350;
+                          
+                          if (useCompactLayout) {
+                            // Compact layout with Wrap for very small screens
+                            return Wrap(
+                              alignment: WrapAlignment.spaceAround,
+                              spacing: 8,
+                              runSpacing: 12,
+                              children: [
+                                _buildQuickAction(
+                                  context,
+                                  iconData: Icons.add,
+                                  iconColor: accentColor,
+                                  label: 'Top up',
+                                  onTap: () {
+                                    _showAddMoneyBottomSheet(context);
+                                  },
+                                ),
+                                _buildQuickAction(
+                                  context,
+                                  iconData: Icons.qr_code_scanner_rounded,
+                                  iconColor: Colors.blue,
+                                  label: 'Receive',
+                                  onTap: () {},
+                                ),
+                                _buildQuickAction(
+                                  context,
+                                  iconData: Icons.send_rounded,
+                                  iconColor: Colors.purple,
+                                  label: 'Send',
+                                  onTap: () {},
+                                ),
+                                _buildQuickAction(
+                                  context,
+                                  iconData: Icons.payment_rounded,
+                                  iconColor: Colors.orange,
+                                  label: 'Pay',
+                                  onTap: () {},
+                                ),
+                                _buildQuickAction(
+                                  context,
+                                  iconData: Icons.pie_chart,
+                                  iconColor: Colors.red,
+                                  label: 'Budget',
+                                  onTap: widget.onNavigateToBudget ?? () {},
+                                ),
+                              ],
+                            );
+                          }
+                          
+                          // Default layout with Row
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildQuickAction(
+                                context,
+                                iconData: Icons.add,
+                                iconColor: accentColor,
+                                label: 'Top up',
+                                onTap: () {
+                                  _showAddMoneyBottomSheet(context);
+                                },
+                              ),
+                              _buildQuickAction(
+                                context,
+                                iconData: Icons.qr_code_scanner_rounded,
+                                iconColor: Colors.blue,
+                                label: 'Receive',
+                                onTap: () {},
+                              ),
+                              _buildQuickAction(
+                                context,
+                                iconData: Icons.send_rounded,
+                                iconColor: Colors.purple,
+                                label: 'Send',
+                                onTap: () {},
+                              ),
+                              _buildQuickAction(
+                                context,
+                                iconData: Icons.payment_rounded,
+                                iconColor: Colors.orange,
+                                label: 'Pay',
+                                onTap: () {},
+                              ),
+                              _buildQuickAction(
+                                context,
+                                iconData: Icons.pie_chart,
+                                iconColor: Colors.red,
+                                label: 'Budget',
+                                onTap: widget.onNavigateToBudget ?? () {},
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -469,11 +498,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 decoration: BoxDecoration(
                                   color: Colors.grey.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                                 child: Icon(
                                   _showChart ? Icons.bar_chart : Icons.pie_chart,
                                   size: 18,
-                                  color: Colors.black87,
+                                  color: accentColor,
                                 ),
                               ),
                             ),
@@ -484,62 +520,82 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     
                     const SizedBox(height: 20),
                     
-                    // Chart view
-                    if (_showChart)
-                      SizedBox(
-                        height: 220,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox(
-                              height: 200,
-                              width: 200,
-                              child: CustomPaint(
-                                painter: PieChartPainter(),
-                                child: Container(),
-                              ),
-                            ),
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'KES 24,550',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  'Total',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Container(
-                        height: 220,
-                        child: SpendingBarChart(),
+                    // Chart container with shadow
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
-                      
-                    const SizedBox(height: 16),
-                    
-                    // Expense Categories
-                    Wrap(
-                      spacing: 16,
-                      runSpacing: 12,
-                      children: [
-                        _buildCategoryLegend('Food', Colors.orange, '38%'),
-                        _buildCategoryLegend('Transport', Colors.blue, '25%'),
-                        _buildCategoryLegend('Shopping', Colors.green, '18%'),
-                        _buildCategoryLegend('Bills', Colors.red, '12%'),
-                        _buildCategoryLegend('Others', Colors.purple, '7%'),
-                      ],
+                      child: Column(
+                        children: [
+                          // Chart view
+                          if (_showChart)
+                            SizedBox(
+                              height: 220,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SizedBox(
+                                    height: 200,
+                                    width: 200,
+                                    child: CustomPaint(
+                                      painter: PieChartPainter(),
+                                      child: Container(),
+                                    ),
+                                  ),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'KES 24,550',
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Total',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Container(
+                              height: 220,
+                              child: SpendingBarChart(),
+                            ),
+                            
+                          const SizedBox(height: 20),
+                          
+                          // Expense Categories - Responsive grid/wrap
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              _buildCategoryLegend('Food', Colors.orange, '38%'),
+                              _buildCategoryLegend('Transport', Colors.blue, '25%'),
+                              _buildCategoryLegend('Shopping', Colors.green, '18%'),
+                              _buildCategoryLegend('Bills', Colors.red, '12%'),
+                              _buildCategoryLegend('Others', Colors.purple, '7%'),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -565,11 +621,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                         GestureDetector(
                           onTap: widget.onNavigateToSavings,
-                          child: Text(
-                            'See all',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: accentColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'See all',
+                              style: TextStyle(
+                                color: accentColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -579,8 +643,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     const SizedBox(height: 16),
                     
                     // Savings Goal Cards
-                    Container(
-                      height: 150,
+                    SizedBox(
+                      height: 170,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         physics: BouncingScrollPhysics(),
@@ -600,7 +664,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             icon: Icons.laptop_mac,
                             currentAmount: 25000,
                             targetAmount: 80000,
-                            color: Colors.green,
+                            color: accentColor,
                             progress: 0.31,
                           ),
                           _buildSavingsGoalCard(
@@ -639,11 +703,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                         GestureDetector(
                           onTap: widget.onNavigateToTransactions,
-                          child: Text(
-                            'See all',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: accentColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'See all',
+                              style: TextStyle(
+                                color: accentColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -652,84 +724,60 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     
                     const SizedBox(height: 16),
                     
-                    // Empty state for transactions
-                    Container(
-                      child: _isExpanded
-                          ? Column(
-                              children: [
-                                _buildTransactionItem(
-                                  context,
-                                  logo: 'assets/images/kfc.png',
-                                  name: 'KFC Restaurant',
-                                  date: '18/07/2025',
-                                  amount: -1250.0,
-                                  logoPlaceholder: Icons.fastfood,
-                                  logoColor: Colors.red,
-                                  category: 'Food',
-                                ),
-                                const SizedBox(height: 16),
-                                _buildTransactionItem(
-                                  context,
-                                  logo: 'assets/images/mpesa.png',
-                                  name: 'M-Pesa Transfer',
-                                  date: '18/07/2025',
-                                  amount: -500.0,
-                                  logoPlaceholder: Icons.swap_horiz,
-                                  logoColor: Colors.green,
-                                  category: 'Transfer',
-                                ),
-                                const SizedBox(height: 16),
-                                _buildTransactionItem(
-                                  context,
-                                  logo: 'assets/images/salary.png',
-                                  name: 'Salary',
-                                  date: '15/07/2025',
-                                  amount: 45000.0,
-                                  logoPlaceholder: Icons.work,
-                                  logoColor: Colors.blue,
-                                  category: 'Income',
-                                ),
-                                const SizedBox(height: 16),
-                                _buildTransactionItem(
-                                  context,
-                                  logo: 'assets/images/safaricom.png',
-                                  name: 'Safaricom',
-                                  date: '14/07/2025',
-                                  amount: -1000.0,
-                                  logoPlaceholder: Icons.phone_android,
-                                  logoColor: Colors.green,
-                                  category: 'Bills',
-                                ),
-                              ],
-                            )
-                          : Column(
-                              children: [
-                                _buildTransactionItem(
-                                  context,
-                                  logo: 'assets/images/kfc.png',
-                                  name: 'KFC Restaurant',
-                                  date: '18/07/2025',
-                                  amount: -1250.0,
-                                  logoPlaceholder: Icons.fastfood,
-                                  logoColor: Colors.red,
-                                  category: 'Food',
-                                ),
-                                const SizedBox(height: 16),
-                                _buildTransactionItem(
-                                  context,
-                                  logo: 'assets/images/mpesa.png',
-                                  name: 'M-Pesa Transfer',
-                                  date: '18/07/2025',
-                                  amount: -500.0,
-                                  logoPlaceholder: Icons.swap_horiz,
-                                  logoColor: Colors.green,
-                                  category: 'Transfer',
-                                ),
-                              ],
-                            ),
+                    // Transactions list
+                    Column(
+                      children: [
+                        _buildTransactionItem(
+                          context,
+                          logo: 'assets/images/kfc.png',
+                          name: 'KFC Restaurant',
+                          date: '18/07/2025',
+                          amount: -1250.0,
+                          logoPlaceholder: Icons.fastfood,
+                          logoColor: Colors.red,
+                          category: 'Food',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTransactionItem(
+                          context,
+                          logo: 'assets/images/mpesa.png',
+                          name: 'M-Pesa Transfer',
+                          date: '18/07/2025',
+                          amount: -500.0,
+                          logoPlaceholder: Icons.swap_horiz,
+                          logoColor: Colors.green,
+                          category: 'Transfer',
+                        ),
+                        
+                        // Show expanded transactions
+                        if (_isExpanded) ...[
+                          const SizedBox(height: 12),
+                          _buildTransactionItem(
+                            context,
+                            logo: 'assets/images/salary.png',
+                            name: 'Salary',
+                            date: '15/07/2025',
+                            amount: 45000.0,
+                            logoPlaceholder: Icons.work,
+                            logoColor: Colors.blue,
+                            category: 'Income',
+                          ),
+                          const SizedBox(height: 12),
+                          _buildTransactionItem(
+                            context,
+                            logo: 'assets/images/safaricom.png',
+                            name: 'Safaricom',
+                            date: '14/07/2025',
+                            amount: -1000.0,
+                            logoPlaceholder: Icons.phone_android,
+                            logoColor: Colors.green,
+                            category: 'Bills',
+                          ),
+                        ],
+                      ],
                     ),
                     
-                    // Show more button
+                    // Show more/less button
                     Center(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -773,7 +821,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               
               const SizedBox(height: 30),
               
-              // Budget Status
+              // Budget Status with better visualization
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
@@ -791,11 +839,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                         GestureDetector(
                           onTap: widget.onNavigateToBudget,
-                          child: Text(
-                            'See all',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: accentColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'See all',
+                              style: TextStyle(
+                                color: accentColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -804,97 +860,66 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     
                     const SizedBox(height: 16),
                     
-                    // Modern Budget Progress Cards
-                    _buildModernBudgetCard(
-                      context,
-                      category: 'Food & Dining',
-                      icon: Icons.restaurant,
-                      currentAmount: 3430,
-                      budgetAmount: 5000,
-                      iconColor: Colors.orange,
-                    ),
-                    
-                    const SizedBox(height: 12),
-                    
-                    _buildModernBudgetCard(
-                      context,
-                      category: 'Transportation',
-                      icon: Icons.directions_car,
-                      currentAmount: 2800,
-                      budgetAmount: 3000,
-                      iconColor: Colors.blue,
-                      isWarning: true,
-                    ),
-                    
-                    const SizedBox(height: 12),
-                    
-                    _buildModernBudgetCard(
-                      context,
-                      category: 'Entertainment',
-                      icon: Icons.movie,
-                      currentAmount: 1200,
-                      budgetAmount: 2000,
-                      iconColor: Colors.purple,
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 30),
-              
-              // Upcoming Bills
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Upcoming Bills',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Bills list
+                    // Budget visualization
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.05),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
                       child: Column(
                         children: [
-                          _buildUpcomingBill(
-                            context,
-                            icon: Icons.home,
-                            title: 'Rent',
-                            amount: 15000,
-                            dueDate: '25 Jul',
-                            daysLeft: 7,
-                            color: Colors.brown,
+                          // Budget overview chart
+                          SizedBox(
+                            height: 180,
+                            child: CustomPaint(
+                              painter: BudgetChartPainter(),
+                            ),
                           ),
-                          Divider(height: 24, color: Colors.grey.withOpacity(0.2)),
-                          _buildUpcomingBill(
+                          
+                          const SizedBox(height: 20),
+                          
+                          // Budget categories
+                          _buildModernBudgetItem(
                             context,
-                            icon: Icons.wifi,
-                            title: 'Internet',
-                            amount: 2500,
-                            dueDate: '30 Jul',
-                            daysLeft: 12,
-                            color: Colors.blue,
+                            category: 'Food & Dining',
+                            icon: Icons.restaurant,
+                            iconColor: Colors.orange,
+                            currentAmount: 3430,
+                            budgetAmount: 5000,
+                            progress: 3430 / 5000,
                           ),
-                          Divider(height: 24, color: Colors.grey.withOpacity(0.2)),
-                          _buildUpcomingBill(
+                          
+                          const SizedBox(height: 12),
+                          
+                          _buildModernBudgetItem(
                             context,
-                            icon: Icons.water_drop,
-                            title: 'Water Bill',
-                            amount: 1200,
-                            dueDate: '02 Aug',
-                            daysLeft: 15,
-                            color: Colors.cyan,
+                            category: 'Transportation',
+                            icon: Icons.directions_car,
+                            iconColor: Colors.blue,
+                            currentAmount: 2800,
+                            budgetAmount: 3000,
+                            progress: 2800 / 3000,
+                            isWarning: true,
+                          ),
+                          
+                          const SizedBox(height: 12),
+                          
+                          _buildModernBudgetItem(
+                            context,
+                            category: 'Entertainment',
+                            icon: Icons.movie,
+                            iconColor: Colors.purple,
+                            currentAmount: 1200,
+                            budgetAmount: 2000,
+                            progress: 1200 / 2000,
                           ),
                         ],
                       ),
@@ -902,28 +927,36 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ],
                 ),
               ),
-
+              
               const SizedBox(height: 30),
               
-              // AI Insights Card (Moved here as requested)
+              // AI Insights Card
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.indigo.shade800, Colors.purple.shade800],
+                      colors: [
+                        accentColor.withOpacity(0.9),
+                        accentColor.withOpacity(0.7),
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.indigo.withOpacity(0.3),
+                        color: accentColor.withOpacity(0.3),
                         blurRadius: 15,
                         offset: const Offset(0, 8),
                       ),
                     ],
+                    image: DecorationImage(
+                      image: AssetImage('assets/images/pattern.png'),
+                      fit: BoxFit.cover,
+                      opacity: 0.05,
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
@@ -948,8 +981,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             Text(
                               'AI Insights',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 16,
+                                color: Colors.white,
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -976,7 +1009,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                         const SizedBox(height: 20),
                         
-                        // AI Insight
+                        // AI Insight Card
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -997,7 +1030,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     child: Icon(
                                       Icons.lightbulb_outline,
                                       size: 16,
-                                      color: Colors.yellowAccent,
+                                      color: Colors.amber,
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -1005,7 +1038,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     child: Text(
                                       'Spending Alert',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
+                                        color: Colors.white,
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1028,13 +1061,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: accentColor,
+                                      color: Colors.white,
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
                                       'Set Budget',
                                       style: TextStyle(
-                                        color: Colors.black,
+                                        color: accentColor,
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1048,7 +1081,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         
                         const SizedBox(height: 16),
                         
-                        // Another AI Insight
+                        // Second AI Insight Card
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -1069,7 +1102,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     child: Icon(
                                       Icons.savings_outlined,
                                       size: 16,
-                                      color: accentColor,
+                                      color: Colors.white,
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -1077,7 +1110,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     child: Text(
                                       'Savings Opportunity',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
+                                        color: Colors.white,
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1100,13 +1133,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: accentColor,
+                                      color: Colors.white,
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
                                       'Start Challenge',
                                       style: TextStyle(
-                                        color: Colors.black,
+                                        color: accentColor,
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1134,7 +1167,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Row(
                       children: [
                         Text(
-                          'Financial Tips',
+                          'Smart Money Tips',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -1150,7 +1183,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           child: Text(
                             'AI',
                             style: TextStyle(
-                              color: Colors.black,
+                              color: Colors.white,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1161,8 +1194,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     
                     const SizedBox(height: 16),
                     
-                    Container(
-                      height: 150,
+                    // Financial tips carousel
+                    SizedBox(
+                      height: 170,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         physics: BouncingScrollPhysics(),
@@ -1172,21 +1206,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             title: 'Save 20% of your income',
                             icon: Icons.savings,
                             description: 'The 50/30/20 rule suggests saving 20% of your income for financial goals.',
-                            color: Colors.teal,
+                            color: accentColor,
                           ),
                           _buildFinancialTipCard(
                             context,
                             title: 'Track all expenses',
                             icon: Icons.track_changes,
                             description: 'People who track expenses save 15% more than those who don\'t.',
-                            color: Colors.deepPurple,
+                            color: Colors.purple,
                           ),
                           _buildFinancialTipCard(
                             context,
                             title: 'Build emergency fund',
                             icon: Icons.health_and_safety,
                             description: 'Aim for 3-6 months of expenses in your emergency fund.',
-                            color: Colors.red,
+                            color: Colors.blue,
                           ),
                         ],
                       ),
@@ -1195,7 +1229,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ),
               
-              const SizedBox(height: 40),
+              const SizedBox(height: 80), // Extra space for FAB
             ],
           ),
         ),
@@ -1203,7 +1237,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       floatingActionButton: widget.onAddTransaction != null ? FloatingActionButton(
         onPressed: widget.onAddTransaction,
         backgroundColor: accentColor,
-        child: Icon(Icons.add, color: Colors.black),
+        elevation: 4,
+        child: Icon(Icons.add, color: Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -1211,11 +1246,69 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
+  // Wallet stat item widget
+  Widget _buildWalletStatItem({
+    required IconData icon,
+    required Color iconColor,
+    required Color bgColor,
+    required Color iconBgColor,
+    required String title,
+    required String amount,
+    bool isFullWidth = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                amount,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Updated quick action widget with colored icons
   Widget _buildQuickAction(
     BuildContext context, {
-    required String icon,
-    required String label,
     required IconData iconData,
+    required Color iconColor,
+    required String label,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -1227,18 +1320,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
+                color: iconColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: Image.asset(
-                icon,
-                width: 22,
-                height: 22,
-                errorBuilder: (context, error, stackTrace) => Icon(
-                  iconData,
-                  size: 22,
-                  color: Colors.black87,
-                ),
+              child: Icon(
+                iconData,
+                size: 22,
+                color: iconColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -1247,6 +1342,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[800],
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -1255,6 +1351,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
+  // Updated transaction item with elevation
   Widget _buildTransactionItem(
     BuildContext context, {
     required String logo,
@@ -1272,7 +1369,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -1284,7 +1381,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.1),
+              color: logoColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: ClipRRect(
@@ -1311,6 +1408,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -1326,14 +1424,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: logoColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         category,
                         style: TextStyle(
                           fontSize: 10,
-                          color: Colors.grey[700],
+                          color: logoColor,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -1348,7 +1446,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: amount > 0 ? Colors.green : Colors.red,
+              color: amount > 0 ? Color(0xFF26D07C) : Colors.red,
             ),
           ),
         ],
@@ -1356,15 +1454,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
+  // Updated category legend with better contrast
   Widget _buildCategoryLegend(String title, Color color, String percentage) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-          color: Colors.grey.withOpacity(0.1),
-        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1375,6 +1471,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 8),
@@ -1392,7 +1495,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[900],
+              color: color,
             ),
           ),
         ],
@@ -1400,6 +1503,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
+  // Updated savings goal card with better shadow
   Widget _buildSavingsGoalCard(
     BuildContext context, {
     required String title,
@@ -1410,7 +1514,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     required double progress,
   }) {
     return Container(
-      width: 200,
+      width: MediaQuery.of(context).size.width * 0.7 > 250 ? 250 : MediaQuery.of(context).size.width * 0.7,
       margin: const EdgeInsets.only(right: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1418,7 +1522,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -1497,6 +1601,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           end: Alignment.centerRight,
                         ),
                         borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -1510,7 +1621,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             '${(progress * 100).toStringAsFixed(0)}% completed',
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey[600],
+              color: color,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -1518,18 +1630,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
-  // New modern budget card with radial progress indicator
-  Widget _buildModernBudgetCard(
+  // Improved modern budget item
+  Widget _buildModernBudgetItem(
     BuildContext context, {
     required String category,
     required IconData icon,
+    required Color iconColor,
     required double currentAmount,
     required double budgetAmount,
-    required Color iconColor,
+    required double progress,
     bool isWarning = false,
   }) {
-    final progress = currentAmount / budgetAmount;
-    Color progressColor = Colors.green;
+    Color progressColor = Color(0xFF26D07C); // Default green
     
     if (progress > 0.9) {
       progressColor = Colors.red;
@@ -1537,202 +1649,135 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       progressColor = Colors.orange;
     }
     
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Left side - Category info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: iconColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        icon,
-                        size: 18,
-                        color: iconColor,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        category,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isWarning)
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.priority_high_rounded,
-                          size: 14,
-                          color: Colors.red,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'KES ${currentAmount.toStringAsFixed(0)}',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'of KES ${budgetAmount.toStringAsFixed(0)} budget',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'KES ${(budgetAmount - currentAmount).toStringAsFixed(0)} left',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: progressColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(width: 20),
-          
-          // Right side - Radial progress
-          Container(
-            width: 75,
-            height: 75,
-            child: CustomPaint(
-              painter: RadialProgressPainter(
-                progress: progress,
-                progressColor: progressColor,
-                backgroundColor: Colors.grey.withOpacity(0.1),
-              ),
-              child: Center(
-                child: Text(
-                  '${(progress * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: progressColor,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildUpcomingBill(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required double amount,
-    required String dueDate,
-    required int daysLeft,
-    required Color color,
-  }) {
     return Row(
       children: [
+        // Category icon
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: iconColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
             icon,
             size: 20,
-            color: color,
+            color: iconColor,
           ),
         ),
-        const SizedBox(width: 16),
+        
+        const SizedBox(width: 12),
+        
+        // Category info
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      category,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isWarning)
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.priority_high,
+                        size: 12,
+                        color: Colors.red,
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Due $dueDate',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+              
+              const SizedBox(height: 6),
+              
+              // Progress text
+              Row(
+                children: [
+                  Text(
+                    'KES ${currentAmount.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: progressColor,
+                    ),
+                  ),
+                  Text(
+                    ' / ${budgetAmount.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${(progress * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: progressColor,
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 6),
+              
+              // Progress bar
+              Container(
+                height: 6,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Row(
+                      children: [
+                        Container(
+                          height: 6,
+                          width: constraints.maxWidth * (progress > 1 ? 1 : progress),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [progressColor.withOpacity(0.7), progressColor],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(3),
+                            boxShadow: [
+                              BoxShadow(
+                                color: progressColor.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
           ),
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              'KES ${amount.toStringAsFixed(0)}',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: daysLeft <= 3 ? Colors.red.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$daysLeft days left',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: daysLeft <= 3 ? Colors.red : Colors.grey[700],
-                ),
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }
   
+  // Improved financial tip card
   Widget _buildFinancialTipCard(
     BuildContext context, {
     required String title,
@@ -1741,14 +1786,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     required Color color,
   }) {
     return Container(
-      width: 250,
+      width: MediaQuery.of(context).size.width * 0.7 > 260 ? 260 : MediaQuery.of(context).size.width * 0.7,
       margin: const EdgeInsets.only(right: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -1760,7 +1812,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -1776,23 +1828,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: color.withOpacity(0.8),
+                    color: color,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Text(
-            description,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[800],
+          Expanded(
+            child: Text(
+              description,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[800],
+                height: 1.4,
+              ),
             ),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
           ),
-          const Spacer(),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -1817,9 +1870,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
+  // Add Money Bottom Sheet
   void _showAddMoneyBottomSheet(BuildContext context) {
-    final theme = Theme.of(context);
-    final accentColor = Color(0xFF9AE62E);
+    final accentColor = Color(0xFF26D07C);
     
     showModalBottomSheet(
       context: context,
@@ -1833,6 +1886,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 10,
+              offset: Offset(0, -5),
+            ),
+          ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -1879,11 +1939,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: theme.scaffoldBackgroundColor,
+                  color: Colors.grey.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.grey.withOpacity(0.2),
+                    color: accentColor.withOpacity(0.3),
+                    width: 1,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1944,10 +2012,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildQuickAmountButton('500'),
-                  _buildQuickAmountButton('1,000', isSelected: true),
-                  _buildQuickAmountButton('2,000'),
-                  _buildQuickAmountButton('5,000'),
+                  _buildQuickAmountButton('500', accentColor),
+                  _buildQuickAmountButton('1,000', accentColor, isSelected: true),
+                  _buildQuickAmountButton('2,000', accentColor),
+                  _buildQuickAmountButton('5,000', accentColor),
                 ],
               ),
               
@@ -1965,29 +2033,32 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               
               // Payment Methods
               _buildPaymentMethodItem(
-                icon: 'assets/icons/mpesa.png',
                 iconData: Icons.phone_android,
+                iconColor: Colors.green,
                 title: 'M-Pesa',
                 subtitle: 'Connected: +254 7XX XXX XXX',
+                accentColor: accentColor,
                 isSelected: true,
               ),
               
               const SizedBox(height: 12),
               
               _buildPaymentMethodItem(
-                icon: 'assets/icons/card.png',
                 iconData: Icons.credit_card,
+                iconColor: Colors.blue,
                 title: 'Credit/Debit Card',
                 subtitle: 'Visa, Mastercard, etc.',
+                accentColor: accentColor,
               ),
               
               const SizedBox(height: 12),
               
               _buildPaymentMethodItem(
-                icon: 'assets/icons/bank.png',
                 iconData: Icons.account_balance,
+                iconColor: Colors.purple,
                 title: 'Bank Transfer',
                 subtitle: 'Direct bank deposit',
+                accentColor: accentColor,
               ),
               
               const Spacer(),
@@ -2001,12 +2072,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accentColor,
-                    foregroundColor: Colors.black,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    elevation: 0,
+                    elevation: 2,
                   ),
                   child: Text(
                     'Continue',
@@ -2024,65 +2095,70 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
-  Widget _buildQuickAmountButton(String amount, {bool isSelected = false}) {
+  // Quick amount button
+  Widget _buildQuickAmountButton(String amount, Color accentColor, {bool isSelected = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: isSelected ? Color(0xFF9AE62E) : Colors.grey.withOpacity(0.1),
+        color: isSelected ? accentColor : Colors.grey.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
+        boxShadow: isSelected ? [
+          BoxShadow(
+            color: accentColor.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ] : null,
       ),
       child: Text(
         amount,
         style: TextStyle(
           fontSize: 14,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          color: isSelected ? Colors.black : Colors.grey[800],
+          color: isSelected ? Colors.white : Colors.grey[800],
         ),
       ),
     );
   }
   
+  // Payment method item
   Widget _buildPaymentMethodItem({
-    required String icon,
     required IconData iconData,
+    required Color iconColor,
     required String title,
     required String subtitle,
+    required Color accentColor,
     bool isSelected = false,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSelected ? Color(0xFF9AE62E) : Colors.transparent,
-          width: 2,
+          color: isSelected ? accentColor : Colors.grey.withOpacity(0.1),
+          width: isSelected ? 2 : 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: iconColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
-            child: Image.asset(
-              icon,
-              width: 24,
-              height: 24,
-              errorBuilder: (context, error, stackTrace) => Icon(
-                iconData,
-                color: Colors.black87,
-                size: 24,
-              ),
+            child: Icon(
+              iconData,
+              color: iconColor,
+              size: 24,
             ),
           ),
           const SizedBox(width: 16),
@@ -2113,7 +2189,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             height: 24,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isSelected ? Color(0xFF9AE62E) : Colors.grey.withOpacity(0.1),
+              color: isSelected ? accentColor : Colors.grey.withOpacity(0.1),
               border: Border.all(
                 color: isSelected ? Colors.transparent : Colors.grey.withOpacity(0.3),
                 width: 1,
@@ -2123,7 +2199,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ? Icon(
                     Icons.check,
                     size: 16,
-                    color: Colors.black87,
+                    color: Colors.white,
                   )
                 : null,
           ),
@@ -2133,7 +2209,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 }
 
-// Custom Pie Chart Painter
+// Pie Chart Painter with improved shadow effects
 class PieChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -2151,12 +2227,37 @@ class PieChartPainter extends CustomPainter {
     
     double startAngle = 0;
     
+    // Draw shadows first
+    for (var category in categories) {
+      final sweepAngle = 2 * math.pi * (category['percent'] as double);
+      final shadowPaint = Paint()
+        ..color = (category['color'] as Color).withOpacity(0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 28
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
+      
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius - 14),
+        startAngle,
+        sweepAngle,
+        false,
+        shadowPaint,
+      );
+      
+      startAngle += sweepAngle;
+    }
+    
+    // Reset angle for actual segments
+    startAngle = 0;
+    
+    // Draw segments
     for (var category in categories) {
       final sweepAngle = 2 * math.pi * (category['percent'] as double);
       final paint = Paint()
         ..color = category['color'] as Color
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 24;
+        ..strokeWidth = 24
+        ..strokeCap = StrokeCap.round;
       
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius - 12),
@@ -2168,6 +2269,13 @@ class PieChartPainter extends CustomPainter {
       
       startAngle += sweepAngle;
     }
+    
+    // Inner circle with shadow
+    final innerShadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.1)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
+    
+    canvas.drawCircle(center, radius - 30, innerShadowPaint);
     
     // Inner circle
     final innerCirclePaint = Paint()
@@ -2183,55 +2291,140 @@ class PieChartPainter extends CustomPainter {
   }
 }
 
-// Radial Progress Painter for modern budget card
-class RadialProgressPainter extends CustomPainter {
-  final double progress;
-  final Color progressColor;
-  final Color backgroundColor;
-  
-  RadialProgressPainter({
-    required this.progress,
-    required this.progressColor,
-    required this.backgroundColor,
-  });
-  
+// Budget Chart Painter - Doughnut chart with multiple categories
+class BudgetChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
+    final radius = math.min(size.width, size.height) / 2 - 20;
     
-    // Background circle
-    final backgroundPaint = Paint()
-      ..color = backgroundColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round;
+    // Budget categories with colors, labels, and percentages
+    final categories = [
+      {'color': Colors.orange, 'label': 'Food', 'spent': 0.68, 'total': 0.35},
+      {'color': Colors.blue, 'label': 'Transport', 'spent': 0.93, 'total': 0.25},
+      {'color': Colors.purple, 'label': 'Entertainment', 'spent': 0.6, 'total': 0.15},
+      {'color': Colors.teal, 'label': 'Shopping', 'spent': 0.4, 'total': 0.10},
+      {'color': Colors.red, 'label': 'Bills', 'spent': 0.75, 'total': 0.15},
+    ];
     
-    canvas.drawCircle(center, radius - 4, backgroundPaint);
+    double startAngle = -math.pi / 2; // Start from top
     
-    // Progress arc
-    final progressPaint = Paint()
-      ..color = progressColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round;
+    // Draw total budget segments (background)
+    for (var category in categories) {
+      final sweepAngle = 2 * math.pi * (category['total'] as double);
+      final bgPaint = Paint()
+        ..color = (category['color'] as Color).withOpacity(0.15)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 25
+        ..strokeCap = StrokeCap.butt;
+      
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        false,
+        bgPaint,
+      );
+      
+      // Draw spent amount on top
+      final spentAngle = sweepAngle * (category['spent'] as double);
+      final spentPaint = Paint()
+        ..color = category['color'] as Color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 25
+        ..strokeCap = StrokeCap.butt;
+      
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        spentAngle,
+        false,
+        spentPaint,
+      );
+      
+      // Draw label
+      final labelAngle = startAngle + (sweepAngle / 2);
+      final labelRadius = radius + 30;
+      final labelPosition = Offset(
+        center.dx + labelRadius * math.cos(labelAngle),
+        center.dy + labelRadius * math.sin(labelAngle),
+      );
+      
+      // Draw label dot
+      final dotPaint = Paint()
+        ..color = category['color'] as Color
+        ..style = PaintingStyle.fill;
+      
+      canvas.drawCircle(
+        Offset(
+          center.dx + (radius + 10) * math.cos(labelAngle),
+          center.dy + (radius + 10) * math.sin(labelAngle),
+        ),
+        4,
+        dotPaint,
+      );
+      
+      startAngle += sweepAngle;
+    }
     
-    final rect = Rect.fromCircle(center: center, radius: radius - 4);
-    const startAngle = -math.pi / 2; // Start from top
-    final sweepAngle = 2 * math.pi * progress;
+    // Center text
+    final totalSpentPaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.fill;
     
-    canvas.drawArc(rect, startAngle, sweepAngle, false, progressPaint);
+    final textSpan = TextSpan(
+      text: '75%',
+      style: TextStyle(
+        color: Color(0xFF26D07C),
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: ui.TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(center.dx - textPainter.width / 2, center.dy - textPainter.height / 2),
+    );
+    
+    // "Used" text below
+    final subTextSpan = TextSpan(
+      text: 'Used',
+      style: TextStyle(
+        color: Colors.grey[600],
+        fontSize: 14,
+      ),
+    );
+    
+    final subTextPainter = TextPainter(
+      text: subTextSpan,
+      textDirection: ui.TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    
+    subTextPainter.layout();
+    subTextPainter.paint(
+      canvas,
+      Offset(
+        center.dx - subTextPainter.width / 2,
+        center.dy + textPainter.height / 2,
+      ),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant RadialProgressPainter oldDelegate) {
-    return oldDelegate.progress != progress || 
-           oldDelegate.progressColor != progressColor || 
-           oldDelegate.backgroundColor != backgroundColor;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
   }
 }
 
-// Bar Chart for Spending
+// Enhanced Bar Chart for Spending
 class SpendingBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -2245,35 +2438,64 @@ class SpendingBarChart extends StatelessWidget {
 class BarChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final barWidth = 30.0;
+    final barWidth = 40.0;
     final spacing = (size.width - (7 * barWidth)) / 8;
-    final maxBarHeight = size.height - 40;
+    final maxBarHeight = size.height - 60;
+    final accentColor = Color(0xFF26D07C);
+    
+    // Draw horizontal gridlines
+    final gridPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    
+    for (int i = 1; i <= 4; i++) {
+      final y = size.height - 40 - (maxBarHeight / 4 * i);
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        gridPaint,
+      );
+    }
     
     // Days and heights
     final List<Map<String, dynamic>> data = [
-      {'label': 'Mon', 'height': 0.6, 'color': Colors.grey[400]},
-      {'label': 'Tue', 'height': 0.8, 'color': Colors.grey[400]},
-      {'label': 'Wed', 'height': 0.4, 'color': Colors.grey[400]},
-      {'label': 'Thu', 'height': 0.9, 'color': Colors.grey[400]},
-      {'label': 'Fri', 'height': 0.7, 'color': Color(0xFF9AE62E)},
-      {'label': 'Sat', 'height': 0.5, 'color': Colors.grey[400]},
-      {'label': 'Sun', 'height': 0.3, 'color': Colors.grey[400]},
+      {'label': 'Mon', 'height': 0.6, 'color': Colors.grey[300]},
+      {'label': 'Tue', 'height': 0.8, 'color': Colors.grey[300]},
+      {'label': 'Wed', 'height': 0.4, 'color': Colors.grey[300]},
+      {'label': 'Thu', 'height': 0.9, 'color': Colors.grey[300]},
+      {'label': 'Fri', 'height': 0.7, 'color': accentColor},
+      {'label': 'Sat', 'height': 0.5, 'color': Colors.grey[300]},
+      {'label': 'Sun', 'height': 0.3, 'color': Colors.grey[300]},
     ];
     
-    // Draw bars
+    // Draw bars with shadows
     for (int i = 0; i < data.length; i++) {
       final item = data[i];
       final barHeight = maxBarHeight * (item['height'] as double);
       final left = spacing + i * (barWidth + spacing);
-      final top = size.height - 30 - barHeight;
+      final top = size.height - 40 - barHeight;
       final right = left + barWidth;
-      final bottom = size.height - 30;
+      final bottom = size.height - 40;
       
-      final paint = Paint()
-        ..color = item['color'] as Color
-        ..style = PaintingStyle.fill;
+      // Draw shadow
+      final shadowPaint = Paint()
+        ..color = (item['color'] as Color?)?.withOpacity(0.3) ?? Colors.grey.withOpacity(0.3)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3);
+      
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(left, top + 3, right, bottom + 3),
+          Radius.circular(8),
+        ),
+        shadowPaint,
+      );
       
       // Draw bar
+      final paint = Paint()
+        ..color = item['color'] as Color? ?? Colors.grey
+        ..style = PaintingStyle.fill;
+      
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTRB(left, top, right, bottom),
@@ -2288,19 +2510,43 @@ class BarChartPainter extends CustomPainter {
         style: TextStyle(
           color: Colors.grey[600],
           fontSize: 12,
+          fontWeight: FontWeight.w500,
         ),
       );
       
-     final textPainter = TextPainter(
-  text: textSpan,
-  textDirection: ui.TextDirection.ltr,
-);
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: ui.TextDirection.ltr,
+      );
       
       textPainter.layout();
       textPainter.paint(
         canvas,
-        Offset(left + (barWidth - textPainter.width) / 2, bottom + 5),
+        Offset(left + (barWidth - textPainter.width) / 2, bottom + 10),
       );
+      
+      // Draw amount for current day (Friday)
+      if (item['label'] == 'Fri') {
+        final amountSpan = TextSpan(
+          text: 'KES 2,500',
+          style: TextStyle(
+            color: accentColor,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+        
+        final amountPainter = TextPainter(
+          text: amountSpan,
+          textDirection: ui.TextDirection.ltr,
+        );
+        
+        amountPainter.layout();
+        amountPainter.paint(
+          canvas,
+          Offset(left + (barWidth - amountPainter.width) / 2, top - 20),
+        );
+      }
     }
   }
 

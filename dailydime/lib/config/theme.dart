@@ -40,7 +40,7 @@ class AppTheme {
         surface: surfaceLight,
         onSurface: textDark,
       ),
-      fontFamily: 'Poppins',
+      fontFamily: 'Outfit',
       appBarTheme: const AppBarTheme(
         backgroundColor: surfaceLight,
         foregroundColor: textDark,

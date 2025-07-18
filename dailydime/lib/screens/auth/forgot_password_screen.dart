@@ -170,7 +170,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
-                            fontFamily: 'Poppins',
+                            fontFamily: 'Outfit',
                             color: Colors.white,
                           ),
                         ),
@@ -179,7 +179,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                           'We\'ll help you reset it',
                           style: TextStyle(
                             fontSize: 16,
-                            fontFamily: 'Poppins',
+                            fontFamily: 'Outfit',
                             color: Colors.white.withOpacity(0.9),
                           ),
                         ),
@@ -269,7 +269,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
+              fontFamily: 'Outfit',
               color: theme.colorScheme.onBackground,
             ),
           ),
@@ -278,7 +278,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
             'Enter your email address and we\'ll send you a link to reset your password.',
             style: TextStyle(
               fontSize: 16,
-              fontFamily: 'Poppins',
+              fontFamily: 'Outfit',
               color: Colors.grey.shade600,
             ),
           ),
@@ -293,7 +293,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
-                  fontFamily: 'Poppins',
+                  fontFamily: 'Outfit',
                   color: Colors.grey.shade800,
                 ),
               ),
@@ -318,14 +318,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    fontFamily: 'Poppins',
+                    fontFamily: 'Outfit',
                   ),
                   decoration: InputDecoration(
                     hintText: 'Enter your email address',
                     hintStyle: TextStyle(
                       color: Colors.grey.shade400,
                       fontSize: 15,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Outfit',
                     ),
                     prefixIcon: Icon(
                       Icons.email_outlined,
@@ -370,7 +370,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Outfit',
                       ),
                     ),
             ),
@@ -387,7 +387,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                   'Remember your password?',
                   style: TextStyle(
                     color: Colors.grey.shade600,
-                    fontFamily: 'Poppins',
+                    fontFamily: 'Outfit',
                   ),
                 ),
                 TextButton(
@@ -399,7 +399,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                     style: TextStyle(
                       color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w600,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Outfit',
                     ),
                   ),
                 ),
@@ -437,7 +437,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
+              fontFamily: 'Outfit',
               color: theme.colorScheme.onBackground,
             ),
             textAlign: TextAlign.center,
@@ -449,7 +449,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
               'We\'ve sent a password reset link to:',
               style: TextStyle(
                 fontSize: 16,
-                fontFamily: 'Poppins',
+                fontFamily: 'Outfit',
                 color: Colors.grey.shade600,
               ),
               textAlign: TextAlign.center,
@@ -461,7 +461,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
+              fontFamily: 'Outfit',
               color: theme.colorScheme.primary,
             ),
             textAlign: TextAlign.center,
@@ -473,7 +473,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
               'Please check your inbox and follow the instructions to reset your password.',
               style: TextStyle(
                 fontSize: 16,
-                fontFamily: 'Poppins',
+                fontFamily: 'Outfit',
                 color: Colors.grey.shade600,
               ),
               textAlign: TextAlign.center,
@@ -505,7 +505,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Poppins',
+                  fontFamily: 'Outfit',
                 ),
               ),
             ),
@@ -526,7 +526,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
-                fontFamily: 'Poppins',
+                fontFamily: 'Outfit',
               ),
             ),
           ),
@@ -541,7 +541,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                 'Didn\'t receive the email?',
                 style: TextStyle(
                   color: Colors.grey.shade600,
-                  fontFamily: 'Poppins',
+                  fontFamily: 'Outfit',
                 ),
               ),
               TextButton(
@@ -555,7 +555,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                   style: TextStyle(
                     color: theme.colorScheme.primary,
                     fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
+                    fontFamily: 'Outfit',
                   ),
                 ),
               ),

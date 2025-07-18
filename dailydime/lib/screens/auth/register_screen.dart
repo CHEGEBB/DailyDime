@@ -273,7 +273,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                           style: const TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            fontFamily: 'Poppins',
+                            fontFamily: 'Outfit',
                             color: Colors.white,
                           ),
                         ),
@@ -282,7 +282,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                           'Step ${_currentStep + 1} of 3',
                           style: TextStyle(
                             fontSize: 16,
-                            fontFamily: 'Poppins',
+                            fontFamily: 'Outfit',
                             color: Colors.white.withOpacity(0.8),
                           ),
                         ),
@@ -398,7 +398,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          fontFamily: 'Poppins',
+                          fontFamily: 'Outfit',
                           color: theme.colorScheme.onBackground,
                         ),
                       ),
@@ -407,7 +407,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                         'Hello user, you have a greatful journey',
                         style: TextStyle(
                           fontSize: 16,
-                          fontFamily: 'Poppins',
+                          fontFamily: 'Outfit',
                           color: theme.colorScheme.onBackground.withOpacity(0.7),
                         ),
                       ),
@@ -533,7 +533,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
+                    fontFamily: 'Outfit',
                   ),
                 ),
               ),
@@ -558,7 +558,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       'Or register with',
                       style: TextStyle(
                         fontSize: 14,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Outfit',
                         color: Colors.grey.shade600,
                       ),
                     ),
@@ -620,7 +620,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                     'Already have an account?',
                     style: TextStyle(
                       color: Colors.grey.shade600,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Outfit',
                     ),
                   ),
                   TextButton(
@@ -632,7 +632,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       style: TextStyle(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Outfit',
                       ),
                     ),
                   ),
@@ -659,7 +659,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                fontFamily: 'Poppins',
+                fontFamily: 'Outfit',
                 color: theme.colorScheme.onBackground,
               ),
             ),
@@ -668,7 +668,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
               'Please fill in your details',
               style: TextStyle(
                 fontSize: 16,
-                fontFamily: 'Poppins',
+                fontFamily: 'Outfit',
                 color: theme.colorScheme.onBackground.withOpacity(0.7),
               ),
             ),
@@ -735,7 +735,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       text: 'I agree to the ',
                       style: TextStyle(
                         fontSize: 14,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Outfit',
                         color: Colors.grey.shade600,
                       ),
                       children: [
@@ -784,7 +784,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
+                    fontFamily: 'Outfit',
                   ),
                 ),
               ),
@@ -823,7 +823,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
+              fontFamily: 'Outfit',
               color: theme.colorScheme.onBackground,
             ),
             textAlign: TextAlign.center,
@@ -835,7 +835,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
               'We\'ve sent a 4-digit verification code to your email ${_emailController.text}',
               style: TextStyle(
                 fontSize: 16,
-                fontFamily: 'Poppins',
+                fontFamily: 'Outfit',
                 color: theme.colorScheme.onBackground.withOpacity(0.7),
               ),
               textAlign: TextAlign.center,
@@ -875,7 +875,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
+                    fontFamily: 'Outfit',
                   ),
                   decoration: const InputDecoration(
                     counterText: '',
@@ -922,7 +922,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Outfit',
                       ),
                     ),
             ),
@@ -942,7 +942,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
               'Skip verification for now',
               style: TextStyle(
                 fontSize: 16,
-                fontFamily: 'Poppins',
+                fontFamily: 'Outfit',
                 color: Colors.grey.shade600,
               ),
             ),
@@ -958,7 +958,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 'Didn\'t receive the code? ',
                 style: TextStyle(
                   color: Colors.grey.shade600,
-                  fontFamily: 'Poppins',
+                  fontFamily: 'Outfit',
                 ),
               ),
               TextButton(
@@ -975,7 +975,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                   style: TextStyle(
                     color: theme.colorScheme.primary,
                     fontWeight: FontWeight.w600,
-                    fontFamily: 'Poppins',
+                    fontFamily: 'Outfit',
                   ),
                 ),
               ),
@@ -1004,7 +1004,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
-            fontFamily: 'Poppins',
+            fontFamily: 'Outfit',
             color: Colors.grey.shade800,
           ),
         ),
@@ -1030,14 +1030,14 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
-              fontFamily: 'Poppins',
+              fontFamily: 'Outfit',
             ),
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(
                 color: Colors.grey.shade400,
                 fontSize: 15,
-                fontFamily: 'Poppins',
+                fontFamily: 'Outfit',
               ),
               prefixIcon: Icon(
                 prefixIcon,
@@ -1067,7 +1067,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
           text,
           style: TextStyle(
             fontSize: 14,
-            fontFamily: 'Poppins',
+            fontFamily: 'Outfit',
             color: isMet 
                 ? Colors.grey.shade800 
                 : Colors.grey.shade600,
