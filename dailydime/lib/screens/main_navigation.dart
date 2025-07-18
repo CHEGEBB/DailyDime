@@ -99,94 +99,152 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
         child: ClipRRect(
           borderRadius: BorderRadius.circular(isSmallScreen ? 20 : 24),
           child: Container(
-            height: isSmallScreen ? 65 : 70,
+            height: isSmallScreen ? 75 : 80,
             child: Row(
               children: [
                 _buildNavItem(
-                  icon: Icons.home_rounded,
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home,
                   label: 'Home',
                   index: 0,
                   isSelected: _currentIndex == 0,
                 ),
                 _buildNavItem(
-                  icon: Icons.receipt_long_rounded,
-                  label: 'Activity',
+                  icon: Icons.receipt_long_outlined,
+                  selectedIcon: Icons.receipt_long,
+                  label: 'Transactions',
                   index: 1,
                   isSelected: _currentIndex == 1,
                 ),
-                // Center space for FAB
+                // Center space for FAB with Budget label
                 Expanded(
-                  child: Container(
-                    height: double.infinity,
-                    child: Center(
+                  flex: 1,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _navigateToTab(2),
                       child: Container(
-                        width: isSmallScreen ? 48 : 56,
-                        height: isSmallScreen ? 48 : 56,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFF10B981), // Emerald-500
-                              const Color(0xFF059669), // Emerald-600
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(isSmallScreen ? 24 : 28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF10B981).withOpacity(0.25),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                        height: double.infinity,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: isSmallScreen ? 50 : 58,
+                              height: isSmallScreen ? 50 : 58,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    const Color(0xFF10B981), // Emerald-500
+                                    const Color(0xFF059669), // Emerald-600
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(isSmallScreen ? 25 : 29),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF10B981).withOpacity(0.25),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.account_balance_wallet_rounded,
+                                color: Colors.white,
+                                size: isSmallScreen ? 24 : 28,
+                              ),
+                            ),
+                            SizedBox(height: isSmallScreen ? 3 : 4),
+                            Flexible(
+                              child: Text(
+                                'Budget',
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 10 : 11,
+                                  fontWeight: _currentIndex == 2 ? FontWeight.w600 : FontWeight.w500,
+                                  color: _currentIndex == 2 
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFF6B7280),
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(isSmallScreen ? 24 : 28),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const AddTransactionScreen(),
-                                ),
-                              );
-                            },
-                            child: Icon(
-                              Icons.add_rounded,
-                              color: Colors.white,
-                              size: isSmallScreen ? 22 : 26,
-                            ),
-                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
                 _buildNavItem(
-                  icon: Icons.bar_chart_rounded,
+                  icon: Icons.account_balance_outlined,
+                  selectedIcon: Icons.account_balance,
+                  label: 'Savings',
+                  index: 3,
+                  isSelected: _currentIndex == 3,
+                ),
+                _buildNavItem(
+                  icon: Icons.trending_up_rounded,
+                  selectedIcon: Icons.trending_up_rounded,
                   label: 'Analytics',
                   index: 4,
                   isSelected: _currentIndex == 4,
-                ),
-                _buildNavItem(
-                  icon: Icons.person_rounded,
-                  label: 'Profile',
-                  index: 5,
-                  isSelected: false,
-                  onTap: _navigateToProfile,
                 ),
               ],
             ),
           ),
         ),
       ),
-      floatingActionButton: null, // Remove external FAB since we have integrated one
+      floatingActionButton: _currentIndex == 1 ? Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF10B981), // Emerald-500
+              const Color(0xFF059669), // Emerald-600
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF10B981).withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(28),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AddTransactionScreen(),
+                ),
+              );
+            },
+            child: const Icon(
+              Icons.add_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+        ),
+      ) : null,
     );
   }
 
   Widget _buildNavItem({
     required IconData icon,
+    IconData? selectedIcon,
     required String label,
     required int index,
     required bool isSelected,
@@ -211,7 +269,7 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+                      padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
                       decoration: BoxDecoration(
                         color: isSelected 
                             ? const Color(0xFF10B981).withOpacity(0.12)
@@ -219,14 +277,14 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
-                        icon,
+                        isSelected ? (selectedIcon ?? icon) : icon,
                         size: isSmallScreen ? 20 : 22,
                         color: isSelected 
                             ? const Color(0xFF10B981)
                             : const Color(0xFF6B7280),
                       ),
                     ),
-                    SizedBox(height: isSmallScreen ? 2 : 3),
+                    SizedBox(height: isSmallScreen ? 3 : 4),
                     Flexible(
                       child: Text(
                         label,
