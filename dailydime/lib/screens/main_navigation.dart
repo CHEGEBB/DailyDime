@@ -1,6 +1,6 @@
-
-import 'package:dailydime/screens/transactions/add_transaction_screen.dart';
+// lib/main_navigation.dart
 import 'package:flutter/material.dart';
+import 'package:dailydime/screens/transactions/add_transaction_screen.dart';
 import 'package:dailydime/screens/home_screen.dart';
 import 'package:dailydime/screens/transactions/transactions_screen.dart';
 import 'package:dailydime/screens/budget/budget_screen.dart';
@@ -59,49 +59,113 @@ class _MainNavigationState extends State<MainNavigation> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+              color: Colors.black.withOpacity(0.07),
+              blurRadius: 15,
+              offset: const Offset(0, -3),
             ),
           ],
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          selectedItemColor: theme.colorScheme.primary,
-          unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
-          backgroundColor: Colors.white,
-          type: BottomNavigationBarType.fixed,
-          showUnselectedLabels: true,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home),
-              label: 'Home',
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            selectedItemColor: theme.colorScheme.primary,
+            unselectedItemColor: Colors.grey,
+            backgroundColor: Colors.white,
+            type: BottomNavigationBarType.fixed,
+            showUnselectedLabels: true,
+            elevation: 0,
+            selectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.swap_horiz),
-              label: 'Transactions',
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 11,
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.pie_chart),
-              label: 'Budget',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.savings),
-              label: 'Savings',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.smart_toy),
-              label: 'AI Coach',
-            ),
-          ],
+            items: [
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _currentIndex == 0 
+                        ? theme.colorScheme.primary.withOpacity(0.1) 
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.home_rounded),
+                ),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _currentIndex == 1 
+                        ? theme.colorScheme.primary.withOpacity(0.1) 
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.sync_alt_rounded),
+                ),
+                label: 'Transactions',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _currentIndex == 2 
+                        ? theme.colorScheme.primary.withOpacity(0.1) 
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.pie_chart_rounded),
+                ),
+                label: 'Budget',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _currentIndex == 3 
+                        ? theme.colorScheme.primary.withOpacity(0.1) 
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.savings_rounded),
+                ),
+                label: 'Savings',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _currentIndex == 4 
+                        ? theme.colorScheme.primary.withOpacity(0.1) 
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.smart_toy_rounded),
+                ),
+                label: 'AI Coach',
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: _currentIndex == 1 ? FloatingActionButton(
@@ -114,6 +178,10 @@ class _MainNavigationState extends State<MainNavigation> {
           );
         },
         backgroundColor: theme.colorScheme.primary,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: const Icon(Icons.add, color: Colors.white),
       ) : null,
     );

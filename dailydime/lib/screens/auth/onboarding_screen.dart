@@ -423,7 +423,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             Positioned(
               top: 30,
               left: 50,
-              child: _buildImageCard(
+              child: _buildImageCard
+              (
                 'images/onboard6.png',
                 220,
                 160,
@@ -450,7 +451,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               bottom: 20,
               left: 10,
               child: _buildImageCard(
-                'assets/images/onboard8.png',
+                'images/onboard8.png',
                 100,
                 100,
                 item.primaryColor.withOpacity(0.8),

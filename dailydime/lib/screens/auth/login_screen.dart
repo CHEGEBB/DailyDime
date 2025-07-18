@@ -1,3 +1,4 @@
+import 'package:dailydime/screens/main_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -98,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     if (authenticated) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
       );
     }
   }
@@ -112,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       _isLoading = false;
     });
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (context) => const MainNavigation()),
     );
   }
 
@@ -125,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       _isLoading = false;
     });
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (context) => const MainNavigation()),
     );
   }
 
@@ -138,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       _isLoading = false;
     });
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (context) => const MainNavigation()),
     );
   }
 
@@ -182,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         });
         
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const MainNavigation()),
         );
       });
     }
