@@ -5,7 +5,6 @@ import 'package:dailydime/screens/transactions/add_transaction_screen.dart';
 import 'package:dailydime/widgets/cards/transaction_card.dart';
 import 'package:dailydime/widgets/common/custom_button.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({Key? key}) : super(key: key);
@@ -45,7 +44,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         backgroundColor: Colors.white,
         title: Text(
           'Transactions',
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 20,
             color: Colors.black87,
@@ -117,7 +116,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                       children: [
                         Text(
                           'Weekly Spending Summary',
-                          style: GoogleFonts.outfit(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
                             color: Colors.white,
@@ -131,7 +130,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                           ),
                           child: Text(
                             'Jul 12-18',
-                            style: GoogleFonts.outfit(
+                            style: TextStyle(
                               fontSize: 12,
                               color: Colors.white,
                             ),
@@ -158,14 +157,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                           children: [
                             Text(
                               '71% of weekly budget used',
-                              style: GoogleFonts.outfit(
+                              style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.white.withOpacity(0.9),
                               ),
                             ),
                             Text(
                               '71%',
-                              style: GoogleFonts.outfit(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -235,7 +234,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                         const SizedBox(width: 12),
                         Text(
                           'AI Insight',
-                          style: GoogleFonts.outfit(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
                             color: Colors.black87,
@@ -294,7 +293,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                       children: [
                         Text(
                           _selectedTimeframe,
-                          style: GoogleFonts.outfit(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
@@ -391,7 +390,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                         child: Center(
                           child: Text(
                             filter,
-                            style: GoogleFonts.outfit(
+                            style: TextStyle(
                               color: isSelected
                                   ? Colors.white
                                   : Colors.black87,
@@ -413,7 +412,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 children: [
                   Text(
                     'Recent Transactions',
-                    style: GoogleFonts.outfit(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.black87,
@@ -447,7 +446,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                       ),
                       child: Text(
                         'Today, July 18',
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           fontWeight: FontWeight.w500,
                           fontSize: 14,
                           color: Colors.grey.shade700,
@@ -500,7 +499,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                       ),
                       child: Text(
                         'Yesterday, July 17',
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           fontWeight: FontWeight.w500,
                           fontSize: 14,
                           color: Colors.grey.shade700,
@@ -549,7 +548,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                       ),
                       child: Text(
                         'July 16, 2025',
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           fontWeight: FontWeight.w500,
                           fontSize: 14,
                           color: Colors.grey.shade700,
@@ -609,7 +608,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       children: [
         Text(
           label,
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 12,
             color: Colors.white.withOpacity(0.8),
           ),
@@ -617,7 +616,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         const SizedBox(height: 5),
         Text(
           value,
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -646,7 +645,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               Expanded(
                 child: Text(
                   insight,
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade700,
                     fontStyle: FontStyle.italic,
@@ -679,7 +678,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         const SizedBox(height: 8),
         Text(
           title,
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 12,
             color: Colors.grey.shade600,
           ),
@@ -687,7 +686,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         const SizedBox(height: 4),
         Text(
           amount,
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -717,7 +716,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               children: [
                 Text(
                   'Filter Transactions',
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
@@ -732,7 +731,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
             const SizedBox(height: 24),
             Text(
               'Transaction Type',
-              style: GoogleFonts.outfit(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
@@ -765,7 +764,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
             const SizedBox(height: 24),
             Text(
               'Time Period',
-              style: GoogleFonts.outfit(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
@@ -853,7 +852,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               children: [
                 Text(
                   'Select Time Period',
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
@@ -876,7 +875,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 return ListTile(
                   title: Text(
                     timeframe,
-                    style: GoogleFonts.outfit(
+                    style: TextStyle(
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       color: isSelected ? accentColor : Colors.black87,
                     ),

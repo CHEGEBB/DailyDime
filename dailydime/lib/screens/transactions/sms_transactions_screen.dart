@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:dailydime/widgets/cards/transaction_card.dart';
 import 'package:dailydime/widgets/common/custom_button.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class SmsTransactionsScreen extends StatefulWidget {
   const SmsTransactionsScreen({Key? key}) : super(key: key);
@@ -27,7 +26,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
         backgroundColor: Colors.white,
         title: Text(
           'SMS Transactions',
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 20,
             color: Colors.black87,
@@ -70,7 +69,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
             const SizedBox(height: 32),
             Text(
               'Automatic Transaction Detection',
-              style: GoogleFonts.outfit(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -80,7 +79,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
             Text(
               'DailyDime can automatically detect and categorize transactions from your M-Pesa, Airtel Money, and T-Kash SMS messages.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(
+              style: TextStyle(
                 fontSize: 16,
                 color: Colors.black87,
                 height: 1.5,
@@ -113,7 +112,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                       Expanded(
                         child: Text(
                           'Your Privacy is Protected',
-                          style: GoogleFonts.outfit(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
@@ -125,7 +124,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                   const SizedBox(height: 12),
                   Text(
                     'DailyDime only reads SMS messages from financial services and processes them locally on your device. Your messages are never uploaded to our servers.',
-                    style: GoogleFonts.outfit(
+                    style: TextStyle(
                       fontSize: 14,
                       color: Colors.black87,
                       height: 1.5,
@@ -152,7 +151,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
               },
               child: Text(
                 'Not Now',
-                style: GoogleFonts.outfit(
+                style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey.shade700,
                 ),
@@ -200,7 +199,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                       children: [
                         Text(
                           'SMS Insights',
-                          style: GoogleFonts.outfit(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 18,
                             color: Colors.white,
@@ -214,7 +213,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                           ),
                           child: Text(
                             'Last 30 Days',
-                            style: GoogleFonts.outfit(
+                            style: TextStyle(
                               fontSize: 12,
                               color: Colors.white,
                             ),
@@ -225,7 +224,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'We detected 42 financial SMS messages',
-                      style: GoogleFonts.outfit(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
@@ -258,7 +257,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                           Expanded(
                             child: Text(
                               'AI has categorized your transactions with 97% accuracy',
-                              style: GoogleFonts.outfit(
+                              style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.white,
                               ),
@@ -291,7 +290,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                   children: [
                     Text(
                       'Connected SMS Providers',
-                      style: GoogleFonts.outfit(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
@@ -350,7 +349,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                       children: [
                         Text(
                           'Last synchronized: Today, 2:45 PM',
-                          style: GoogleFonts.outfit(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: Colors.black87,
@@ -358,7 +357,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                         ),
                         Text(
                           'Auto-sync is enabled',
-                          style: GoogleFonts.outfit(
+                          style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
                           ),
@@ -380,7 +379,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                 children: [
                   Text(
                     'Detected Transactions',
-                    style: GoogleFonts.outfit(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.black87,
@@ -394,7 +393,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                     ),
                     child: Text(
                       '42 Total',
-                      style: GoogleFonts.outfit(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: accentColor,
@@ -419,7 +418,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                       ),
                       child: Text(
                         'Today, July 18',
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           fontWeight: FontWeight.w500,
                           fontSize: 14,
                           color: Colors.grey.shade700,
@@ -472,7 +471,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                       ),
                       child: Text(
                         'Yesterday, July 17',
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           fontWeight: FontWeight.w500,
                           fontSize: 14,
                           color: Colors.grey.shade700,
@@ -565,14 +564,14 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
         const SizedBox(height: 8),
         Text(
           provider,
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 12,
             color: Colors.white.withOpacity(0.9),
           ),
         ),
         Text(
           count,
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -600,7 +599,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
         const SizedBox(height: 8),
         Text(
           provider,
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: isConnected ? Colors.black87 : Colors.grey,
@@ -608,7 +607,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
         ),
         Text(
           isConnected ? 'Connected' : 'Not Connected',
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 12,
             color: isConnected ? color : Colors.grey,
           ),
@@ -646,7 +645,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                 Expanded(
                   child: Text(
                     insight,
-                    style: GoogleFonts.outfit(
+                    style: TextStyle(
                       fontSize: 12,
                       color: Colors.black87,
                       height: 1.4,
