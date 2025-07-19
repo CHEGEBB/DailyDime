@@ -292,7 +292,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             style: TextStyle(
                               fontSize: 42,
                               fontWeight: FontWeight.w800,
-                              fontFamily: 'Outfit', // Changed to Outfit
+                              fontFamily: 'DMsans', // Changed to DMsans
                               color: Colors.white,
                               letterSpacing: -1,
                               shadows: [
@@ -316,7 +316,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 15,
-                              fontFamily: 'Outfit', // Changed to Outfit
+                              fontFamily: 'DMsans', // Changed to DMsans
                               fontWeight: FontWeight.w500,
                               color: Colors.white.withOpacity(0.95),
                               height: 1.4,
@@ -390,7 +390,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                             style: TextStyle(
                                               fontSize: 28,
                                               fontWeight: FontWeight.w700,
-                                              fontFamily: 'Outfit', // Changed to Outfit
+                                              fontFamily: 'DMsans', // Changed to DMsans
                                               color: Colors.grey.shade800,
                                             ),
                                           ),
@@ -399,7 +399,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                             'Sign in to continue your financial journey',
                                             style: TextStyle(
                                               fontSize: 16,
-                                              fontFamily: 'Outfit', // Changed to Outfit
+                                              fontFamily: 'DMsans', // Changed to DMsans
                                               fontWeight: FontWeight.w500,
                                               color: Colors.grey.shade600,
                                             ),
@@ -464,7 +464,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                               'Remember me',
                                               style: TextStyle(
                                                 fontSize: 14,
-                                                fontFamily: 'Outfit', // Changed to Outfit
+                                                fontFamily: 'DMsans', // Changed to DMsans
                                                 fontWeight: FontWeight.w500,
                                                 color: Colors.grey.shade600,
                                               ),
@@ -484,7 +484,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                             'Forgot password?',
                                             style: TextStyle(
                                               fontSize: 14,
-                                              fontFamily: 'Outfit', // Changed to Outfit
+                                              fontFamily: 'DMsans', // Changed to DMsans
                                               fontWeight: FontWeight.w600,
                                               color: const Color(0xFF2E8B57),
                                             ),
@@ -523,7 +523,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                                 'Sign In',
                                                 style: TextStyle(
                                                   fontSize: 16,
-                                                  fontFamily: 'Outfit', // Changed to Outfit
+                                                  fontFamily: 'DMsans', // Changed to DMsans
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
@@ -549,7 +549,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                                 'Use ${_availableBiometrics.contains(BiometricType.fingerprint) ? 'Fingerprint' : 'Face ID'}',
                                                 style: TextStyle(
                                                   color: const Color(0xFF2E8B57),
-                                                  fontFamily: 'Outfit', // Changed to Outfit
+                                                  fontFamily: 'DMsans', // Changed to DMsans
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
@@ -575,7 +575,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                             style: TextStyle(
                                               color: Colors.grey.shade600,
                                               fontSize: 14,
-                                              fontFamily: 'Outfit', // Changed to Outfit
+                                              fontFamily: 'DMsans', // Changed to DMsans
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
@@ -627,7 +627,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                           style: TextStyle(
                                             color: Colors.grey.shade600,
                                             fontSize: 15,
-                                            fontFamily: 'Outfit', // Changed to Outfit
+                                            fontFamily: 'DMsans', // Changed to DMsans
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -652,7 +652,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                               color: const Color(0xFF2E8B57),
                                               fontWeight: FontWeight.w600,
                                               fontSize: 15,
-                                              fontFamily: 'Outfit', // Changed to Outfit
+                                              fontFamily: 'DMsans', // Changed to DMsans
                                             ),
                                           ),
                                         ),
@@ -719,7 +719,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         keyboardType: keyboardType,
         style: const TextStyle(
           fontSize: 16,
-          fontFamily: 'Outfit', // Changed to Outfit
+          fontFamily: 'DMsans', // Changed to DMsans
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
@@ -727,7 +727,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           hintStyle: TextStyle(
             color: Colors.grey.shade500,
             fontSize: 16,
-            fontFamily: 'Outfit', // Changed to Outfit
+            fontFamily: 'DMsans', // Changed to DMsans
             fontWeight: FontWeight.w500,
           ),
           prefixIcon: Icon(
@@ -763,7 +763,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             style: TextStyle(
               color: color,
               fontSize: 14,
-              fontFamily: 'Outfit', // Changed to Outfit
+              fontFamily: 'DMsans', // Changed to DMsans
               fontWeight: FontWeight.w600,
             ),
           ),

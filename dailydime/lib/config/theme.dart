@@ -40,7 +40,7 @@ class AppTheme {
         surface: surfaceLight,
         onSurface: textDark,
       ),
-      fontFamily: 'Outfit',
+      fontFamily: 'DMsans',
       appBarTheme: const AppBarTheme(
         backgroundColor: surfaceLight,
         foregroundColor: textDark,

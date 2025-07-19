@@ -58,3 +58,23 @@ flutter:
           weight: 600
         - asset: assets/fonts/Outfit-Bold.ttf
           weight: 700
+    - family: DMsans
+      fonts:
+        - asset: assets/fonts/DMsans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/DMsans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/DMsans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/DMsans-Bold.ttf
+          weight: 700
+    - family: DMSans
+      fonts:
+        - asset: assets/fonts/DMSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/DMSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/DMSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/DMSans-Bold.ttf
+          weight: 700
