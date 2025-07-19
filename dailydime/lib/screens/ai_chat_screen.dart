@@ -4,10 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dailydime/config/theme.dart';
 import 'package:dailydime/screens/analytics_screen.dart';
-import 'package:dailydime/widgets/charts/spending_chart.dart';
-import 'package:dailydime/widgets/charts/progress_chart.dart';
-import 'package:dailydime/widgets/common/custom_text_field.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math;
 
 class AIChatScreen extends StatefulWidget {
   const AIChatScreen({Key? key}) : super(key: key);
@@ -18,129 +16,101 @@ class AIChatScreen extends StatefulWidget {
 
 class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  final List<ChatMessage> _messages = [];
-  
-  // Selected AI feature
-  String _selectedAIFeature = 'assistant';
-  
-  // Tab controller for AI features
   late TabController _tabController;
-  
-  // Controllers for saving suggestion amount
-  final TextEditingController _savingAmountController = TextEditingController(text: '30');
-  final TextEditingController _savingReasonController = TextEditingController();
-  
-  // Smart suggestions
-  final List<String> _smartSuggestions = [
-    'How much can I save this month?',
-    'Analyze my spending habits',
-    'Create a budget for weekend trip',
-    'How can I reduce my food expenses?',
-    'Tips to save for emergency fund',
-  ];
-  
-  // AI insights
-  final List<AIInsight> _aiInsights = [
-    AIInsight(
-      title: 'Spending Pattern',
-      description: 'You spend 35% more on weekends. Consider planning your weekend activities to reduce impulse spending.',
-      icon: Icons.insights,
-      iconColor: AppTheme.primaryEmerald,
-    ),
-    AIInsight(
-      title: 'Saving Opportunity',
-      description: 'Based on your coffee purchases, switching to homemade coffee could save you KES 3,600 monthly.',
-      icon: Icons.savings,
-      iconColor: AppTheme.primaryBlue,
-    ),
-    AIInsight(
-      title: 'Budget Alert',
-      description: 'You\'ve reached 85% of your entertainment budget with 10 days remaining. Consider adjusting your spending.',
-      icon: Icons.warning_amber,
-      iconColor: AppTheme.warning,
-    ),
-  ];
-  
-  // Smart saving suggestions
-  final List<SmartSaving> _smartSavings = [
-    SmartSaving(
-      title: 'Skip takeout lunch',
-      amount: 350,
-      savingsGoal: 'Weekend Trip',
-      icon: Icons.fastfood,
-      color: AppTheme.primaryEmerald,
-    ),
-    SmartSaving(
-      title: 'Use public transport today',
-      amount: 200,
-      savingsGoal: 'Emergency Fund',
-      icon: Icons.directions_bus,
-      color: AppTheme.primaryBlue,
-    ),
-    SmartSaving(
-      title: 'Make coffee at home',
-      amount: 120,
-      savingsGoal: 'New Headphones',
-      icon: Icons.coffee,
-      color: AppTheme.accentIndigo,
-    ),
-  ];
-  
-  // Bill reminders
-  final List<BillReminder> _billReminders = [
-    BillReminder(
-      title: 'Electricity Bill',
-      amount: 1200,
-      dueDate: DateTime.now().add(const Duration(days: 5)),
-      icon: Icons.electric_bolt,
-      color: AppTheme.warning,
-    ),
-    BillReminder(
-      title: 'Internet Subscription',
-      amount: 2500,
-      dueDate: DateTime.now().add(const Duration(days: 8)),
-      icon: Icons.wifi,
-      color: AppTheme.primaryBlue,
-    ),
-    BillReminder(
-      title: 'Netflix Subscription',
-      amount: 900,
-      dueDate: DateTime.now().add(const Duration(days: 12)),
-      icon: Icons.tv,
-      color: AppTheme.error,
-    ),
-  ];
+  bool _showAIChat = false;
+  final ScrollController _scrollController = ScrollController();
+  final List<AIMessage> _messages = [];
+  final List<SavingGoal> _savingGoals = [];
+  final List<AIInsight> _aiInsights = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
-    // Add initial AI message
-    _messages.add(
-      ChatMessage(
-        text: "Hello! I'm your DailyDime AI assistant. I can help you with budgeting, savings goals, and financial insights. How can I assist you today?",
-        isUser: false,
-        timestamp: DateTime.now(),
+    _loadSampleData();
+  }
+
+  void _loadSampleData() {
+    // Sample AI insights
+    _aiInsights.addAll([
+      AIInsight(
+        title: "Spending Pattern Detected",
+        description: "You've spent 20% more on food this week compared to your average. Consider meal prepping to reduce costs.",
+        iconData: Icons.restaurant,
+        color: AppTheme.accentIndigo,
+        timestamp: DateTime.now().subtract(const Duration(hours: 2)),
+        actionText: "Get meal prep tips",
       ),
-    );
+      AIInsight(
+        title: "Savings Opportunity",
+        description: "Based on your M-Pesa transactions, you could save KES 200 today towards your 'New Headphones' goal.",
+        iconData: Icons.savings_outlined,
+        color: AppTheme.primaryEmerald,
+        timestamp: DateTime.now().subtract(const Duration(hours: 5)),
+        actionText: "Save KES 200 now",
+      ),
+      AIInsight(
+        title: "Bill Reminder",
+        description: "Your electricity bill of approximately KES 1,200 is due in 3 days. Ensure you have enough funds.",
+        iconData: Icons.bolt,
+        color: AppTheme.warning,
+        timestamp: DateTime.now().subtract(const Duration(hours: 12)),
+        actionText: "Set reminder",
+      ),
+      AIInsight(
+        title: "Budget Alert",
+        description: "You've reached 85% of your entertainment budget for this month. Consider limiting spending in this category.",
+        iconData: Icons.warning_amber_rounded,
+        color: AppTheme.error,
+        timestamp: DateTime.now().subtract(const Duration(days: 1)),
+        actionText: "Review budget",
+      ),
+    ]);
+
+    // Sample saving goals
+    _savingGoals.addAll([
+      SavingGoal(
+        id: "1",
+        title: "New Headphones",
+        targetAmount: 15000,
+        currentAmount: 9500,
+        targetDate: DateTime.now().add(const Duration(days: 30)),
+        iconData: Icons.headphones,
+        color: AppTheme.primaryEmerald,
+      ),
+      SavingGoal(
+        id: "2",
+        title: "Weekend Trip",
+        targetAmount: 30000,
+        currentAmount: 12000,
+        targetDate: DateTime.now().add(const Duration(days: 60)),
+        iconData: Icons.flight,
+        color: AppTheme.primaryBlue,
+      ),
+      SavingGoal(
+        id: "3",
+        title: "Emergency Fund",
+        targetAmount: 100000,
+        currentAmount: 25000,
+        targetDate: DateTime.now().add(const Duration(days: 180)),
+        iconData: Icons.health_and_safety,
+        color: AppTheme.accentIndigo,
+      ),
+    ]);
   }
 
   @override
   void dispose() {
     _messageController.dispose();
-    _scrollController.dispose();
     _tabController.dispose();
-    _savingAmountController.dispose();
-    _savingReasonController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty) return;
     
-    final userMessage = ChatMessage(
+    final userMessage = AIMessage(
       text: _messageController.text,
       isUser: true,
       timestamp: DateTime.now(),
@@ -173,7 +143,7 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
       }
       
       setState(() {
-        _messages.add(ChatMessage(
+        _messages.add(AIMessage(
           text: aiResponse,
           isUser: false,
           timestamp: DateTime.now(),
@@ -195,897 +165,1239 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
       }
     });
   }
-  
-  void _handleAcceptSaving(SmartSaving saving) {
-    // In a real app, this would save the transaction
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Saved KES ${saving.amount} toward ${saving.savingsGoal}!'),
-        backgroundColor: AppTheme.success,
-        behavior: SnackBarBehavior.floating,
-      ),
+
+  void _toggleAIChat() {
+    setState(() {
+      _showAIChat = !_showAIChat;
+    });
+    HapticFeedback.mediumImpact();
+  }
+
+  void _handleQuickAction(String action) {
+    setState(() {
+      _messageController.text = action;
+    });
+    _sendMessage();
+  }
+
+  void _handleGoalAction(SavingGoal goal) {
+    // Show dialog to save toward goal
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildSaveToGoalBottomSheet(goal),
     );
   }
-  
-  void _handleSavingSuggestion() {
-    if (_savingAmountController.text.isEmpty || _savingReasonController.text.isEmpty) {
-      return;
-    }
+
+  Widget _buildSaveToGoalBottomSheet(SavingGoal goal) {
+    final TextEditingController amountController = TextEditingController(text: '100');
     
-    final amount = int.tryParse(_savingAmountController.text) ?? 0;
-    if (amount <= 0) return;
-    
-    // In a real app, this would save the suggestion
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Custom saving of KES $amount added for ${_savingReasonController.text}'),
-        backgroundColor: AppTheme.success,
-        behavior: SnackBarBehavior.floating,
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: goal.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    goal.iconData,
+                    color: goal.color,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Save towards ${goal.title}",
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        "KES ${NumberFormat("#,##0").format(goal.currentAmount)} of KES ${NumberFormat("#,##0").format(goal.targetAmount)}",
+                        style: TextStyle(
+                          color: AppTheme.textMedium,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: "Amount to save (KES)",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                prefixIcon: const Icon(Icons.money),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                // Quick amount buttons
+                for (final amount in [50, 100, 200, 500])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        amountController.text = amount.toString();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.backgroundLight,
+                        foregroundColor: AppTheme.textDark,
+                      ),
+                      child: Text("${amount}"),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text("Cancel"),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Here we would actually process the saving
+                      final amount = double.tryParse(amountController.text) ?? 0;
+                      if (amount > 0) {
+                        setState(() {
+                          final updatedGoal = goal.copyWith(
+                            currentAmount: goal.currentAmount + amount,
+                          );
+                          
+                          final index = _savingGoals.indexWhere((g) => g.id == goal.id);
+                          if (index >= 0) {
+                            _savingGoals[index] = updatedGoal;
+                          }
+                        });
+                      }
+                      Navigator.pop(context);
+                      
+                      // Show success message
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            "KES ${amountController.text} saved towards ${goal.title}!",
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          backgroundColor: AppTheme.success,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: AppTheme.primaryEmerald,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text("Save Now"),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
-    
-    // Clear fields
-    _savingAmountController.text = '30';
-    _savingReasonController.clear();
-    
-    // Hide keyboard
-    FocusScope.of(context).unfocus();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "DailyDime AI",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppTheme.primaryEmerald,
-          unselectedLabelColor: AppTheme.textMedium,
-          indicatorColor: AppTheme.primaryEmerald,
-          tabs: const [
-            Tab(text: "AI Features", icon: Icon(Icons.smart_toy)),
-            Tab(text: "Analytics", icon: Icon(Icons.bar_chart)),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom App Bar with Tabs
+            Container(
+              color: Colors.white,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: Row(
+                      children: [
+                        Text(
+                          "AI Finance Assistant",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textDark,
+                          ),
+                        ),
+                        const Spacer(),
+                        // Chat toggle button
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          transitionBuilder: (Widget child, Animation<double> animation) {
+                            return ScaleTransition(scale: animation, child: child);
+                          },
+                          child: _showAIChat
+                              ? IconButton(
+                                  key: const ValueKey('close_chat'),
+                                  icon: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.error.withOpacity(0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.close,
+                                      color: AppTheme.error,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  onPressed: _toggleAIChat,
+                                )
+                              : IconButton(
+                                  key: const ValueKey('open_chat'),
+                                  icon: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryEmerald.withOpacity(0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.chat_bubble_outline,
+                                      color: AppTheme.primaryEmerald,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  onPressed: _toggleAIChat,
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Tab Bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundLight.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        indicator: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          color: AppTheme.primaryEmerald,
+                        ),
+                        labelColor: Colors.white,
+                        unselectedLabelColor: AppTheme.textMedium,
+                        tabs: const [
+                          Tab(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.smart_toy_outlined, size: 18),
+                                SizedBox(width: 6),
+                                Text("AI Insights"),
+                              ],
+                            ),
+                          ),
+                          Tab(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.analytics_outlined, size: 18),
+                                SizedBox(width: 6),
+                                Text("Analytics"),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Main Content Area
+            Expanded(
+              child: Stack(
+                children: [
+                  // Tab content
+                  TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // AI Insights Tab
+                      _buildAIInsightsTab(),
+                      
+                      // Analytics Tab
+                      const AnalyticsScreen(),
+                    ],
+                  ),
+                  
+                  // Chat overlay
+                  if (_showAIChat) _buildChatOverlay(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+    );
+  }
+
+  Widget _buildAIInsightsTab() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildAIFeaturesView(),
-          AnalyticsScreen(),
+          // AI Assistant card
+          _buildAIAssistantCard(),
+          const SizedBox(height: 24),
+          
+          // Quick Actions
+          _buildQuickActionsSection(),
+          const SizedBox(height: 24),
+          
+          // AI Insights
+          _buildAIInsightsSection(),
+          const SizedBox(height: 24),
+          
+          // Saving Goals
+          _buildSavingGoalsSection(),
+          const SizedBox(height: 24),
+          
+          // Smart Budget Recommendations
+          _buildSmartBudgetSection(),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildAIFeaturesView() {
-    return Column(
-      children: [
-        // AI Features Selection
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 5,
-                offset: const Offset(0, 2),
-              ),
-            ],
+  Widget _buildAIAssistantCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryEmerald,
+            AppTheme.primaryTeal,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryEmerald.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.smart_toy_outlined,
+              color: Colors.white,
+              size: 36,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildFeatureButton(
-                  'assistant',
-                  'AI Assistant',
-                  Icons.smart_toy,
+                const Text(
+                  "Hello, Daniel!",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-                _buildFeatureButton(
-                  'insights', 
-                  'Insights',
-                  Icons.insights,
+                const SizedBox(height: 4),
+                Text(
+                  "You can save KES 300 today based on your spending patterns.",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
                 ),
-                _buildFeatureButton(
-                  'savings', 
-                  'Smart Savings',
-                  Icons.savings,
-                ),
-                _buildFeatureButton(
-                  'bills', 
-                  'Bill Reminders',
-                  Icons.receipt_long,
-                ),
-                _buildFeatureButton(
-                  'custom', 
-                  'Custom Saving',
-                  Icons.add_circle_outline,
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    // Show saving options
+                    _toggleAIChat();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.primaryEmerald,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Text(
+                    "Ask AI for Details",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
-            ),
-          ),
-        ),
-        
-        // Main Content Area
-        Expanded(
-          child: _getSelectedFeatureWidget(),
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildFeatureButton(String feature, String label, IconData icon) {
-    final isSelected = _selectedAIFeature == feature;
-    
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedAIFeature = feature;
-        });
-        HapticFeedback.lightImpact();
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryEmerald : AppTheme.backgroundLight,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: isSelected ? [
-            BoxShadow(
-              color: AppTheme.primaryEmerald.withOpacity(0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ] : null,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? Colors.white : AppTheme.textMedium,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : AppTheme.textMedium,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _getSelectedFeatureWidget() {
-    switch (_selectedAIFeature) {
-      case 'assistant':
-        return _buildAssistantView();
-      case 'insights':
-        return _buildInsightsView();
-      case 'savings':
-        return _buildSmartSavingsView();
-      case 'bills':
-        return _buildBillRemindersView();
-      case 'custom':
-        return _buildCustomSavingView();
-      default:
-        return _buildAssistantView();
-    }
-  }
-  
-  Widget _buildAssistantView() {
-    return Column(
-      children: [
-        // Smart suggestions
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Ask me anything about your finances",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
-                ),
-              ),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _smartSuggestions.map((suggestion) {
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _messageController.text = suggestion;
-                        });
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.backgroundLight,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppTheme.primaryEmerald.withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          suggestion,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textDark.withOpacity(0.8),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        
-        // Chat messages
-        Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(16),
-            itemCount: _messages.length,
-            itemBuilder: (context, index) {
-              final message = _messages[index];
-              return _buildMessageBubble(message);
-            },
-          ),
-        ),
-        
-        // Chat input
-        _buildChatInput(),
-      ],
-    );
-  }
-  
-  Widget _buildInsightsView() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "AI Financial Insights",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Personalized insights based on your financial behavior",
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.textMedium,
-            ),
-          ),
-          const SizedBox(height: 20),
-          
-          // AI Insights
-          ..._aiInsights.map((insight) => _buildInsightCard(insight)),
-          const SizedBox(height: 20),
-          
-          // Weekly spending report
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Weekly Spending Report",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textDark,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppTheme.success.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          "12% ↓",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.success,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 200,
-                    child: ProgressChart(
-                      weeklyData: [8500, 6300, 9200, 5600, 7800, 4500, 6200],
-                      title: "",
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "AI Analysis: Your spending is trending downward! You've spent less this week compared to your weekly average. Your biggest expense category was food at 32% of total spending.",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.textMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Budget allocation recommendation
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Recommended Budget Allocation",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _buildBudgetAllocationItem(
-                        "Needs",
-                        50,
-                        AppTheme.primaryEmerald,
-                      ),
-                      _buildBudgetAllocationItem(
-                        "Wants",
-                        30,
-                        AppTheme.primaryBlue,
-                      ),
-                      _buildBudgetAllocationItem(
-                        "Savings",
-                        20,
-                        AppTheme.accentIndigo,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Based on the 50/30/20 rule and your monthly income of KES 45,000",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.textMedium,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildSmartSavingsView() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Smart Saving Suggestions",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
-            ),
+
+  Widget _buildQuickActionsSection() {
+    final List<Map<String, dynamic>> quickActions = [
+      {
+        'title': 'Budget Help',
+        'icon': Icons.account_balance_wallet,
+        'color': AppTheme.primaryBlue,
+        'action': 'Help me create a budget',
+      },
+      {
+        'title': 'Save Money',
+        'icon': Icons.savings,
+        'color': AppTheme.primaryEmerald,
+        'action': 'How can I save more money?',
+      },
+      {
+        'title': 'Analyze Spending',
+        'icon': Icons.insights,
+        'color': AppTheme.accentIndigo,
+        'action': 'Analyze my recent spending',
+      },
+      {
+        'title': 'Financial Tips',
+        'icon': Icons.lightbulb_outline,
+        'color': AppTheme.warning,
+        'action': 'Give me financial tips',
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Quick Actions",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 8),
-          Text(
-            "AI-powered suggestions to help you save more",
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.textMedium,
-            ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: quickActions.length,
+            itemBuilder: (context, index) {
+              final action = quickActions[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: InkWell(
+                  onTap: () {
+                    _toggleAIChat();
+                    _handleQuickAction(action['action']);
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: 100,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.grey.withOpacity(0.1),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.05),
+                          spreadRadius: 1,
+                          blurRadius: 5,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: action['color'].withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            action['icon'],
+                            color: action['color'],
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          action['title'],
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
-          const SizedBox(height: 20),
-          
-          // Smart savings suggestions
-          ..._smartSavings.map((saving) => _buildSmartSavingCard(saving)),
-          
-          const SizedBox(height: 20),
-          
-          // Daily saving challenge
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAIInsightsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "AI Insights",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _aiInsights.length,
+          itemBuilder: (context, index) {
+            final insight = _aiInsights[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.05),
+                      spreadRadius: 1,
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryEmerald.withOpacity(0.1),
+                          color: insight.color.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          Icons.calendar_today,
-                          color: AppTheme.primaryEmerald,
+                          insight.iconData,
+                          color: insight.color,
                           size: 24,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              "7-Day Saving Challenge",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textDark,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  insight.title,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  _formatTime(insight.timestamp),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textMedium,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 8),
                             Text(
-                              "Save KES 100 each day for 7 days",
+                              insight.description,
                               style: TextStyle(
                                 fontSize: 14,
-                                color: AppTheme.textMedium,
+                                color: AppTheme.textDark.withOpacity(0.8),
                               ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                OutlinedButton(
+                                  onPressed: () {
+                                    _toggleAIChat();
+                                    _handleQuickAction("Tell me more about ${insight.title.toLowerCase()}");
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: insight.color,
+                                    side: BorderSide(color: insight.color),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(insight.actionText),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  LinearProgressIndicator(
-                    value: 3/7,
-                    backgroundColor: Colors.grey.withOpacity(0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryEmerald),
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Day 3 of 7",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textDark,
-                        ),
-                      ),
-                      Text(
-                        "KES 300 saved",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.primaryEmerald,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      // Handle saving for the day
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('KES 100 saved for Day 3!'),
-                          backgroundColor: AppTheme.success,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryEmerald,
-                      foregroundColor: Colors.white,
-                      minimumSize: Size(double.infinity, 45),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text("Save Today's Amount"),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
-      ),
+            );
+          },
+        ),
+      ],
     );
   }
-  
-  Widget _buildBillRemindersView() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Upcoming Bills & Payments",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "AI-organized reminders to help you avoid late fees",
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.textMedium,
-            ),
-          ),
-          const SizedBox(height: 20),
-          
-          // Bill reminders
-          ..._billReminders.map((bill) => _buildBillReminderCard(bill)),
-          
-          const SizedBox(height: 20),
-          
-          // Monthly bill summary
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Monthly Bill Summary",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Total Bills",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textMedium,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "KES 8,900",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            "Paid Bills",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textMedium,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "KES 3,400",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.success,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  LinearProgressIndicator(
-                    value: 3400/8900,
-                    backgroundColor: Colors.grey.withOpacity(0.2),
-                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.success),
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "AI Tip: Set aside KES 5,500 for remaining bills this month.",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontStyle: FontStyle.italic,
-                      color: AppTheme.textMedium,
-                    ),
-                  ),
-                ],
+
+  Widget _buildSavingGoalsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Saving Goals",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildCustomSavingView() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Create Custom Saving",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
+            TextButton(
+              onPressed: () {
+                // Navigate to all goals
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primaryEmerald,
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text("See All"),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Let AI help you find the perfect amount to save",
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.textMedium,
-            ),
-          ),
-          const SizedBox(height: 20),
-          
-          // Custom saving form
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "AI Recommended Saving",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
+          ],
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 180,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _savingGoals.length,
+            itemBuilder: (context, index) {
+              final goal = _savingGoals[index];
+              final progress = goal.currentAmount / goal.targetAmount;
+              final daysLeft = goal.targetDate.difference(DateTime.now()).inDays;
+              
+              return Container(
+                width: 220,
+                margin: const EdgeInsets.only(right: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 80,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: TextField(
-                          controller: _savingAmountController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: "KES",
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: goal.color.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              goal.iconData,
+                              color: goal.color,
+                              size: 20,
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              goal.title,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "KES ${NumberFormat("#,##0").format(goal.currentAmount)}",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                "of KES ${NumberFormat("#,##0").format(goal.targetAmount)}",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            width: 45,
+                            height: 45,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppTheme.backgroundLight,
+                            ),
+                            child: Center(
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 45,
+                                    height: 45,
+                                    child: CircularProgressIndicator(
+                                      value: progress,
+                                      strokeWidth: 4,
+                                      backgroundColor: AppTheme.backgroundLight,
+                                      valueColor: AlwaysStoppedAnimation<Color>(goal.color),
+                                    ),
+                                  ),
+                                  Text(
+                                    "${(progress * 100).toInt()}%",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: goal.color,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        "$daysLeft days left",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textMedium,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _savingReasonController,
-                          decoration: InputDecoration(
-                            labelText: "What are you saving for?",
-                            hintText: "e.g., Coffee, Lunch, Transport",
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                      const Spacer(),
+                      ElevatedButton(
+                        onPressed: () => _handleGoalAction(goal),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: goal.color,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          minimumSize: const Size(double.infinity, 36),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
                           ),
                         ),
+                        child: const Text("Save Now"),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _handleSavingSuggestion,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryEmerald,
-                      foregroundColor: Colors.white,
-                      minimumSize: Size(double.infinity, 45),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSmartBudgetSection() {
+    // Sample budget categories
+    final List<Map<String, dynamic>> budgetCategories = [
+      {
+        'name': 'Food',
+        'spent': 8500,
+        'budget': 10000,
+        'color': AppTheme.primaryEmerald,
+        'icon': Icons.restaurant,
+      },
+      {
+        'name': 'Transport',
+        'spent': 4200,
+        'budget': 5000,
+        'color': AppTheme.primaryBlue,
+        'icon': Icons.directions_car,
+      },
+      {
+        'name': 'Entertainment',
+        'spent': 2800,
+        'budget': 3000,
+        'color': AppTheme.accentIndigo,
+        'icon': Icons.movie,
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Smart Budget",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              "July 2025",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textMedium,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Total Budget Overview
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Total Budget",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
-                    child: const Text("Save This Amount"),
+                  ),
+                  Text(
+                    "KES 25,000 / 30,000",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          Text(
-            "AI Saving Insights",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          // Saving insights
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryEmerald.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.lightbulb_outline,
-                          color: AppTheme.primaryEmerald,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          "If you save KES 30 daily",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textDark,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
+              const SizedBox(height: 12),
+              // Progress bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: 25000 / 30000,
+                  backgroundColor: AppTheme.backgroundLight,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryEmerald),
+                  minHeight: 8,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Category breakdown
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: budgetCategories.length,
+                itemBuilder: (context, index) {
+                  final category = budgetCategories[index];
+                  final progress = category['spent'] / category['budget'];
+                  
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Row(
                       children: [
-                        const TextSpan(
-                          text: "You'll save ",
-                        ),
-                        TextSpan(
-                          text: "KES 900",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryEmerald,
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: category['color'].withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            category['icon'],
+                            color: category['color'],
+                            size: 18,
                           ),
                         ),
-                        const TextSpan(
-                          text: " monthly and ",
-                        ),
-                        TextSpan(
-                          text: "KES 10,950",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryEmerald,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    category['name'],
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    "${(progress * 100).toInt()}%",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: progress > 0.9 ? AppTheme.error : AppTheme.textDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 7,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: LinearProgressIndicator(
+                                        value: progress,
+                                        backgroundColor: AppTheme.backgroundLight,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          progress > 0.9 ? AppTheme.error : category['color'],
+                                        ),
+                                        minHeight: 4,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    flex: 3,
+                                    child: Text(
+                                      "${NumberFormat("#,##0").format(category['spent'])} / ${NumberFormat("#,##0").format(category['budget'])}",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textMedium,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ),
-                        const TextSpan(
-                          text: " yearly. This is enough for a weekend trip to Mombasa in just 3 months!",
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              // AI budget suggestion
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.info.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline,
+                      color: AppTheme.info,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "AI Suggestion",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "You could save KES 500 in food by cooking at home more often this week.",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textDark.withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChatOverlay() {
+    return Container(
+      color: Colors.black.withOpacity(0.5),
+      child: Column(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: _toggleAIChat,
+              child: Container(
+                color: Colors.transparent,
               ),
             ),
           ),
-          
-          const SizedBox(height: 12),
-          
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            child: Column(
+              children: [
+                // Chat header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
+                          color: AppTheme.primaryEmerald.withOpacity(0.1),
+                          shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          Icons.tips_and_updates,
-                          color: AppTheme.primaryBlue,
-                          size: 24,
+                          Icons.smart_toy_outlined,
+                          color: AppTheme.primaryEmerald,
+                          size: 20,
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Expanded(
+                      const Expanded(
                         child: Text(
-                          "Ways to save KES 30 daily",
+                          "DailyDime AI Assistant",
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textDark,
                           ),
                         ),
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: _toggleAIChat,
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  _buildSavingTipItem("Skip one soda or juice", "KES 40-80"),
-                  _buildSavingTipItem("Make coffee at home instead of buying", "KES 100-150"),
-                  _buildSavingTipItem("Walk short distances instead of taking a boda", "KES 50-100"),
-                  _buildSavingTipItem("Bring lunch from home once a week", "KES 150-250"),
-                ],
-              ),
+                ),
+                const Divider(),
+                
+                // Chat messages
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.isEmpty ? 1 : _messages.length,
+                    itemBuilder: (context, index) {
+                      // Show welcome message if no messages yet
+                      if (_messages.isEmpty) {
+                        return _buildWelcomeMessage();
+                      }
+                      
+                      final message = _messages[index];
+                      return _buildMessageBubble(message);
+                    },
+                  ),
+                ),
+                
+                // Chat input
+                _buildChatInput(),
+              ],
             ),
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildMessageBubble(ChatMessage message) {
+
+  Widget _buildWelcomeMessage() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundLight,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Hello! I'm your DailyDime AI assistant.",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "I can help you with budgeting, savings goals, and financial insights. How can I assist you today?",
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textDark.withOpacity(0.8),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildSuggestionChip("Create a budget"),
+              _buildSuggestionChip("Analyze my spending"),
+              _buildSuggestionChip("How to save more?"),
+              _buildSuggestionChip("Financial tips"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionChip(String text) {
+    return InkWell(
+      onTap: () {
+        _handleQuickAction(text);
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryEmerald.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.primaryEmerald,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(AIMessage message) {
     final isUser = message.isUser;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -1118,7 +1430,7 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
                     message.text,
                     style: TextStyle(
                       color: isUser ? Colors.white : AppTheme.textDark,
-                      fontSize: 15,
+                      fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1142,17 +1454,17 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
 
   Widget _buildAvatarBubble() {
     return Container(
-      width: 36,
-      height: 36,
+      width: 32,
+      height: 32,
       decoration: BoxDecoration(
         color: AppTheme.primaryTeal,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: const Center(
         child: Icon(
-          Icons.assistant,
+          Icons.smart_toy_outlined,
           color: Colors.white,
-          size: 20,
+          size: 18,
         ),
       ),
     );
@@ -1160,17 +1472,17 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
 
   Widget _buildUserAvatarBubble() {
     return Container(
-      width: 36,
-      height: 36,
+      width: 32,
+      height: 32,
       decoration: BoxDecoration(
         color: AppTheme.accentPurple,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: const Center(
         child: Icon(
           Icons.person,
           color: Colors.white,
-          size: 20,
+          size: 18,
         ),
       ),
     );
@@ -1207,7 +1519,7 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
                       borderRadius: BorderRadius.circular(24),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     prefixIcon: Icon(
                       Icons.monetization_on,
                       color: AppTheme.primaryEmerald.withOpacity(0.7),
@@ -1222,350 +1534,1103 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
             GestureDetector(
               onTap: _sendMessage,
               child: Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: AppTheme.primaryEmerald,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(22),
                 ),
                 child: const Icon(
                   Icons.send_rounded,
                   color: Colors.white,
-                  size: 24,
+                  size: 20,
                 ),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-  
-  Widget _buildInsightCard(AIInsight insight) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: insight.iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                insight.icon,
-                color: insight.iconColor,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    insight.title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    insight.description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.textMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildSmartSavingCard(SmartSaving saving) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: saving.color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                saving.icon,
-                color: saving.color,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    saving.title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
-                      children: [
-                        const TextSpan(
-                          text: "Save ",
-                        ),
-                        TextSpan(
-                          text: "KES ${saving.amount}",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryEmerald,
-                          ),
-                        ),
-                        const TextSpan(
-                          text: " toward ",
-                        ),
-                        TextSpan(
-                          text: saving.savingsGoal,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () => _handleAcceptSaving(saving),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryEmerald,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text("Save"),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildBillReminderCard(BillReminder bill) {
-    final daysLeft = bill.dueDate.difference(DateTime.now()).inDays;
-    final isUrgent = daysLeft <= 3;
-    
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: bill.color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                bill.icon,
-                color: bill.color,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    bill.title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        "KES ${bill.amount.toStringAsFixed(0)}",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryEmerald,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isUrgent ? AppTheme.error.withOpacity(0.1) : AppTheme.info.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          "Due in $daysLeft days",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isUrgent ? AppTheme.error : AppTheme.info,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () {
-                // Handle bill payment
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Bill payment initiated for ${bill.title}'),
-                    backgroundColor: AppTheme.success,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryEmerald,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text("Pay"),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildBudgetAllocationItem(String title, int percentage, Color color) {
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: color,
-                width: 8,
-              ),
-            ),
-            child: Center(
-              child: Text(
-                "$percentage%",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.textDark,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "KES ${percentage * 450}",
-            style: TextStyle(
-              fontSize: 12,
-              color: AppTheme.textMedium,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildSavingTipItem(String tip, String amount) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        children: [
-          Icon(
-            Icons.check_circle,
-            color: AppTheme.primaryEmerald,
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              tip,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textDark,
-              ),
-            ),
-          ),
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryEmerald,
-            ),
-          ),
-        ],
       ),
     );
   }
 
   String _formatTime(DateTime time) {
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
+    return DateFormat('HH:mm').format(time);
   }
 }
 
-class ChatMessage {
+// Let's create the Analytics Screen
+class AnalyticsScreen extends StatefulWidget {
+  const AnalyticsScreen({Key? key}) : super(key: key);
+
+  @override
+  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+}
+
+class _AnalyticsScreenState extends State<AnalyticsScreen> {
+  // Sample data for charts
+  final List<SpendingCategory> _spendingCategories = [
+    SpendingCategory(name: 'Food', amount: 5600, color: AppTheme.primaryEmerald),
+    SpendingCategory(name: 'Transport', amount: 2400, color: AppTheme.primaryBlue),
+    SpendingCategory(name: 'Entertainment', amount: 1200, color: AppTheme.accentIndigo),
+    SpendingCategory(name: 'Shopping', amount: 3200, color: AppTheme.accentPurple),
+    SpendingCategory(name: 'Bills', amount: 4800, color: AppTheme.info),
+  ];
+
+  final List<double> _weeklySavings = [300, 400, 250, 500, 600, 450, 700];
+  final List<double> _weeklySpending = [700, 500, 900, 400, 600, 800, 300];
+  
+  final List<String> _weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  final List<String> _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  String _selectedPeriod = 'Week';
+  int _selectedChartIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Financial Summary Card
+          _buildFinancialSummaryCard(),
+          const SizedBox(height: 24),
+          
+          // Spending Trends
+          _buildSpendingTrendsCard(),
+          const SizedBox(height: 24),
+          
+          // Category Breakdown
+          _buildCategoryBreakdownCard(),
+          const SizedBox(height: 24),
+          
+          // Transaction History
+          _buildTransactionHistoryCard(),
+          const SizedBox(height: 24),
+          
+          // Financial Health Score
+          _buildFinancialHealthCard(),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinancialSummaryCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryBlue,
+            AppTheme.accentIndigo,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryBlue.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "July 2025",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white70,
+                ),
+              ),
+              Text(
+                "Monthly Summary",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildSummaryItem(
+                title: "Income",
+                amount: "45,000",
+                iconData: Icons.arrow_upward,
+                color: Colors.green,
+              ),
+              Container(
+                width: 1,
+                height: 40,
+                color: Colors.white24,
+              ),
+              _buildSummaryItem(
+                title: "Expenses",
+                amount: "25,000",
+                iconData: Icons.arrow_downward,
+                color: Colors.redAccent,
+              ),
+              Container(
+                width: 1,
+                height: 40,
+                color: Colors.white24,
+              ),
+              _buildSummaryItem(
+                title: "Savings",
+                amount: "20,000",
+                iconData: Icons.savings_outlined,
+                color: Colors.amberAccent,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              // Progress indicator for monthly budget
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Monthly Budget",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Stack(
+                      children: [
+                        // Background track
+                        Container(
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                        // Progress indicator
+                        Container(
+                          height: 6,
+                          width: MediaQuery.of(context).size.width * 0.5, // 50% of parent width
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "KES 25,000 of KES 50,000 (50%)",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton(
+                onPressed: () {
+                  // Open budget details
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppTheme.primaryBlue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+                child: const Text(
+                  "Details",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryItem({
+    required String title,
+    required String amount,
+    required IconData iconData,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Icon(
+              iconData,
+              color: color,
+              size: 14,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "KES $amount",
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSpendingTrendsCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Spending Trends",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            // Period selector
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.backgroundLight,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: DropdownButton<String>(
+                value: _selectedPeriod,
+                icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+                underline: const SizedBox(),
+                isDense: true,
+                items: const [
+                  DropdownMenuItem(value: 'Week', child: Text('Weekly')),
+                  DropdownMenuItem(value: 'Month', child: Text('Monthly')),
+                  DropdownMenuItem(value: 'Year', child: Text('Yearly')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedPeriod = value!;
+                  });
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Chart selector
+              Row(
+                children: [
+                  _buildChartSelector(
+                    index: 0, 
+                    title: "Spending",
+                    color: AppTheme.error,
+                  ),
+                  const SizedBox(width: 16),
+                  _buildChartSelector(
+                    index: 1, 
+                    title: "Savings",
+                    color: AppTheme.success,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Chart visualization
+              SizedBox(
+                height: 200,
+                child: _selectedChartIndex == 0 
+                    ? _buildSpendingChart() 
+                    : _buildSavingsChart(),
+              ),
+              const SizedBox(height: 16),
+              // Stats summary
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildChartStat(
+                    title: "Total",
+                    value: _selectedChartIndex == 0 ? "KES 25,000" : "KES 20,000",
+                    iconData: _selectedChartIndex == 0 ? Icons.money_off : Icons.savings,
+                    color: _selectedChartIndex == 0 ? AppTheme.error : AppTheme.success,
+                  ),
+                  _buildChartStat(
+                    title: "Average",
+                    value: _selectedChartIndex == 0 ? "KES 3,571/day" : "KES 2,857/day",
+                    iconData: Icons.trending_up,
+                    color: AppTheme.info,
+                  ),
+                  _buildChartStat(
+                    title: _selectedChartIndex == 0 ? "Highest" : "Best",
+                    value: _selectedChartIndex == 0 ? "Friday" : "Saturday",
+                    iconData: Icons.star,
+                    color: AppTheme.warning,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChartSelector({
+    required int index,
+    required String title,
+    required Color color,
+  }) {
+    final isSelected = _selectedChartIndex == index;
+    
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedChartIndex = index;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? color : Colors.grey.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                index == 0 ? Icons.show_chart : Icons.savings_outlined,
+                color: isSelected ? color : Colors.grey,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? color : Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpendingChart() {
+    return CustomPaint(
+      size: const Size(double.infinity, 200),
+      painter: BarChartPainter(
+        values: _weeklySpending,
+        labels: _weekDays,
+        barColor: AppTheme.error,
+        showValues: true,
+      ),
+    );
+  }
+
+  Widget _buildSavingsChart() {
+    return CustomPaint(
+      size: const Size(double.infinity, 200),
+      painter: BarChartPainter(
+        values: _weeklySavings,
+        labels: _weekDays,
+        barColor: AppTheme.success,
+        showValues: true,
+      ),
+    );
+  }
+
+  Widget _buildChartStat({
+    required String title,
+    required String value,
+    required IconData iconData,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            iconData,
+            color: color,
+            size: 16,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.textMedium,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryBreakdownCard() {
+    final totalSpending = _spendingCategories.fold(
+      0.0, (sum, category) => sum + category.amount);
+      
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Category Breakdown",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Donut chart
+              SizedBox(
+                height: 200,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 200,
+                      height: 200,
+                      child: CustomPaint(
+                        painter: DonutChartPainter(
+                          categories: _spendingCategories,
+                          totalAmount: totalSpending,
+                        ),
+                      ),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          "Total",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppTheme.textMedium,
+                          ),
+                        ),
+                        Text(
+                          "KES ${NumberFormat("#,##0").format(totalSpending)}",
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Legend
+              Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: _spendingCategories.map((category) {
+                  final percentage = (category.amount / totalSpending) * 100;
+                  return SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.4,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: category.color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                category.name,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "KES ${NumberFormat("#,##0").format(category.amount)}",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textMedium,
+                                    ),
+                                  ),
+                                  Text(
+                                    "${percentage.toStringAsFixed(1)}%",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: category.color,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTransactionHistoryCard() {
+    // Sample transactions
+    final List<Map<String, dynamic>> transactions = [
+      {
+        'title': 'Grocery Shopping',
+        'amount': -2300,
+        'date': 'Today, 10:30 AM',
+        'category': 'Food',
+        'icon': Icons.shopping_basket,
+        'color': AppTheme.primaryEmerald,
+      },
+      {
+        'title': 'Uber Ride',
+        'amount': -450,
+        'date': 'Yesterday, 6:15 PM',
+        'category': 'Transport',
+        'icon': Icons.directions_car,
+        'color': AppTheme.primaryBlue,
+      },
+      {
+        'title': 'Salary Deposit',
+        'amount': 45000,
+        'date': 'Jul 15, 9:00 AM',
+        'category': 'Income',
+        'icon': Icons.account_balance,
+        'color': AppTheme.success,
+      },
+      {
+        'title': 'Netflix Subscription',
+        'amount': -1100,
+        'date': 'Jul 14, 3:22 PM',
+        'category': 'Entertainment',
+        'icon': Icons.movie,
+        'color': AppTheme.accentIndigo,
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Recent Transactions",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                // Navigate to all transactions
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primaryEmerald,
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text("See All"),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: transactions.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final transaction = transactions[index];
+              final isIncome = transaction['amount'] > 0;
+              
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: transaction['color'].withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    transaction['icon'],
+                    color: transaction['color'],
+                    size: 24,
+                  ),
+                ),
+                title: Text(
+                  transaction['title'],
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  "${transaction['category']} • ${transaction['date']}",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textMedium,
+                  ),
+                ),
+                trailing: Text(
+                  "${isIncome ? '+' : ''}KES ${NumberFormat("#,##0").format(transaction['amount'].abs())}",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isIncome ? AppTheme.success : AppTheme.textDark,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFinancialHealthCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Financial Health Score",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                "78/100",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: 0.78,
+                    backgroundColor: AppTheme.backgroundLight,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.success),
+                    minHeight: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildHealthScoreItem(
+                title: "Savings Rate",
+                score: "Good",
+                percentage: 85,
+                color: AppTheme.success,
+              ),
+              _buildHealthScoreItem(
+                title: "Spending Habits",
+                score: "Fair",
+                percentage: 65,
+                color: AppTheme.warning,
+              ),
+              _buildHealthScoreItem(
+                title: "Budget Adherence",
+                score: "Great",
+                percentage: 90,
+                color: AppTheme.success,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.info.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.tips_and_updates_outlined,
+                  color: AppTheme.info,
+                  size: 24,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "AI Recommendation",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.info,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Increase your emergency fund savings to improve your financial health score. Aim for at least 3 months of expenses.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textDark.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHealthScoreItem({
+    required String title,
+    required String score,
+    required int percentage,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        SizedBox(
+          width: 60,
+          height: 60,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 60,
+                height: 60,
+                child: CircularProgressIndicator(
+                  value: percentage / 100,
+                  strokeWidth: 6,
+                  backgroundColor: AppTheme.backgroundLight,
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
+              ),
+              Text(
+                "$percentage%",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          score,
+          style: TextStyle(
+            fontSize: 12,
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+}
+
+// Custom Painters for Charts
+class BarChartPainter extends CustomPainter {
+  final List<double> values;
+  final List<String> labels;
+  final Color barColor;
+  final bool showValues;
+
+  BarChartPainter({
+    required this.values,
+    required this.labels,
+    required this.barColor,
+    this.showValues = false,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double barWidth = size.width / values.length - 12;
+    final double maxValue = values.reduce((curr, next) => curr > next ? curr : next);
+    final double heightRatio = size.height / (maxValue * 1.2);
+    
+    for (int i = 0; i < values.length; i++) {
+      final double barHeight = values[i] * heightRatio;
+      final double x = i * (barWidth + 12) + 6;
+      final double y = size.height - barHeight;
+      
+      // Draw bar
+      final Paint barPaint = Paint()
+        ..color = barColor.withOpacity(0.8)
+        ..style = PaintingStyle.fill;
+      
+      final RRect barRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, y, barWidth, barHeight),
+        const Radius.circular(8),
+      );
+      
+      canvas.drawRRect(barRect, barPaint);
+      
+      // Draw value on top of bar if showValues is true
+      if (showValues) {
+        final TextPainter valueTextPainter = TextPainter(
+          text: TextSpan(
+            text: values[i].toStringAsFixed(0),
+            style: TextStyle(
+              color: barColor,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
+        
+        valueTextPainter.layout();
+        valueTextPainter.paint(
+          canvas, 
+          Offset(
+            x + (barWidth - valueTextPainter.width) / 2,
+            y - valueTextPainter.height - 4,
+          ),
+        );
+      }
+      
+      // Draw x-axis label
+      final TextPainter labelTextPainter = TextPainter(
+        text: TextSpan(
+          text: labels[i],
+          style: const TextStyle(
+            color: AppTheme.textMedium,
+            fontSize: 10,
+          ),
+        ),
+      );
+      
+      labelTextPainter.layout();
+      labelTextPainter.paint(
+        canvas, 
+        Offset(
+          x + (barWidth - labelTextPainter.width) / 2,
+          size.height + 4,
+        ),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
+  }
+}
+
+class DonutChartPainter extends CustomPainter {
+  final List<SpendingCategory> categories;
+  final double totalAmount;
+
+  DonutChartPainter({
+    required this.categories,
+    required this.totalAmount,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double radius = size.width / 2;
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    double startAngle = -math.pi / 2; // Start from top (12 o'clock position)
+    
+    for (var category in categories) {
+      final double sweepAngle = 2 * math.pi * (category.amount / totalAmount);
+      
+      final Paint paint = Paint()
+        ..style = PaintingStyle.fill
+        ..color = category.color;
+      
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        true,
+        paint,
+      );
+      
+      startAngle += sweepAngle;
+    }
+    
+    // Draw hole in center to make it a donut chart
+    final Paint holePaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = Colors.white;
+    
+    canvas.drawCircle(center, radius * 0.6, holePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
+  }
+}
+
+// Data Models
+class SpendingCategory {
+  final String name;
+  final double amount;
+  final Color color;
+
+  SpendingCategory({
+    required this.name,
+    required this.amount,
+    required this.color,
+  });
+}
+
+class AIMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
 
-  ChatMessage({
+  AIMessage({
     required this.text,
     required this.isUser,
     required this.timestamp,
@@ -1575,45 +2640,57 @@ class ChatMessage {
 class AIInsight {
   final String title;
   final String description;
-  final IconData icon;
-  final Color iconColor;
+  final IconData iconData;
+  final Color color;
+  final DateTime timestamp;
+  final String actionText;
 
   AIInsight({
     required this.title,
     required this.description,
-    required this.icon,
-    required this.iconColor,
+    required this.iconData,
+    required this.color,
+    required this.timestamp,
+    required this.actionText,
   });
 }
 
-class SmartSaving {
+class SavingGoal {
+  final String id;
   final String title;
-  final double amount;
-  final String savingsGoal;
-  final IconData icon;
+  final double targetAmount;
+  final double currentAmount;
+  final DateTime targetDate;
+  final IconData iconData;
   final Color color;
 
-  SmartSaving({
+  SavingGoal({
+    required this.id,
     required this.title,
-    required this.amount,
-    required this.savingsGoal,
-    required this.icon,
+    required this.targetAmount,
+    required this.currentAmount,
+    required this.targetDate,
+    required this.iconData,
     required this.color,
   });
-}
 
-class BillReminder {
-  final String title;
-  final double amount;
-  final DateTime dueDate;
-  final IconData icon;
-  final Color color;
-
-  BillReminder({
-    required this.title,
-    required this.amount,
-    required this.dueDate,
-    required this.icon,
-    required this.color,
-  });
+  SavingGoal copyWith({
+    String? id,
+    String? title,
+    double? targetAmount,
+    double? currentAmount,
+    DateTime? targetDate,
+    IconData? iconData,
+    Color? color,
+  }) {
+    return SavingGoal(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      targetAmount: targetAmount ?? this.targetAmount,
+      currentAmount: currentAmount ?? this.currentAmount,
+      targetDate: targetDate ?? this.targetDate,
+      iconData: iconData ?? this.iconData,
+      color: color ?? this.color,
+    );
+  }
 }
