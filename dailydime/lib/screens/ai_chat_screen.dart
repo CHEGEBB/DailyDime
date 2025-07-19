@@ -1,11 +1,13 @@
 // lib/screens/ai_chat_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:dailydime/config/theme.dart';
+import 'package:dailydime/screens/analytics_screen.dart';
 import 'package:dailydime/widgets/charts/spending_chart.dart';
 import 'package:dailydime/widgets/charts/progress_chart.dart';
 import 'package:dailydime/widgets/common/custom_text_field.dart';
-import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 class AIChatScreen extends StatefulWidget {
   const AIChatScreen({Key? key}) : super(key: key);
@@ -18,25 +20,102 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
-  bool _showAnalytics = false;
+  
+  // Selected AI feature
+  String _selectedAIFeature = 'assistant';
+  
+  // Tab controller for AI features
   late TabController _tabController;
-
-  // Sample data for charts
-  final List<SpendingCategory> _spendingCategories = [
-    SpendingCategory(name: 'Food', amount: 5600, color: AppTheme.primaryEmerald),
-    SpendingCategory(name: 'Transport', amount: 2400, color: AppTheme.primaryBlue),
-    SpendingCategory(name: 'Entertainment', amount: 1200, color: AppTheme.accentIndigo),
-    SpendingCategory(name: 'Shopping', amount: 3200, color: AppTheme.accentPurple),
-    SpendingCategory(name: 'Bills', amount: 4800, color: AppTheme.info),
+  
+  // Controllers for saving suggestion amount
+  final TextEditingController _savingAmountController = TextEditingController(text: '30');
+  final TextEditingController _savingReasonController = TextEditingController();
+  
+  // Smart suggestions
+  final List<String> _smartSuggestions = [
+    'How much can I save this month?',
+    'Analyze my spending habits',
+    'Create a budget for weekend trip',
+    'How can I reduce my food expenses?',
+    'Tips to save for emergency fund',
   ];
-
-  final List<double> _savingsData = [300, 400, 250, 500, 600, 450, 700];
-  final List<double> _spendingData = [700, 500, 900, 400, 600, 800, 300];
+  
+  // AI insights
+  final List<AIInsight> _aiInsights = [
+    AIInsight(
+      title: 'Spending Pattern',
+      description: 'You spend 35% more on weekends. Consider planning your weekend activities to reduce impulse spending.',
+      icon: Icons.insights,
+      iconColor: AppTheme.primaryEmerald,
+    ),
+    AIInsight(
+      title: 'Saving Opportunity',
+      description: 'Based on your coffee purchases, switching to homemade coffee could save you KES 3,600 monthly.',
+      icon: Icons.savings,
+      iconColor: AppTheme.primaryBlue,
+    ),
+    AIInsight(
+      title: 'Budget Alert',
+      description: 'You\'ve reached 85% of your entertainment budget with 10 days remaining. Consider adjusting your spending.',
+      icon: Icons.warning_amber,
+      iconColor: AppTheme.warning,
+    ),
+  ];
+  
+  // Smart saving suggestions
+  final List<SmartSaving> _smartSavings = [
+    SmartSaving(
+      title: 'Skip takeout lunch',
+      amount: 350,
+      savingsGoal: 'Weekend Trip',
+      icon: Icons.fastfood,
+      color: AppTheme.primaryEmerald,
+    ),
+    SmartSaving(
+      title: 'Use public transport today',
+      amount: 200,
+      savingsGoal: 'Emergency Fund',
+      icon: Icons.directions_bus,
+      color: AppTheme.primaryBlue,
+    ),
+    SmartSaving(
+      title: 'Make coffee at home',
+      amount: 120,
+      savingsGoal: 'New Headphones',
+      icon: Icons.coffee,
+      color: AppTheme.accentIndigo,
+    ),
+  ];
+  
+  // Bill reminders
+  final List<BillReminder> _billReminders = [
+    BillReminder(
+      title: 'Electricity Bill',
+      amount: 1200,
+      dueDate: DateTime.now().add(const Duration(days: 5)),
+      icon: Icons.electric_bolt,
+      color: AppTheme.warning,
+    ),
+    BillReminder(
+      title: 'Internet Subscription',
+      amount: 2500,
+      dueDate: DateTime.now().add(const Duration(days: 8)),
+      icon: Icons.wifi,
+      color: AppTheme.primaryBlue,
+    ),
+    BillReminder(
+      title: 'Netflix Subscription',
+      amount: 900,
+      dueDate: DateTime.now().add(const Duration(days: 12)),
+      icon: Icons.tv,
+      color: AppTheme.error,
+    ),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     
     // Add initial AI message
     _messages.add(
@@ -53,6 +132,8 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
     _messageController.dispose();
     _scrollController.dispose();
     _tabController.dispose();
+    _savingAmountController.dispose();
+    _savingReasonController.dispose();
     super.dispose();
   }
 
@@ -114,40 +195,250 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
       }
     });
   }
+  
+  void _handleAcceptSaving(SmartSaving saving) {
+    // In a real app, this would save the transaction
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Saved KES ${saving.amount} toward ${saving.savingsGoal}!'),
+        backgroundColor: AppTheme.success,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+  
+  void _handleSavingSuggestion() {
+    if (_savingAmountController.text.isEmpty || _savingReasonController.text.isEmpty) {
+      return;
+    }
+    
+    final amount = int.tryParse(_savingAmountController.text) ?? 0;
+    if (amount <= 0) return;
+    
+    // In a real app, this would save the suggestion
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Custom saving of KES $amount added for ${_savingReasonController.text}'),
+        backgroundColor: AppTheme.success,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    
+    // Clear fields
+    _savingAmountController.text = '30';
+    _savingReasonController.clear();
+    
+    // Hide keyboard
+    FocusScope.of(context).unfocus();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _showAnalytics ? "AI Financial Insights" : "AI Financial Assistant",
-          style: const TextStyle(
+        title: const Text(
+          "DailyDime AI",
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _showAnalytics ? Icons.chat_bubble : Icons.bar_chart,
-              color: AppTheme.primaryEmerald,
-            ),
-            onPressed: () {
-              setState(() {
-                _showAnalytics = !_showAnalytics;
-              });
-              HapticFeedback.lightImpact();
-            },
-          ),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: AppTheme.primaryEmerald,
+          unselectedLabelColor: AppTheme.textMedium,
+          indicatorColor: AppTheme.primaryEmerald,
+          tabs: const [
+            Tab(text: "AI Features", icon: Icon(Icons.smart_toy)),
+            Tab(text: "Analytics", icon: Icon(Icons.bar_chart)),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildAIFeaturesView(),
+          AnalyticsScreen(),
         ],
       ),
-      body: _showAnalytics ? _buildAnalyticsView() : _buildChatView(),
     );
   }
 
-  Widget _buildChatView() {
+  Widget _buildAIFeaturesView() {
     return Column(
       children: [
+        // AI Features Selection
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                _buildFeatureButton(
+                  'assistant',
+                  'AI Assistant',
+                  Icons.smart_toy,
+                ),
+                _buildFeatureButton(
+                  'insights', 
+                  'Insights',
+                  Icons.insights,
+                ),
+                _buildFeatureButton(
+                  'savings', 
+                  'Smart Savings',
+                  Icons.savings,
+                ),
+                _buildFeatureButton(
+                  'bills', 
+                  'Bill Reminders',
+                  Icons.receipt_long,
+                ),
+                _buildFeatureButton(
+                  'custom', 
+                  'Custom Saving',
+                  Icons.add_circle_outline,
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        // Main Content Area
+        Expanded(
+          child: _getSelectedFeatureWidget(),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildFeatureButton(String feature, String label, IconData icon) {
+    final isSelected = _selectedAIFeature == feature;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedAIFeature = feature;
+        });
+        HapticFeedback.lightImpact();
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryEmerald : AppTheme.backgroundLight,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: AppTheme.primaryEmerald.withOpacity(0.2),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ] : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isSelected ? Colors.white : AppTheme.textMedium,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.white : AppTheme.textMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _getSelectedFeatureWidget() {
+    switch (_selectedAIFeature) {
+      case 'assistant':
+        return _buildAssistantView();
+      case 'insights':
+        return _buildInsightsView();
+      case 'savings':
+        return _buildSmartSavingsView();
+      case 'bills':
+        return _buildBillRemindersView();
+      case 'custom':
+        return _buildCustomSavingView();
+      default:
+        return _buildAssistantView();
+    }
+  }
+  
+  Widget _buildAssistantView() {
+    return Column(
+      children: [
+        // Smart suggestions
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Ask me anything about your finances",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _smartSuggestions.map((suggestion) {
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _messageController.text = suggestion;
+                        });
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.backgroundLight,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppTheme.primaryEmerald.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          suggestion,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppTheme.textDark.withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Chat messages
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
@@ -159,11 +450,641 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
             },
           ),
         ),
+        
+        // Chat input
         _buildChatInput(),
       ],
     );
   }
-
+  
+  Widget _buildInsightsView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "AI Financial Insights",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Personalized insights based on your financial behavior",
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textMedium,
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // AI Insights
+          ..._aiInsights.map((insight) => _buildInsightCard(insight)),
+          const SizedBox(height: 20),
+          
+          // Weekly spending report
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Weekly Spending Report",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.success.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          "12% ↓",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.success,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 200,
+                    child: ProgressChart(
+                      weeklyData: [8500, 6300, 9200, 5600, 7800, 4500, 6200],
+                      title: "",
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "AI Analysis: Your spending is trending downward! You've spent less this week compared to your weekly average. Your biggest expense category was food at 32% of total spending.",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Budget allocation recommendation
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Recommended Budget Allocation",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _buildBudgetAllocationItem(
+                        "Needs",
+                        50,
+                        AppTheme.primaryEmerald,
+                      ),
+                      _buildBudgetAllocationItem(
+                        "Wants",
+                        30,
+                        AppTheme.primaryBlue,
+                      ),
+                      _buildBudgetAllocationItem(
+                        "Savings",
+                        20,
+                        AppTheme.accentIndigo,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Based on the 50/30/20 rule and your monthly income of KES 45,000",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSmartSavingsView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Smart Saving Suggestions",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "AI-powered suggestions to help you save more",
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textMedium,
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // Smart savings suggestions
+          ..._smartSavings.map((saving) => _buildSmartSavingCard(saving)),
+          
+          const SizedBox(height: 20),
+          
+          // Daily saving challenge
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryEmerald.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.calendar_today,
+                          color: AppTheme.primaryEmerald,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "7-Day Saving Challenge",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textDark,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Save KES 100 each day for 7 days",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppTheme.textMedium,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(
+                    value: 3/7,
+                    backgroundColor: Colors.grey.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryEmerald),
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Day 3 of 7",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      Text(
+                        "KES 300 saved",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.primaryEmerald,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Handle saving for the day
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('KES 100 saved for Day 3!'),
+                          backgroundColor: AppTheme.success,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryEmerald,
+                      foregroundColor: Colors.white,
+                      minimumSize: Size(double.infinity, 45),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text("Save Today's Amount"),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildBillRemindersView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Upcoming Bills & Payments",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "AI-organized reminders to help you avoid late fees",
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textMedium,
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // Bill reminders
+          ..._billReminders.map((bill) => _buildBillReminderCard(bill)),
+          
+          const SizedBox(height: 20),
+          
+          // Monthly bill summary
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Monthly Bill Summary",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Total Bills",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.textMedium,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "KES 8,900",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            "Paid Bills",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.textMedium,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "KES 3,400",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.success,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(
+                    value: 3400/8900,
+                    backgroundColor: Colors.grey.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.success),
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "AI Tip: Set aside KES 5,500 for remaining bills this month.",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      color: AppTheme.textMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildCustomSavingView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Create Custom Saving",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Let AI help you find the perfect amount to save",
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textMedium,
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // Custom saving form
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "AI Recommended Saving",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 80,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: TextField(
+                          controller: _savingAmountController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: "KES",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _savingReasonController,
+                          decoration: InputDecoration(
+                            labelText: "What are you saving for?",
+                            hintText: "e.g., Coffee, Lunch, Transport",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _handleSavingSuggestion,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryEmerald,
+                      foregroundColor: Colors.white,
+                      minimumSize: Size(double.infinity, 45),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text("Save This Amount"),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          Text(
+            "AI Saving Insights",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Saving insights
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryEmerald.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.lightbulb_outline,
+                          color: AppTheme.primaryEmerald,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          "If you save KES 30 daily",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textDark,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
+                      children: [
+                        const TextSpan(
+                          text: "You'll save ",
+                        ),
+                        TextSpan(
+                          text: "KES 900",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryEmerald,
+                          ),
+                        ),
+                        const TextSpan(
+                          text: " monthly and ",
+                        ),
+                        TextSpan(
+                          text: "KES 10,950",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryEmerald,
+                          ),
+                        ),
+                        const TextSpan(
+                          text: " yearly. This is enough for a weekend trip to Mombasa in just 3 months!",
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.tips_and_updates,
+                          color: AppTheme.primaryBlue,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          "Ways to save KES 30 daily",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textDark,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSavingTipItem("Skip one soda or juice", "KES 40-80"),
+                  _buildSavingTipItem("Make coffee at home instead of buying", "KES 100-150"),
+                  _buildSavingTipItem("Walk short distances instead of taking a boda", "KES 50-100"),
+                  _buildSavingTipItem("Bring lunch from home once a week", "KES 150-250"),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
   Widget _buildMessageBubble(ChatMessage message) {
     final isUser = message.isUser;
     return Padding(
@@ -319,156 +1240,11 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
       ),
     );
   }
-
-  Widget _buildAnalyticsView() {
-    final totalSpending = _spendingCategories.fold(
-      0.0, (sum, category) => sum + category.amount);
-
-    return Column(
-      children: [
-        // Tab Bar for Analytics
-        Container(
-          color: Colors.white,
-          child: TabBar(
-            controller: _tabController,
-            labelColor: AppTheme.primaryEmerald,
-            unselectedLabelColor: AppTheme.textMedium,
-            indicatorColor: AppTheme.primaryEmerald,
-            tabs: const [
-              Tab(text: "Overview", icon: Icon(Icons.dashboard_rounded)),
-              Tab(text: "Spending", icon: Icon(Icons.money_off_rounded)),
-              Tab(text: "Savings", icon: Icon(Icons.savings_rounded)),
-            ],
-          ),
-        ),
-        
-        // Tab Bar View for Analytics Content
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              // Overview Tab
-              SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildInsightCard(
-                      title: "Monthly Overview",
-                      description: "You've spent KES 17,200 this month, which is 12% less than last month. Great job on reducing your spending!",
-                      icon: Icons.trending_down,
-                      iconColor: AppTheme.success,
-                    ),
-                    const SizedBox(height: 16),
-                    SpendingChart(
-                      categories: _spendingCategories,
-                      totalSpending: totalSpending,
-                    ),
-                    const SizedBox(height: 16),
-                    ProgressChart(
-                      weeklyData: _savingsData,
-                      title: "Savings Progress",
-                    ),
-                    const SizedBox(height: 16),
-                    _buildInsightCard(
-                      title: "AI Recommendation",
-                      description: "Based on your spending patterns, you could save up to KES 2,000 by reducing food delivery expenses. Try cooking at home 2 more days per week.",
-                      icon: Icons.lightbulb_outline,
-                      iconColor: AppTheme.warning,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildGoalProgressCard(),
-                  ],
-                ),
-              ),
-              
-              // Spending Tab
-              SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SpendingChart(
-                      categories: _spendingCategories,
-                      totalSpending: totalSpending,
-                    ),
-                    const SizedBox(height: 16),
-                    ProgressChart(
-                      weeklyData: _spendingData,
-                      title: "Weekly Spending",
-                    ),
-                    const SizedBox(height: 16),
-                    _buildCategoryListCard(),
-                    const SizedBox(height: 16),
-                    _buildInsightCard(
-                      title: "Spending Insight",
-                      description: "Your highest spending day is Friday, with an average of KES 900 spent. Consider planning cheaper weekend activities.",
-                      icon: Icons.calendar_today,
-                      iconColor: AppTheme.info,
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Savings Tab
-              SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ProgressChart(
-                      weeklyData: _savingsData,
-                      title: "Weekly Savings",
-                    ),
-                    const SizedBox(height: 16),
-                    _buildGoalProgressCard(),
-                    const SizedBox(height: 16),
-                    _buildInsightCard(
-                      title: "Savings Opportunity",
-                      description: "If you save KES 200 more per day, you'll reach your KES 15,000 goal in just 20 days instead of 30.",
-                      icon: Icons.speed,
-                      iconColor: AppTheme.accentPurple,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSavingsMethodsCard(),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        
-        // Button to return to chat
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          color: Colors.white,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              setState(() {
-                _showAnalytics = false;
-              });
-              HapticFeedback.mediumImpact();
-            },
-            icon: const Icon(Icons.chat_bubble_outline),
-            label: const Text("Return to AI Chat"),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInsightCard({
-    required String title,
-    required String description,
-    required IconData icon,
-    required Color iconColor,
-  }) {
+  
+  Widget _buildInsightCard(AIInsight insight) {
     return Card(
       elevation: 2,
+      margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -478,12 +1254,12 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
+                color: insight.iconColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                icon,
-                color: iconColor,
+                insight.icon,
+                color: insight.iconColor,
                 size: 24,
               ),
             ),
@@ -493,19 +1269,19 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    insight.title,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: AppTheme.textDark,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    description,
+                    insight.description,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      color: AppTheme.textMedium,
                     ),
                   ),
                 ],
@@ -516,337 +1292,264 @@ class _AIChatScreenState extends State<AIChatScreen> with SingleTickerProviderSt
       ),
     );
   }
-
-  Widget _buildGoalProgressCard() {
+  
+  Widget _buildSmartSavingCard(SmartSaving saving) {
     return Card(
       elevation: 2,
+      margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Text(
-              "Savings Goals",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: saving.color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                saving.icon,
+                color: saving.color,
+                size: 24,
               ),
             ),
-            const SizedBox(height: 16),
-            _buildGoalProgressItem(
-              title: "New Headphones",
-              current: 9500,
-              target: 15000,
-              color: AppTheme.primaryEmerald,
-              icon: Icons.headphones,
-            ),
-            const SizedBox(height: 12),
-            _buildGoalProgressItem(
-              title: "Weekend Trip",
-              current: 12000,
-              target: 30000,
-              color: AppTheme.primaryBlue,
-              icon: Icons.flight,
-            ),
-            const SizedBox(height: 12),
-            _buildGoalProgressItem(
-              title: "Emergency Fund",
-              current: 25000,
-              target: 100000,
-              color: AppTheme.accentIndigo,
-              icon: Icons.health_and_safety,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGoalProgressItem({
-    required String title,
-    required double current,
-    required double target,
-    required Color color,
-    required IconData icon,
-  }) {
-    final progress = current / target;
-    
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    "${(progress * 100).toStringAsFixed(0)}%",
+                    saving.title,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: color,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
+                      children: [
+                        const TextSpan(
+                          text: "Save ",
+                        ),
+                        TextSpan(
+                          text: "KES ${saving.amount}",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryEmerald,
+                          ),
+                        ),
+                        const TextSpan(
+                          text: " toward ",
+                        ),
+                        TextSpan(
+                          text: saving.savingsGoal,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Stack(
-                children: [
-                  Container(
-                    height: 6,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  Container(
-                    height: 6,
-                    width: MediaQuery.of(context).size.width * 0.6 * progress, // Adjust width based on progress
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "KES ${current.toStringAsFixed(0)}",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                  ),
-                  Text(
-                    "KES ${target.toStringAsFixed(0)}",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryListCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Top Spending Categories",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
             ),
-            const SizedBox(height: 16),
-            ..._spendingCategories
-              .sorted((a, b) => b.amount.compareTo(a.amount))
-              .take(3)
-              .map((category) => _buildCategoryItem(
-                title: category.name,
-                amount: category.amount,
-                color: category.color,
-                previousAmount: category.amount * 1.1, // Simulated previous amount
-              ))
-              .toList(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryItem({
-    required String title,
-    required double amount,
-    required Color color,
-    required double previousAmount,
-  }) {
-    final percentChange = ((amount - previousAmount) / previousAmount) * 100;
-    final isIncrease = percentChange > 0;
-    
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                "KES ${amount.toStringAsFixed(0)}",
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => _handleAcceptSaving(saving),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryEmerald,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              Row(
+              child: const Text("Save"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildBillReminderCard(BillReminder bill) {
+    final daysLeft = bill.dueDate.difference(DateTime.now()).inDays;
+    final isUrgent = daysLeft <= 3;
+    
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: bill.color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                bill.icon,
+                color: bill.color,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    isIncrease ? Icons.arrow_upward : Icons.arrow_downward,
-                    color: isIncrease ? AppTheme.error : AppTheme.success,
-                    size: 12,
-                  ),
                   Text(
-                    "${percentChange.abs().toStringAsFixed(1)}%",
+                    bill.title,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: isIncrease ? AppTheme.error : AppTheme.success,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
                     ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        "KES ${bill.amount.toStringAsFixed(0)}",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryEmerald,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isUrgent ? AppTheme.error.withOpacity(0.1) : AppTheme.info.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          "Due in $daysLeft days",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isUrgent ? AppTheme.error : AppTheme.info,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                // Handle bill payment
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Bill payment initiated for ${bill.title}'),
+                    backgroundColor: AppTheme.success,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryEmerald,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text("Pay"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildBudgetAllocationItem(String title, int percentage, Color color) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: color,
+                width: 8,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                "$percentage%",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "KES ${percentage * 450}",
+            style: TextStyle(
+              fontSize: 12,
+              color: AppTheme.textMedium,
+            ),
           ),
         ],
       ),
     );
   }
-
-  Widget _buildSavingsMethodsCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Recommended Savings Methods",
+  
+  Widget _buildSavingTipItem(String tip, String amount) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        children: [
+          Icon(
+            Icons.check_circle,
+            color: AppTheme.primaryEmerald,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              tip,
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 14,
+                color: AppTheme.textDark,
               ),
             ),
-            const SizedBox(height: 16),
-            _buildSavingsMethodItem(
-              title: "Round-Up Savings",
-              description: "Round up every transaction to the nearest 50 KES and save the difference.",
-              icon: Icons.attach_money,
+          ),
+          Text(
+            amount,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
               color: AppTheme.primaryEmerald,
             ),
-            const SizedBox(height: 12),
-            _buildSavingsMethodItem(
-              title: "50/30/20 Rule",
-              description: "Allocate 50% to needs, 30% to wants, and 20% to savings from your income.",
-              icon: Icons.pie_chart,
-              color: AppTheme.primaryBlue,
-            ),
-            const SizedBox(height: 12),
-            _buildSavingsMethodItem(
-              title: "M-Pesa Lock Savings",
-              description: "Set up automatic transfers to M-Pesa Lock Savings every payday.",
-              icon: Icons.lock_outline,
-              color: AppTheme.accentIndigo,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildSavingsMethodItem({
-    required String title,
-    required String description,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -869,10 +1572,48 @@ class ChatMessage {
   });
 }
 
-extension ListExtension<T> on List<T> {
-  List<T> sorted(int Function(T a, T b) compare) {
-    final List<T> copied = List.from(this);
-    copied.sort(compare);
-    return copied;
-  }
+class AIInsight {
+  final String title;
+  final String description;
+  final IconData icon;
+  final Color iconColor;
+
+  AIInsight({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.iconColor,
+  });
+}
+
+class SmartSaving {
+  final String title;
+  final double amount;
+  final String savingsGoal;
+  final IconData icon;
+  final Color color;
+
+  SmartSaving({
+    required this.title,
+    required this.amount,
+    required this.savingsGoal,
+    required this.icon,
+    required this.color,
+  });
+}
+
+class BillReminder {
+  final String title;
+  final double amount;
+  final DateTime dueDate;
+  final IconData icon;
+  final Color color;
+
+  BillReminder({
+    required this.title,
+    required this.amount,
+    required this.dueDate,
+    required this.icon,
+    required this.color,
+  });
 }
