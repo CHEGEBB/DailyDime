@@ -376,21 +376,21 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     
                     // Tab Bar
                     Container(
-                      margin: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                      margin: const EdgeInsets.fromLTRB(12, 20, 12, 0),
                       decoration: BoxDecoration(
                         color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: TabBar(
                         controller: _tabController,
                         indicator: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                           color: accentColor,
                         ),
                         labelColor: Colors.white,
                         unselectedLabelColor: Colors.grey[700],
                         labelStyle: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                         tabs: const [
