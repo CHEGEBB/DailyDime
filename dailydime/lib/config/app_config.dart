@@ -1,88 +1,74 @@
-class AppConfig {
-  // ========================================
-  // APPWRITE CONFIGURATION
-  // ========================================
-  
-  // 🔧 Replace these values with your actual Appwrite project details
+  class AppConfig {
+  // ========== APPWRITE CONFIGURATION ==========
   static const String appwriteEndpoint = 'https://cloud.appwrite.io/v1';
-  static const String appwriteProjectId = '687ccf6e002704f4d3c8';
+  static const String appwriteProjectId = '687ccf6e002704f4d3c8'; // YOUR ACTUAL PROJECT ID
   
-  // 🗄️ DATABASE CONFIGURATION
-  static const String databaseId = '687cd2a600076b9b4bdf'; // Replace if you used different name
+  // Database Configuration
+  static const String databaseId = '687cd2a600076b9b4bdf'; // YOUR ACTUAL DATABASE ID
   
-  // 📊 COLLECTION IDs (You'll create these next)
-  static const String usersCollection = 'users';
+  // ========== COLLECTIONS ==========
+  static const String usersCollection = '687d25c5003848963461';
   static const String transactionsCollection = 'transactions';
   static const String budgetsCollection = 'budgets';
   static const String savingsGoalsCollection = 'savings_goals';
   static const String categoriesCollection = 'categories';
   
-  // 📁 STORAGE BUCKET IDs
-  static const String receiptsBucket = 'receipts';
-  static const String documentsBucket = 'documents';
-  static const String dailydimeBucket = 'dailydime'; // Your existing bucket
+  // ========== STORAGE BUCKETS ==========
+  static const String mainBucket = 'dailydime'; // Your existing bucket
   
-  // ⚙️ APPWRITE FUNCTION IDs (For later when you create functions)
-  static const String aiBudgetFunction = 'ai-budget-generator';
-  static const String mpesaFunction = 'mpesa-integration';
-  static const String smsAnalyzerFunction = 'sms-analyzer';
+  // ========== M-PESA DARAJA CONFIGURATION ==========
+  static const String mpesaConsumerKey = 'YOUR_CONSUMER_KEY';
+  static const String mpesaConsumerSecret = 'YOUR_CONSUMER_SECRET';
+  static const String mpesaPasskey = 'YOUR_PASSKEY';
+  static const String mpesaShortcode = '174379'; // Sandbox shortcode
+  static const String mpesaEnvironment = 'sandbox'; // Change to 'production' later
   
-  // ========================================
-  // AI & EXTERNAL API CONFIGURATION
-  // ========================================
+  // M-Pesa URLs
+  static const String mpesaBaseUrl = 'https://sandbox.safaricom.co.ke';
+  static const String mpesaAuthUrl = '/oauth/v1/generate?grant_type=client_credentials';
+  static const String mpesaStkPushUrl = '/mpesa/stkpush/v1/processrequest';
+  static const String mpesaAccountBalanceUrl = '/mpesa/accountbalance/v1/query';
+  static const String mpesaTransactionStatusUrl = '/mpesa/transactionstatus/v1/query';
   
-  // 🤖 AI Configuration (Add when you get Gemini API key)
-  static const String geminiApiKey = 'YOUR_GEMINI_API_KEY'; // Replace later
+  // ========== AI CONFIGURATION ==========
+  static const String geminiApiKey = 'YOUR_GEMINI_API_KEY';
+  static const String geminiModel = 'gemini-2.0-flash-exp';
   
-  // 💰 M-Pesa Configuration (Add when you get M-Pesa credentials)
-  static const String mpesaConsumerKey = 'YOUR_MPESA_CONSUMER_KEY';
-  static const String mpesaConsumerSecret = 'YOUR_MPESA_CONSUMER_SECRET';
-  static const String mpesaPasskey = 'YOUR_MPESA_PASSKEY';
-  static const String mpesaShortcode = 'YOUR_MPESA_SHORTCODE';
-  
-  // ========================================
-  // APP CONFIGURATION
-  // ========================================
-  
-  // 🌍 Environment
-  static const bool isProduction = bool.fromEnvironment('PRODUCTION', defaultValue: false);
-  static const bool enableLogging = !isProduction;
-  
-  // 📱 App Settings
+  // ========== APP SETTINGS ==========
   static const String appName = 'DailyDime';
   static const String appVersion = '1.0.0';
+  static const String primaryCurrency = 'KES';
+  static const String currencySymbol = 'Ksh';
   
-  // 🔔 Notification Settings
-  static const bool enablePushNotifications = true;
-  static const bool enableSMSParsing = true;
-  
-  // 💾 Local Storage Settings
-  static const String hiveBoxName = 'dailydime_box';
-  static const String userPrefsKey = 'user_preferences';
-  
-  // ========================================
-  // HELPER METHODS
-  // ========================================
-  
-  /// Get full collection path for Appwrite operations
-  static String getCollectionPath(String collectionId) {
-    return 'databases.$databaseId.collections.$collectionId';
+  // ========== HELPER METHODS ==========
+  static String formatCurrency(int amountInCents) {
+    double amount = amountInCents / 100.0;
+    return '$currencySymbol ${amount.toStringAsFixed(2)}';
   }
   
-  /// Get full bucket path for Appwrite operations
-  static String getBucketPath(String bucketId) {
-    return 'buckets.$bucketId';
+  static int parseAmountToCents(double amount) {
+    return (amount * 100).round();
   }
   
-  /// Check if all required Appwrite configs are set
-  static bool get isAppwriteConfigured {
-    return appwriteProjectId != 'YOUR_PROJECT_ID' && 
-           appwriteProjectId.isNotEmpty;
+  static bool isValidPhoneNumber(String phone) {
+    // Kenyan phone number validation
+    final RegExp phoneRegex = RegExp(r'^\+?254[17]\d{8}$|^0[17]\d{8}$');
+    return phoneRegex.hasMatch(phone);
   }
   
-  /// Get environment display name
-  static String get environmentName {
-    return isProduction ? 'Production' : 'Development';
+  static String formatPhoneNumber(String phone) {
+    // Convert to international format
+    if (phone.startsWith('0')) {
+      return '254${phone.substring(1)}';
+    } else if (phone.startsWith('+254')) {
+      return phone.substring(1);
+    } else if (phone.startsWith('254')) {
+      return phone;
+    }
+    return phone;
   }
+  
+  // Environment check
+  static bool get isProduction => mpesaEnvironment == 'production';
+  static bool get isDevelopment => !isProduction;
 }
-
