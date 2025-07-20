@@ -11,7 +11,7 @@
   static const String transactionsCollection = '687d279f0017bd2ecce1';
   static const String budgetsCollection = '687d29390004ed2dfd95';
   static const String savingsGoalsCollection = '687d2ae7002eba8fad3c';
-  static const String categoriesCollection = 'categories';
+  static const String categoriesCollection = '687d2c410033c0359630';
   
   // ========== STORAGE BUCKETS ==========
   static const String mainBucket = 'dailydime'; // Your existing bucket
