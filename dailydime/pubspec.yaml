@@ -15,12 +15,37 @@ dependencies:
   intl: ^0.17.0 
   flutter_svg: ^2.0.10
   fl_chart: ^0.68.0
-  local_auth: ^2.1.0 
+  local_auth: ^2.1.0
+  
+  # Appwrite Backend
+  appwrite: ^11.0.0
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  
+  # HTTP and Permissions
+  http: ^0.13.6
+  permission_handler: ^11.0.1
+  
+  # SMS Reading (for transaction parsing)
+  sms_maintained: ^1.0.0
+  
+  # Shared Preferences
+  shared_preferences: ^2.2.2
   
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  
+  # Hive code generation
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.9
+  
 flutter:
   uses-material-design: true
   
@@ -72,4 +97,3 @@ flutter:
       fonts:
         - asset: assets/fonts/Pacifico-Regular.ttf
           weight: 400
- 
