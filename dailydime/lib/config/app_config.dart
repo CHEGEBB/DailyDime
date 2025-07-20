@@ -17,18 +17,20 @@
   static const String mainBucket = 'dailydime'; // Your existing bucket
   
   // ========== M-PESA DARAJA CONFIGURATION ==========
-  static const String mpesaConsumerKey = 'YOUR_CONSUMER_KEY';
-  static const String mpesaConsumerSecret = 'YOUR_CONSUMER_SECRET';
-  static const String mpesaPasskey = 'YOUR_PASSKEY';
+  static const String mpesaConsumerKey = '2WGPL2mGEA3Kfc9WbmGi5TOyMGAqB3aJcAO0J0LD220fboib';
+  static const String mpesaConsumerSecret = 'hbCICv2LHupoUBFz67E50B4vD7RfbfbsUTJKtgj8nddgEbHgTod8ePFxYmGeaS6m';
+  static const String mpesaPasskey = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919';
   static const String mpesaShortcode = '174379'; // Sandbox shortcode
   static const String mpesaEnvironment = 'sandbox'; // Change to 'production' later
   
   // M-Pesa URLs
-  static const String mpesaBaseUrl = 'https://sandbox.safaricom.co.ke';
-  static const String mpesaAuthUrl = '/oauth/v1/generate?grant_type=client_credentials';
-  static const String mpesaStkPushUrl = '/mpesa/stkpush/v1/processrequest';
-  static const String mpesaAccountBalanceUrl = '/mpesa/accountbalance/v1/query';
-  static const String mpesaTransactionStatusUrl = '/mpesa/transactionstatus/v1/query';
+static const String mpesaBaseUrl = 'https://sandbox.safaricom.co.ke';
+static const String mpesaAuthUrl = '/oauth/v1/generate?grant_type=client_credentials';
+static const String mpesaStkPushUrl = '/mpesa/stkpush/v1/processrequest';
+static const String mpesaStkQueryUrl = '/mpesa/stkpushquery/v1/query'; // Added from your documentation
+static const String mpesaAccountBalanceUrl = '/mpesa/accountbalance/v1/query';
+static const String mpesaTransactionStatusUrl = '/mpesa/transactionstatus/v1/query';
+
   
   // ========== AI CONFIGURATION ==========
   static const String geminiApiKey = 'YOUR_GEMINI_API_KEY';
