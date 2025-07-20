@@ -68,4 +68,8 @@ flutter:
           weight: 600
         - asset: assets/fonts/DMsans-Bold.ttf
           weight: 700
+    - family: Pacifico
+      fonts:
+        - asset: assets/fonts/Pacifico-Regular.ttf
+          weight: 400
  
