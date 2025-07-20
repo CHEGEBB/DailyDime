@@ -34,16 +34,45 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   bool _showChart = false; // Changed to false to show bar chart by default
   bool _isExpanded = false;
   
+  // For balance updating
+  String _currentBalance = "24,550";
+  bool _isEditingBalance = false;
+  final TextEditingController _balanceController = TextEditingController();
+  
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _balanceController.text = _currentBalance;
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _balanceController.dispose();
     super.dispose();
+  }
+  
+  void _startEditingBalance() {
+    setState(() {
+      _isEditingBalance = true;
+    });
+  }
+  
+  void _saveBalance() {
+    setState(() {
+      _currentBalance = _balanceController.text.replaceAll(',', '');
+      // Format the number with commas
+      final formatter = NumberFormat("#,###");
+      try {
+        final value = double.parse(_currentBalance);
+        _currentBalance = formatter.format(value);
+      } catch (e) {
+        // If parsing fails, keep the original input
+      }
+      _balanceController.text = _currentBalance;
+      _isEditingBalance = false;
+    });
   }
 
   @override
@@ -228,13 +257,61 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ],
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          'KES 24,550',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        GestureDetector(
+                          onTap: _startEditingBalance,
+                          child: _isEditingBalance 
+                              ? Row(
+                                  children: [
+                                    Text(
+                                      'KES ',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _balanceController,
+                                        keyboardType: TextInputType.number,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        decoration: InputDecoration(
+                                          border: InputBorder.none,
+                                          contentPadding: EdgeInsets.zero,
+                                          isDense: true,
+                                        ),
+                                        autofocus: true,
+                                        onSubmitted: (_) => _saveBalance(),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.check, color: Colors.white),
+                                      onPressed: _saveBalance,
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    Text(
+                                      'KES $_currentBalance',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(
+                                      Icons.edit,
+                                      color: Colors.white.withOpacity(0.7),
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
                         ),
                         const SizedBox(height: 6),
                         Row(
@@ -555,7 +632,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        'KES 24,550',
+                                        'KES $_currentBalance',
                                         style: TextStyle(
                                           fontSize: 20,
                                           fontWeight: FontWeight.bold,
@@ -575,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             )
                           else
                             Container(
-                              height: 220,
+                              height: 250,
                               child: SpendingBarChart(),
                             ),
                             
@@ -876,12 +953,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       ),
                       child: Column(
                         children: [
-                          // Budget overview chart
+                          // Budget overview chart - replaced with EnhancedBudgetBarChart
                           SizedBox(
-                            height: 180,
-                            child: CustomPaint(
-                              painter: BudgetChartPainter(),
-                            ),
+                            height: 280,
+                            child: EnhancedBudgetBarChart(),
                           ),
                           
                           const SizedBox(height: 20),
@@ -2547,6 +2622,346 @@ class BarChartPainter extends CustomPainter {
           Offset(left + (barWidth - amountPainter.width) / 2, top - 20),
         );
       }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
+  }
+}
+
+// Enhanced Budget Bar Chart - New implementation for the budget status section
+class EnhancedBudgetBarChart extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: EnhancedBudgetBarChartPainter(),
+      child: Container(),
+    );
+  }
+}
+
+class EnhancedBudgetBarChartPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final barHeight = 32.0;
+    final barSpacing = 20.0;
+    final labelWidth = 80.0;
+    final accentColor = Color(0xFF26D07C);
+    
+    // Categories with data
+    final List<Map<String, dynamic>> categories = [
+      {
+        'name': 'Food',
+        'spent': 3430,
+        'budget': 5000,
+        'color': Colors.orange,
+      },
+      {
+        'name': 'Transport',
+        'spent': 2800,
+        'budget': 3000,
+        'color': Colors.blue,
+      },
+      {
+        'name': 'Shopping',
+        'spent': 1500,
+        'budget': 4000,
+        'color': Colors.green,
+      },
+      {
+        'name': 'Bills',
+        'spent': 2200,
+        'budget': 2500,
+        'color': Colors.red,
+      },
+    ];
+    
+    // Draw title
+    final titleTextSpan = TextSpan(
+      text: 'Monthly Budget Usage',
+      style: TextStyle(
+        color: Colors.black87,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    
+    final titleTextPainter = TextPainter(
+      text: titleTextSpan,
+      textDirection: ui.TextDirection.ltr,
+    );
+    
+    titleTextPainter.layout();
+    titleTextPainter.paint(
+      canvas,
+      Offset(0, 5),
+    );
+    
+    // Draw subtitle
+    final subtitleTextSpan = TextSpan(
+      text: 'Budget cycle: 01 Jul - 31 Jul',
+      style: TextStyle(
+        color: Colors.grey[600],
+        height: 1.2,
+        fontSize: 12,
+      ),
+    );
+    
+    final subtitleTextPainter = TextPainter(
+      text: subtitleTextSpan,
+      textDirection: ui.TextDirection.ltr,
+    );
+    
+    subtitleTextPainter.layout();
+    subtitleTextPainter.paint(
+      canvas,
+      Offset(0, titleTextPainter.height + 10),
+    );
+    
+    // Calculate total budget and total spent
+    double totalBudget = 0;
+    double totalSpent = 0;
+    
+    for (var category in categories) {
+      totalBudget += category['budget'] as double;
+      totalSpent += category['spent'] as double;
+    }
+    
+    // Draw overall progress at the top
+    final overallProgressTop = subtitleTextPainter.height + titleTextPainter.height + 25;
+    
+    // Background track
+    final trackPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
+    
+    final trackRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, overallProgressTop, size.width, 10),
+      Radius.circular(5),
+    );
+    
+    canvas.drawRRect(trackRect, trackPaint);
+    
+    // Progress fill
+    final progress = totalSpent / totalBudget;
+    final progressWidth = size.width * progress;
+    
+    final progressPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          accentColor.withOpacity(0.7),
+          accentColor,
+        ],
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+      ).createShader(Rect.fromLTWH(0, overallProgressTop, progressWidth, 10))
+      ..style = PaintingStyle.fill;
+    
+    final progressRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, overallProgressTop, progressWidth, 10),
+      Radius.circular(5),
+    );
+    
+    canvas.drawRRect(progressRect, progressPaint);
+    
+    // Draw overall percentage text
+    final percentText = '${(progress * 100).toStringAsFixed(0)}%';
+    final percentTextSpan = TextSpan(
+      text: percentText,
+      style: TextStyle(
+        color: progress > 0.9 ? Colors.red : accentColor,
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    
+    final percentTextPainter = TextPainter(
+      text: percentTextSpan,
+      textDirection: ui.TextDirection.ltr,
+    );
+    
+    percentTextPainter.layout();
+    percentTextPainter.paint(
+      canvas,
+      Offset(
+        size.width - percentTextPainter.width,
+        overallProgressTop - percentTextPainter.height - 5,
+      ),
+    );
+    
+    // Total amount text
+    final amountText = 'KES ${totalSpent.toStringAsFixed(0)} / ${totalBudget.toStringAsFixed(0)}';
+    final amountTextSpan = TextSpan(
+      text: amountText,
+      style: TextStyle(
+        color: Colors.grey[800],
+        height: 1.2,
+        fontSize: 12,
+      ),
+    );
+    
+    final amountTextPainter = TextPainter(
+      text: amountTextSpan,
+      textDirection: ui.TextDirection.ltr,
+    );
+    
+    amountTextPainter.layout();
+    amountTextPainter.paint(
+      canvas,
+      Offset(
+        0,
+        overallProgressTop - amountTextPainter.height - 5,
+      ),
+    );
+    
+    // Draw category bars
+    double yOffset = overallProgressTop + 30;
+    
+    for (int i = 0; i < categories.length; i++) {
+      final category = categories[i];
+      final name = category['name'] as String;
+      final spent = category['spent'] as double;
+      final budget = category['budget'] as double;
+      final color = category['color'] as Color;
+      final progress = spent / budget;
+      
+      // Category name
+      final nameTextSpan = TextSpan(
+        text: name,
+        style: TextStyle(
+          color: Colors.grey[800],
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+      );
+      
+      final nameTextPainter = TextPainter(
+        text: nameTextSpan,
+        textDirection: ui.TextDirection.ltr,
+      );
+      
+      nameTextPainter.layout();
+      nameTextPainter.paint(
+        canvas,
+        Offset(0, yOffset),
+      );
+      
+      // Draw bar background
+      final barBgPaint = Paint()
+        ..color = Colors.grey.withOpacity(0.1)
+        ..style = PaintingStyle.fill;
+      
+      final barBgRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(labelWidth, yOffset, size.width - labelWidth, barHeight),
+        Radius.circular(6),
+      );
+      
+      canvas.drawRRect(barBgRect, barBgPaint);
+      
+      // Draw progress bar
+      final progressWidth = (size.width - labelWidth) * progress;
+      
+      final barPaint = Paint()
+        ..shader = LinearGradient(
+          colors: [
+            color.withOpacity(0.7),
+            color,
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ).createShader(Rect.fromLTWH(labelWidth, yOffset, progressWidth, barHeight))
+        ..style = PaintingStyle.fill;
+      
+      final barRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(labelWidth, yOffset, progressWidth, barHeight),
+        Radius.circular(6),
+      );
+      
+      canvas.drawRRect(barRect, barPaint);
+      
+      // Draw amount text inside the bar
+      final amountText = 'KES ${spent.toStringAsFixed(0)} / ${budget.toStringAsFixed(0)}';
+      final amountTextSpan = TextSpan(
+        text: amountText,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          shadows: [
+            Shadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 2,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+      );
+      
+      final amountTextPainter = TextPainter(
+        text: amountTextSpan,
+        textDirection: ui.TextDirection.ltr,
+      );
+      
+      amountTextPainter.layout();
+      
+      // Check if text fits within the colored part of the bar
+      if (progressWidth > amountTextPainter.width + 20) {
+        // Text fits inside the colored part
+        amountTextPainter.paint(
+          canvas,
+          Offset(
+            labelWidth + 10,
+            yOffset + (barHeight - amountTextPainter.height) / 2,
+          ),
+        );
+      } else {
+        // Text doesn't fit, place it at the end of the bar
+        final textSpan = TextSpan(
+          text: amountText,
+          style: TextStyle(
+            color: Colors.grey[800],
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+        
+        final textPainter = TextPainter(
+          text: textSpan,
+          textDirection: ui.TextDirection.ltr,
+        );
+        
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(
+            size.width - textPainter.width - 10,
+            yOffset + (barHeight - textPainter.height) / 2,
+          ),
+        );
+      }
+      
+      // Add percentage to the right
+      final percentText = '${(progress * 100).toStringAsFixed(0)}%';
+      final percentTextSpan = TextSpan(
+        text: percentText,
+        style: TextStyle(
+          color: progress > 0.9 ? Colors.red : (progress > 0.7 ? Colors.orange : Colors.grey[800]),
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      
+      final percentTextPainter = TextPainter(
+        text: percentTextSpan,
+        textDirection: ui.TextDirection.ltr,
+      );
+      
+      percentTextPainter.layout();
+      
+      // Update the y offset for the next category
+      yOffset += barHeight + barSpacing;
     }
   }
 
