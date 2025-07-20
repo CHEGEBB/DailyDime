@@ -33,17 +33,51 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _selectedTimeFrame = 1; // Default to Month
   bool _showChart = false; // Changed to false to show bar chart by default
   bool _isExpanded = false;
-  
-  // For balance updating
-  String _currentBalance = "24,550";
+  TextEditingController _balanceController = TextEditingController(text: '24,550');
   bool _isEditingBalance = false;
-  final TextEditingController _balanceController = TextEditingController();
+  
+  // Sample budget data
+  final List<BudgetCategory> budgetCategories = [
+    BudgetCategory(
+      name: 'Food & Dining',
+      icon: Icons.restaurant,
+      color: Colors.orange,
+      spent: 3430,
+      budget: 5000,
+      dailyData: [750, 620, 350, 800, 910, 0, 0],
+    ),
+    BudgetCategory(
+      name: 'Transportation',
+      icon: Icons.directions_car,
+      color: Colors.blue,
+      spent: 2800,
+      budget: 3000,
+      dailyData: [400, 350, 500, 420, 1130, 0, 0],
+    ),
+    BudgetCategory(
+      name: 'Entertainment',
+      icon: Icons.movie,
+      color: Colors.purple,
+      spent: 1200,
+      budget: 2000,
+      dailyData: [0, 300, 0, 450, 450, 0, 0],
+    ),
+    BudgetCategory(
+      name: 'Shopping',
+      icon: Icons.shopping_bag,
+      color: Colors.teal,
+      spent: 5600,
+      budget: 10000,
+      dailyData: [1200, 0, 1400, 0, 3000, 0, 0],
+    ),
+  ];
+  
+  int _selectedBudgetCategoryIndex = 0;
   
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _balanceController.text = _currentBalance;
   }
 
   @override
@@ -51,28 +85,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _tabController.dispose();
     _balanceController.dispose();
     super.dispose();
-  }
-  
-  void _startEditingBalance() {
-    setState(() {
-      _isEditingBalance = true;
-    });
-  }
-  
-  void _saveBalance() {
-    setState(() {
-      _currentBalance = _balanceController.text.replaceAll(',', '');
-      // Format the number with commas
-      final formatter = NumberFormat("#,###");
-      try {
-        final value = double.parse(_currentBalance);
-        _currentBalance = formatter.format(value);
-      } catch (e) {
-        // If parsing fails, keep the original input
-      }
-      _balanceController.text = _currentBalance;
-      _isEditingBalance = false;
-    });
   }
 
   @override
@@ -257,10 +269,67 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ],
                         ),
                         const SizedBox(height: 16),
+                        
+                        // Editable balance
                         GestureDetector(
-                          onTap: _startEditingBalance,
+                          onTap: () {
+                            setState(() {
+                              _isEditingBalance = true;
+                            });
+                          },
                           child: _isEditingBalance 
-                              ? Row(
+                              ? Container(
+                                  height: 46,
+                                  padding: EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'KES ',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _balanceController,
+                                          keyboardType: TextInputType.number,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          decoration: InputDecoration(
+                                            border: InputBorder.none,
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                          autofocus: true,
+                                          onSubmitted: (value) {
+                                            setState(() {
+                                              _isEditingBalance = false;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.check, color: Colors.white),
+                                        onPressed: () {
+                                          setState(() {
+                                            _isEditingBalance = false;
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : Row(
                                   children: [
                                     Text(
                                       'KES ',
@@ -270,34 +339,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _balanceController,
-                                        keyboardType: TextInputType.number,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        decoration: InputDecoration(
-                                          border: InputBorder.none,
-                                          contentPadding: EdgeInsets.zero,
-                                          isDense: true,
-                                        ),
-                                        autofocus: true,
-                                        onSubmitted: (_) => _saveBalance(),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.check, color: Colors.white),
-                                      onPressed: _saveBalance,
-                                    ),
-                                  ],
-                                )
-                              : Row(
-                                  children: [
                                     Text(
-                                      'KES $_currentBalance',
+                                      _balanceController.text,
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 32,
@@ -309,10 +352,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                       Icons.edit,
                                       color: Colors.white.withOpacity(0.7),
                                       size: 18,
-                                    ),
+                                    )
                                   ],
                                 ),
                         ),
+                        
                         const SizedBox(height: 6),
                         Row(
                           children: [
@@ -632,7 +676,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        'KES $_currentBalance',
+                                        'KES 24,550',
                                         style: TextStyle(
                                           fontSize: 20,
                                           fontWeight: FontWeight.bold,
@@ -652,7 +696,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             )
                           else
                             Container(
-                              height: 250,
+                              height: 220,
                               child: SpendingBarChart(),
                             ),
                             
@@ -898,7 +942,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               
               const SizedBox(height: 30),
               
-              // Budget Status with better visualization
+              // Budget Status with interactive bar graph
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
@@ -952,49 +996,322 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ],
                       ),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Budget overview chart - replaced with EnhancedBudgetBarChart
-                          SizedBox(
-                            height: 280,
-                            child: EnhancedBudgetBarChart(),
+                          // Budget Period Selector
+                          Row(
+                            children: [
+                              Text(
+                                'Budget Period:',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: accentColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'July 2025',
+                                      style: TextStyle(
+                                        color: accentColor,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Icon(
+                                      Icons.keyboard_arrow_down,
+                                      size: 16,
+                                      color: accentColor,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                           
-                          const SizedBox(height: 20),
+                          SizedBox(height: 24),
                           
-                          // Budget categories
-                          _buildModernBudgetItem(
-                            context,
-                            category: 'Food & Dining',
-                            icon: Icons.restaurant,
-                            iconColor: Colors.orange,
-                            currentAmount: 3430,
-                            budgetAmount: 5000,
-                            progress: 3430 / 5000,
+                          // Category selector for the chart
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            physics: BouncingScrollPhysics(),
+                            child: Row(
+                              children: List.generate(
+                                budgetCategories.length,
+                                (index) => GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedBudgetCategoryIndex = index;
+                                    });
+                                  },
+                                  child: Container(
+                                    margin: EdgeInsets.only(right: 10),
+                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: _selectedBudgetCategoryIndex == index
+                                          ? budgetCategories[index].color
+                                          : budgetCategories[index].color.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          budgetCategories[index].icon,
+                                          color: _selectedBudgetCategoryIndex == index
+                                              ? Colors.white
+                                              : budgetCategories[index].color,
+                                          size: 16,
+                                        ),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          budgetCategories[index].name,
+                                          style: TextStyle(
+                                            color: _selectedBudgetCategoryIndex == index
+                                                ? Colors.white
+                                                : budgetCategories[index].color,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                           
-                          const SizedBox(height: 12),
+                          SizedBox(height: 20),
                           
-                          _buildModernBudgetItem(
-                            context,
-                            category: 'Transportation',
-                            icon: Icons.directions_car,
-                            iconColor: Colors.blue,
-                            currentAmount: 2800,
-                            budgetAmount: 3000,
-                            progress: 2800 / 3000,
-                            isWarning: true,
+                          // Budget overview interactive bar chart
+                          Container(
+                            height: 220,
+                            width: double.infinity,
+                            child: BudgetBarChart(
+                              dailyData: budgetCategories[_selectedBudgetCategoryIndex].dailyData,
+                              color: budgetCategories[_selectedBudgetCategoryIndex].color,
+                            ),
                           ),
                           
-                          const SizedBox(height: 12),
+                          SizedBox(height: 20),
                           
-                          _buildModernBudgetItem(
-                            context,
-                            category: 'Entertainment',
-                            icon: Icons.movie,
-                            iconColor: Colors.purple,
-                            currentAmount: 1200,
-                            budgetAmount: 2000,
-                            progress: 1200 / 2000,
+                          // Budget category total summary
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Spent',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'KES ',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                          Text(
+                                            '${budgetCategories[_selectedBudgetCategoryIndex].spent.toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: budgetCategories[_selectedBudgetCategoryIndex].color,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Budget',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'KES ',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                          Text(
+                                            '${budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Remaining',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'KES ',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                          Text(
+                                            '${(budgetCategories[_selectedBudgetCategoryIndex].budget - budgetCategories[_selectedBudgetCategoryIndex].spent).toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: accentColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          SizedBox(height: 24),
+                          
+                          // Budget Progress Bar
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Monthly Progress',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${(budgetCategories[_selectedBudgetCategoryIndex].spent / budgetCategories[_selectedBudgetCategoryIndex].budget * 100).toStringAsFixed(0)}%',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: _getBudgetStatusColor(budgetCategories[_selectedBudgetCategoryIndex].spent / budgetCategories[_selectedBudgetCategoryIndex].budget),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Container(
+                                height: 8,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      height: 8,
+                                      width: (MediaQuery.of(context).size.width - 80) * (budgetCategories[_selectedBudgetCategoryIndex].spent / budgetCategories[_selectedBudgetCategoryIndex].budget),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            budgetCategories[_selectedBudgetCategoryIndex].color.withOpacity(0.7),
+                                            budgetCategories[_selectedBudgetCategoryIndex].color,
+                                          ],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '0',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  Text(
+                                    'KES ${budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -1321,6 +1638,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
+  // Helper method to determine budget status color
+  Color _getBudgetStatusColor(double ratio) {
+    if (ratio > 0.9) return Colors.red;
+    if (ratio > 0.7) return Colors.orange;
+    return Color(0xFF26D07C);
+  }
+  
   // Wallet stat item widget
   Widget _buildWalletStatItem({
     required IconData icon,
@@ -1516,13 +1840,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ],
             ),
           ),
-          Text(
-            '${amount > 0 ? "+" : ""}KES ${amount.abs().toStringAsFixed(0)}',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: amount > 0 ? Color(0xFF26D07C) : Colors.red,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'KES ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: amount > 0 ? Color(0xFF26D07C) : Colors.red,
+                    ),
+                  ),
+                  Text(
+                    '${amount.abs().toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: amount > 0 ? Color(0xFF26D07C) : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 4),
+              Text(
+                amount > 0 ? "Income" : "Expense",
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1637,7 +1986,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Row(
             children: [
               Text(
-                'KES ${currentAmount.toStringAsFixed(0)}',
+                'KES ',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[700],
+                ),
+              ),
+              Text(
+                '${currentAmount.toStringAsFixed(0)}',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1702,153 +2059,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         ],
       ),
-    );
-  }
-  
-  // Improved modern budget item
-  Widget _buildModernBudgetItem(
-    BuildContext context, {
-    required String category,
-    required IconData icon,
-    required Color iconColor,
-    required double currentAmount,
-    required double budgetAmount,
-    required double progress,
-    bool isWarning = false,
-  }) {
-    Color progressColor = Color(0xFF26D07C); // Default green
-    
-    if (progress > 0.9) {
-      progressColor = Colors.red;
-    } else if (progress > 0.7) {
-      progressColor = Colors.orange;
-    }
-    
-    return Row(
-      children: [
-        // Category icon
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: iconColor,
-          ),
-        ),
-        
-        const SizedBox(width: 12),
-        
-        // Category info
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      category,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (isWarning)
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.priority_high,
-                        size: 12,
-                        color: Colors.red,
-                      ),
-                    ),
-                ],
-              ),
-              
-              const SizedBox(height: 6),
-              
-              // Progress text
-              Row(
-                children: [
-                  Text(
-                    'KES ${currentAmount.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: progressColor,
-                    ),
-                  ),
-                  Text(
-                    ' / ${budgetAmount.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${(progress * 100).toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: progressColor,
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 6),
-              
-              // Progress bar
-              Container(
-                height: 6,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Row(
-                      children: [
-                        Container(
-                          height: 6,
-                          width: constraints.maxWidth * (progress > 1 ? 1 : progress),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [progressColor.withOpacity(0.7), progressColor],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
-                            borderRadius: BorderRadius.circular(3),
-                            boxShadow: [
-                              BoxShadow(
-                                color: progressColor.withOpacity(0.3),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
   
@@ -2284,6 +2494,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 }
 
+// Budget Category Data Model
+class BudgetCategory {
+  final String name;
+  final IconData icon;
+  final Color color;
+  final double spent;
+  final double budget;
+  final List<double> dailyData; // Daily spending data for the chart
+
+  BudgetCategory({
+    required this.name,
+    required this.icon,
+    required this.color,
+    required this.spent,
+    required this.budget,
+    required this.dailyData,
+  });
+}
+
 // Pie Chart Painter with improved shadow effects
 class PieChartPainter extends CustomPainter {
   @override
@@ -2358,139 +2587,6 @@ class PieChartPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     
     canvas.drawCircle(center, radius - 30, innerCirclePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
-}
-
-// Budget Chart Painter - Doughnut chart with multiple categories
-class BudgetChartPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = math.min(size.width, size.height) / 2 - 20;
-    
-    // Budget categories with colors, labels, and percentages
-    final categories = [
-      {'color': Colors.orange, 'label': 'Food', 'spent': 0.68, 'total': 0.35},
-      {'color': Colors.blue, 'label': 'Transport', 'spent': 0.93, 'total': 0.25},
-      {'color': Colors.purple, 'label': 'Entertainment', 'spent': 0.6, 'total': 0.15},
-      {'color': Colors.teal, 'label': 'Shopping', 'spent': 0.4, 'total': 0.10},
-      {'color': Colors.red, 'label': 'Bills', 'spent': 0.75, 'total': 0.15},
-    ];
-    
-    double startAngle = -math.pi / 2; // Start from top
-    
-    // Draw total budget segments (background)
-    for (var category in categories) {
-      final sweepAngle = 2 * math.pi * (category['total'] as double);
-      final bgPaint = Paint()
-        ..color = (category['color'] as Color).withOpacity(0.15)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 25
-        ..strokeCap = StrokeCap.butt;
-      
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        false,
-        bgPaint,
-      );
-      
-      // Draw spent amount on top
-      final spentAngle = sweepAngle * (category['spent'] as double);
-      final spentPaint = Paint()
-        ..color = category['color'] as Color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 25
-        ..strokeCap = StrokeCap.butt;
-      
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        spentAngle,
-        false,
-        spentPaint,
-      );
-      
-      // Draw label
-      final labelAngle = startAngle + (sweepAngle / 2);
-      final labelRadius = radius + 30;
-      final labelPosition = Offset(
-        center.dx + labelRadius * math.cos(labelAngle),
-        center.dy + labelRadius * math.sin(labelAngle),
-      );
-      
-      // Draw label dot
-      final dotPaint = Paint()
-        ..color = category['color'] as Color
-        ..style = PaintingStyle.fill;
-      
-      canvas.drawCircle(
-        Offset(
-          center.dx + (radius + 10) * math.cos(labelAngle),
-          center.dy + (radius + 10) * math.sin(labelAngle),
-        ),
-        4,
-        dotPaint,
-      );
-      
-      startAngle += sweepAngle;
-    }
-    
-    // Center text
-    final totalSpentPaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.fill;
-    
-    final textSpan = TextSpan(
-      text: '75%',
-      style: TextStyle(
-        color: Color(0xFF26D07C),
-        fontSize: 24,
-        fontWeight: FontWeight.bold,
-      ),
-    );
-    
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: ui.TextDirection.ltr,
-      textAlign: TextAlign.center,
-    );
-    
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(center.dx - textPainter.width / 2, center.dy - textPainter.height / 2),
-    );
-    
-    // "Used" text below
-    final subTextSpan = TextSpan(
-      text: 'Used',
-      style: TextStyle(
-        color: Colors.grey[600],
-        fontSize: 14,
-      ),
-    );
-    
-    final subTextPainter = TextPainter(
-      text: subTextSpan,
-      textDirection: ui.TextDirection.ltr,
-      textAlign: TextAlign.center,
-    );
-    
-    subTextPainter.layout();
-    subTextPainter.paint(
-      canvas,
-      Offset(
-        center.dx - subTextPainter.width / 2,
-        center.dy + textPainter.height / 2,
-      ),
-    );
   }
 
   @override
@@ -2631,338 +2727,202 @@ class BarChartPainter extends CustomPainter {
   }
 }
 
-// Enhanced Budget Bar Chart - New implementation for the budget status section
-class EnhancedBudgetBarChart extends StatelessWidget {
+// Budget Bar Chart with animation capabilities
+class BudgetBarChart extends StatelessWidget {
+  final List<double> dailyData;
+  final Color color;
+
+  const BudgetBarChart({
+    Key? key,
+    required this.dailyData,
+    required this.color,
+  }) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: EnhancedBudgetBarChartPainter(),
+      painter: BudgetBarChartPainter(
+        dailyData: dailyData,
+        color: color,
+      ),
       child: Container(),
     );
   }
 }
 
-class EnhancedBudgetBarChartPainter extends CustomPainter {
+class BudgetBarChartPainter extends CustomPainter {
+  final List<double> dailyData;
+  final Color color;
+
+  BudgetBarChartPainter({
+    required this.dailyData,
+    required this.color,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
-    final barHeight = 32.0;
-    final barSpacing = 20.0;
-    final labelWidth = 80.0;
-    final accentColor = Color(0xFF26D07C);
+    final barWidth = 32.0;
+    final double maxValue = dailyData.reduce((curr, next) => curr > next ? curr : next);
+    final maxBarHeight = size.height - 80;
     
-    // Categories with data
-    final List<Map<String, dynamic>> categories = [
-      {
-        'name': 'Food',
-        'spent': 3430,
-        'budget': 5000,
-        'color': Colors.orange,
-      },
-      {
-        'name': 'Transport',
-        'spent': 2800,
-        'budget': 3000,
-        'color': Colors.blue,
-      },
-      {
-        'name': 'Shopping',
-        'spent': 1500,
-        'budget': 4000,
-        'color': Colors.green,
-      },
-      {
-        'name': 'Bills',
-        'spent': 2200,
-        'budget': 2500,
-        'color': Colors.red,
-      },
-    ];
+    // Draw horizontal gridlines
+    final gridPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
     
-    // Draw title
-    final titleTextSpan = TextSpan(
-      text: 'Monthly Budget Usage',
-      style: TextStyle(
-        color: Colors.black87,
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-      ),
-    );
-    
-    final titleTextPainter = TextPainter(
-      text: titleTextSpan,
-      textDirection: ui.TextDirection.ltr,
-    );
-    
-    titleTextPainter.layout();
-    titleTextPainter.paint(
-      canvas,
-      Offset(0, 5),
-    );
-    
-    // Draw subtitle
-    final subtitleTextSpan = TextSpan(
-      text: 'Budget cycle: 01 Jul - 31 Jul',
-      style: TextStyle(
-        color: Colors.grey[600],
-        height: 1.2,
-        fontSize: 12,
-      ),
-    );
-    
-    final subtitleTextPainter = TextPainter(
-      text: subtitleTextSpan,
-      textDirection: ui.TextDirection.ltr,
-    );
-    
-    subtitleTextPainter.layout();
-    subtitleTextPainter.paint(
-      canvas,
-      Offset(0, titleTextPainter.height + 10),
-    );
-    
-    // Calculate total budget and total spent
-    double totalBudget = 0;
-    double totalSpent = 0;
-    
-    for (var category in categories) {
-      totalBudget += category['budget'] as double;
-      totalSpent += category['spent'] as double;
+    for (int i = 1; i <= 4; i++) {
+      final y = size.height - 50 - (maxBarHeight / 4 * i);
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        gridPaint,
+      );
+      
+      // Draw grid labels
+      final labelSpan = TextSpan(
+        text: 'KES ${((maxValue / 4) * i).toInt()}',
+        style: TextStyle(
+          color: Colors.grey[500],
+          fontSize: 10,
+        ),
+      );
+      
+      final labelPainter = TextPainter(
+        text: labelSpan,
+        textDirection: ui.TextDirection.ltr,
+      );
+      
+      labelPainter.layout();
+      labelPainter.paint(
+        canvas,
+        Offset(0, y - labelPainter.height - 2),
+      );
     }
     
-    // Draw overall progress at the top
-    final overallProgressTop = subtitleTextPainter.height + titleTextPainter.height + 25;
+    // Day labels
+    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     
-    // Background track
-    final trackPaint = Paint()
-      ..color = Colors.grey.withOpacity(0.1)
-      ..style = PaintingStyle.fill;
+    // Calculate spacing
+    final totalWidth = barWidth * dailyData.length;
+    final spacing = (size.width - totalWidth) / (dailyData.length + 1);
     
-    final trackRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, overallProgressTop, size.width, 10),
-      Radius.circular(5),
-    );
-    
-    canvas.drawRRect(trackRect, trackPaint);
-    
-    // Progress fill
-    final progress = totalSpent / totalBudget;
-    final progressWidth = size.width * progress;
-    
-    final progressPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          accentColor.withOpacity(0.7),
-          accentColor,
-        ],
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-      ).createShader(Rect.fromLTWH(0, overallProgressTop, progressWidth, 10))
-      ..style = PaintingStyle.fill;
-    
-    final progressRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, overallProgressTop, progressWidth, 10),
-      Radius.circular(5),
-    );
-    
-    canvas.drawRRect(progressRect, progressPaint);
-    
-    // Draw overall percentage text
-    final percentText = '${(progress * 100).toStringAsFixed(0)}%';
-    final percentTextSpan = TextSpan(
-      text: percentText,
-      style: TextStyle(
-        color: progress > 0.9 ? Colors.red : accentColor,
-        fontSize: 12,
-        fontWeight: FontWeight.bold,
-      ),
-    );
-    
-    final percentTextPainter = TextPainter(
-      text: percentTextSpan,
-      textDirection: ui.TextDirection.ltr,
-    );
-    
-    percentTextPainter.layout();
-    percentTextPainter.paint(
-      canvas,
-      Offset(
-        size.width - percentTextPainter.width,
-        overallProgressTop - percentTextPainter.height - 5,
-      ),
-    );
-    
-    // Total amount text
-    final amountText = 'KES ${totalSpent.toStringAsFixed(0)} / ${totalBudget.toStringAsFixed(0)}';
-    final amountTextSpan = TextSpan(
-      text: amountText,
-      style: TextStyle(
-        color: Colors.grey[800],
-        height: 1.2,
-        fontSize: 12,
-      ),
-    );
-    
-    final amountTextPainter = TextPainter(
-      text: amountTextSpan,
-      textDirection: ui.TextDirection.ltr,
-    );
-    
-    amountTextPainter.layout();
-    amountTextPainter.paint(
-      canvas,
-      Offset(
-        0,
-        overallProgressTop - amountTextPainter.height - 5,
-      ),
-    );
-    
-    // Draw category bars
-    double yOffset = overallProgressTop + 30;
-    
-    for (int i = 0; i < categories.length; i++) {
-      final category = categories[i];
-      final name = category['name'] as String;
-      final spent = category['spent'] as double;
-      final budget = category['budget'] as double;
-      final color = category['color'] as Color;
-      final progress = spent / budget;
+    // Draw bars
+    for (int i = 0; i < dailyData.length; i++) {
+      final value = dailyData[i];
+      if (value <= 0) continue; // Skip days with no spending
       
-      // Category name
-      final nameTextSpan = TextSpan(
-        text: name,
+      final normalizedHeight = value / maxValue * maxBarHeight;
+      final left = spacing + i * (barWidth + spacing);
+      final top = size.height - 50 - normalizedHeight;
+      final right = left + barWidth;
+      final bottom = size.height - 50;
+      
+      // Draw shadow
+      final shadowPaint = Paint()
+        ..color = color.withOpacity(0.3)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3);
+      
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(left, top + 3, right, bottom + 3),
+          Radius.circular(10),
+        ),
+        shadowPaint,
+      );
+      
+      // Create gradient for bar
+      final gradient = LinearGradient(
+        begin: Alignment.bottomCenter,
+        end: Alignment.topCenter,
+        colors: [
+          color,
+          color.withOpacity(0.7),
+        ],
+      );
+      
+      final rect = Rect.fromLTRB(left, top, right, bottom);
+      
+      // Draw bar with gradient
+      final barPaint = Paint()
+        ..shader = gradient.createShader(rect)
+        ..style = PaintingStyle.fill;
+      
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          rect,
+          Radius.circular(10),
+        ),
+        barPaint,
+      );
+      
+      // Draw value on top of bar
+      if (value > 0) {
+        final valueSpan = TextSpan(
+          text: 'KES ${value.toInt()}',
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+        
+        final valuePainter = TextPainter(
+          text: valueSpan,
+          textDirection: ui.TextDirection.ltr,
+        );
+        
+        valuePainter.layout();
+        valuePainter.paint(
+          canvas,
+          Offset(left + (barWidth - valuePainter.width) / 2, top - valuePainter.height - 4),
+        );
+      }
+      
+      // Draw day label
+      final daySpan = TextSpan(
+        text: days[i],
         style: TextStyle(
-          color: Colors.grey[800],
+          color: Colors.grey[600],
           fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
       );
       
-      final nameTextPainter = TextPainter(
-        text: nameTextSpan,
+      final dayPainter = TextPainter(
+        text: daySpan,
         textDirection: ui.TextDirection.ltr,
       );
       
-      nameTextPainter.layout();
-      nameTextPainter.paint(
+      dayPainter.layout();
+      dayPainter.paint(
         canvas,
-        Offset(0, yOffset),
+        Offset(left + (barWidth - dayPainter.width) / 2, bottom + 8),
       );
-      
-      // Draw bar background
-      final barBgPaint = Paint()
-        ..color = Colors.grey.withOpacity(0.1)
-        ..style = PaintingStyle.fill;
-      
-      final barBgRect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(labelWidth, yOffset, size.width - labelWidth, barHeight),
-        Radius.circular(6),
-      );
-      
-      canvas.drawRRect(barBgRect, barBgPaint);
-      
-      // Draw progress bar
-      final progressWidth = (size.width - labelWidth) * progress;
-      
-      final barPaint = Paint()
-        ..shader = LinearGradient(
-          colors: [
-            color.withOpacity(0.7),
-            color,
-          ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ).createShader(Rect.fromLTWH(labelWidth, yOffset, progressWidth, barHeight))
-        ..style = PaintingStyle.fill;
-      
-      final barRect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(labelWidth, yOffset, progressWidth, barHeight),
-        Radius.circular(6),
-      );
-      
-      canvas.drawRRect(barRect, barPaint);
-      
-      // Draw amount text inside the bar
-      final amountText = 'KES ${spent.toStringAsFixed(0)} / ${budget.toStringAsFixed(0)}';
-      final amountTextSpan = TextSpan(
-        text: amountText,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          shadows: [
-            Shadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 2,
-              offset: Offset(0, 1),
-            ),
-          ],
-        ),
-      );
-      
-      final amountTextPainter = TextPainter(
-        text: amountTextSpan,
-        textDirection: ui.TextDirection.ltr,
-      );
-      
-      amountTextPainter.layout();
-      
-      // Check if text fits within the colored part of the bar
-      if (progressWidth > amountTextPainter.width + 20) {
-        // Text fits inside the colored part
-        amountTextPainter.paint(
-          canvas,
-          Offset(
-            labelWidth + 10,
-            yOffset + (barHeight - amountTextPainter.height) / 2,
-          ),
-        );
-      } else {
-        // Text doesn't fit, place it at the end of the bar
-        final textSpan = TextSpan(
-          text: amountText,
-          style: TextStyle(
-            color: Colors.grey[800],
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        );
-        
-        final textPainter = TextPainter(
-          text: textSpan,
-          textDirection: ui.TextDirection.ltr,
-        );
-        
-        textPainter.layout();
-        textPainter.paint(
-          canvas,
-          Offset(
-            size.width - textPainter.width - 10,
-            yOffset + (barHeight - textPainter.height) / 2,
-          ),
-        );
-      }
-      
-      // Add percentage to the right
-      final percentText = '${(progress * 100).toStringAsFixed(0)}%';
-      final percentTextSpan = TextSpan(
-        text: percentText,
-        style: TextStyle(
-          color: progress > 0.9 ? Colors.red : (progress > 0.7 ? Colors.orange : Colors.grey[800]),
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      );
-      
-      final percentTextPainter = TextPainter(
-        text: percentTextSpan,
-        textDirection: ui.TextDirection.ltr,
-      );
-      
-      percentTextPainter.layout();
-      
-      // Update the y offset for the next category
-      yOffset += barHeight + barSpacing;
     }
+    
+final titleSpan = TextSpan(
+  text: 'Daily Spending - This Week',
+  style: TextStyle(
+    color: Colors.grey[800],
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+  ),
+);
+
+// Keep only ONE TextPainter
+final titlePainter = TextPainter(
+  text: titleSpan,
+  textDirection: ui.TextDirection.ltr,
+);
+
+titlePainter.layout();
+
+// Choose which position you want - centered and moved up:
+titlePainter.paint(
+  canvas,
+  Offset((size.width - titlePainter.width) / 2, -8), // Centered horizontally, moved up to y=5
+);
   }
 
   @override
