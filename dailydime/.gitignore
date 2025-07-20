@@ -43,3 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# 🔒 SECURITY: Hide sensitive configuration files
+lib/config/app_config.dart
+lib/config/keys.dart
+lib/config/secrets.dart
+*.env
+.env
+.env.local
+.env.production
