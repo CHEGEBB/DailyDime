@@ -626,7 +626,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                             // Google login
                                             _buildSocialLoginButton(
                                               onTap: _loginWithGoogle,
-                                              assetName: 'assets/images/google.png',
+                                              assetName: 'assets/images/google.svg',
                                               label: 'Google',
                                             ),
                                             
@@ -644,7 +644,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                             // Apple login
                                             _buildSocialLoginButton(
                                               onTap: _loginWithApple,
-                                              assetName: 'assets/images/apple.png',
+                                              assetName: 'assets/images/apple.svg',
                                               label: 'Apple',
                                             ),
                                           ],
