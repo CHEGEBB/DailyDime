@@ -47,6 +47,64 @@ DailyDime is not your typical budgeting app. It's a **smart financial companion*
 
 ---
 
+## 🛠 Technology Stack
+
+| Technology | Purpose | Implementation |
+|------------|---------|----------------|
+| **Flutter (Dart)** | Cross-platform development | Native Android + Web |
+| **Appwrite** | Backend-as-a-Service | Database, Auth, Storage, Functions |
+| **Gemini 2.0 Flash** | AI budgeting and insights | Google AI SDK |
+| **Hive** | Local storage | Offline-first data persistence |
+| **M-Pesa Daraja API** | Mobile money integration | Transaction processing |
+| **SMS Reading** | Transaction analysis | Permission-based SMS parsing |
+| **Provider** | State management | Reactive state updates |
+| **Shared Preferences** | Simple data storage | User preferences |
+| **Local Notifications** | Reminders and alerts | Background notifications |
+
+---
+
+## 🔧 Backend Architecture with Appwrite
+
+### Why Appwrite for DailyDime?
+- ⚡ **Rapid Development**: Backend ready in hours, not weeks
+- 📱 **Phone Authentication**: Built-in SMS verification for Kenyan numbers
+- 🔄 **Real-time Database**: Perfect for financial data updates
+- 🔐 **Built-in Security**: Role-based permissions and encryption
+- 📁 **File Storage**: For receipts and document uploads
+- ⚙️ **Cloud Functions**: Custom logic for AI and M-Pesa integration
+- 💰 **Cost-effective**: Free tier covers development and early users
+
+### Appwrite Services Used
+
+#### 🔐 Authentication
+- **Phone Authentication**: SMS-based verification using Kenyan phone numbers
+- **User Management**: Profile creation and management
+- **Session Management**: Secure session handling
+- **Guest Sessions**: Allow users to try app before registration
+
+#### 🗄️ Database (Collections)
+- **users**: User profiles and preferences
+- **transactions**: All financial transactions
+- **budgets**: User budgets and AI recommendations
+- **savings_goals**: Savings targets and progress
+- **categories**: Expense categorization
+- **notifications**: User notifications and reminders
+
+#### 📁 Storage
+- **receipts**: Uploaded receipt images
+- **user_documents**: ID verification documents
+- **backups**: Data backup files
+- **ai_insights**: Generated AI reports and insights
+
+#### ⚙️ Functions (Server-side Logic)
+- **ai-budget-generator**: Gemini AI integration for budget creation
+- **mpesa-integration**: M-Pesa Daraja API calls
+- **sms-analyzer**: SMS transaction parsing
+- **notification-scheduler**: Automated reminders
+- **financial-insights**: AI-powered spending analysis
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -54,27 +112,33 @@ lib/
 ├── main.dart                         # App starts here
 ├── config/                           # App configuration
 │   ├── theme.dart                   # Colors, fonts, button styles
-│   └── app_config.dart              # API keys and constants
+│   ├── app_config.dart              # API keys and constants
+│   └── appwrite_config.dart         # Appwrite configuration
 ├── models/                          # Data structures
 │   ├── transaction.dart             # Transaction data structure
 │   ├── budget.dart                  # Budget data structure
 │   ├── savings_goal.dart            # Savings goal data structure
-│   └── user.dart                    # User profile data structure
+│   ├── user.dart                    # User profile data structure
+│   └── appwrite_models.dart         # Appwrite-specific models
 ├── services/                        # Business logic and API calls
 │   ├── database_service.dart        # Local storage (Hive)
+│   ├── appwrite_service.dart        # Appwrite backend service
+│   ├── auth_service.dart            # Authentication service
 │   ├── ai_service.dart              # Gemini AI integration
 │   ├── sms_service.dart             # SMS reading for transactions
 │   ├── mpesa_service.dart           # M-Pesa API integration
-│   └── firebase_service.dart        # Firebase auth and cloud storage
+│   └── sync_service.dart            # Online/offline sync
 ├── providers/                       # State management
 │   ├── auth_provider.dart           # User authentication state
 │   ├── transaction_provider.dart    # Transaction management
 │   ├── budget_provider.dart         # Budget management
-│   └── savings_provider.dart        # Savings goals management
+│   ├── savings_provider.dart        # Savings goals management
+│   └── sync_provider.dart           # Sync status management
 ├── screens/                         # App screens
 │   ├── splash_screen.dart           # Loading screen
 │   ├── auth/                        # Authentication screens
 │   │   ├── login_screen.dart        # Phone login
+│   │   ├── verify_otp_screen.dart   # OTP verification
 │   │   └── register_screen.dart     # User registration
 │   ├── home_screen.dart             # Main dashboard
 │   ├── transactions/                # Transaction screens
@@ -105,371 +169,473 @@ lib/
         └── progress_chart.dart      # Progress visualization
 ```
 
-## 📝 **What Each File Does (Clear Explanations)**
+---
 
-### **CORE FILES (Start Here)**
-- **`main.dart`** - App entry point, starts everything
-- **`config/theme.dart`** - App colors, fonts, styling
-- **`config/app_config.dart`** - API keys, constants
+## 🎯 **Development Phases with Appwrite**
 
-### **DATA LAYER**
-- **`models/`** - Data structures (like TypeScript interfaces)
-  - `transaction.dart` - What a transaction looks like
-  - `budget.dart` - Budget data structure
-  - `savings_goal.dart` - Savings goal structure
-  - `user.dart` - User profile data
+### **Phase 1: Appwrite Setup & Authentication (Week 1)**
+1. **Appwrite Setup**: Configure Appwrite instance
+2. **Authentication**: Phone number login/registration
+3. **Database Schema**: Create collections for users, transactions, budgets
+4. **Basic Service**: `appwrite_service.dart` for backend calls
 
-### **BUSINESS LOGIC**
-- **`services/`** - Handle external APIs and storage
-  - `database_service.dart` - Save/load data locally
-  - `ai_service.dart` - Talk to Gemini AI
-  - `sms_service.dart` - Read SMS transactions
-  - `mpesa_service.dart` - M-Pesa integration
-  - `firebase_service.dart` - Cloud storage & auth
+### **Phase 2: Core Features (Week 2)**
+5. **Transaction Management**: CRUD operations with Appwrite
+6. **Local Storage**: Offline-first with Hive + Appwrite sync
+7. **Real-time Updates**: Live transaction updates
+8. **Basic UI Integration**: Connect UI to Appwrite backend
 
-- **`providers/`** - State management (like Redux)
-  - `auth_provider.dart` - Login/logout state
-  - `transaction_provider.dart` - Transaction operations
-  - `budget_provider.dart` - Budget management
-  - `savings_provider.dart` - Savings management
+### **Phase 3: AI & Advanced Features (Week 3)**
+9. **Appwrite Functions**: Deploy AI and M-Pesa functions
+10. **AI Integration**: Budget generation via Appwrite functions
+11. **SMS Processing**: Transaction extraction and categorization
+12. **M-Pesa Integration**: Payment processing through Appwrite
 
-### **UI LAYER**
-- **`screens/`** - Full-screen components
-  - Core screens: `home_screen.dart`, `profile_screen.dart`
-  - Auth screens: `login_screen.dart`, `register_screen.dart`
-  - Feature screens: transactions, budget, savings
-  - Advanced: `analytics_screen.dart`, `ai_chat_screen.dart`
-
-- **`widgets/`** - Reusable UI components
-  - `common/` - Basic widgets used everywhere
-  - `cards/` - Card-style display components
-  - `charts/` - Data visualization components
-
-## 🎯 **Development Phases**
-
-### **Phase 1: Foundation (Week 1-2)**
-1. `main.dart` + `config/theme.dart` - Basic app setup
-2. `models/transaction.dart` - Transaction structure
-3. `services/database_service.dart` - Local storage
-4. `screens/home_screen.dart` - Basic home screen
-
-### **Phase 2: Core Features (Week 3-4)**
-5. `providers/transaction_provider.dart` - Transaction state
-6. `screens/transactions/add_transaction_screen.dart` - Add transactions
-7. `screens/transactions/transactions_screen.dart` - View transactions
-8. `widgets/cards/transaction_card.dart` - Display transactions
-
-### **Phase 3: Advanced Features (Week 5-6)**
-9. `services/ai_service.dart` - AI integration
-10. `screens/budget/budget_screen.dart` - Budget management
-11. `screens/savings/savings_screen.dart` - Savings goals
-12. `services/sms_service.dart` - SMS reading
-
-### **Phase 4: Polish (Week 7-8)**
-13. `screens/auth/` - User authentication
-14. `screens/analytics_screen.dart` - Charts and insights
-15. `services/mpesa_service.dart` - M-Pesa integration
-16. `screens/ai_chat_screen.dart` - AI chat interface
-
-## 💡 **Why This Structure Works:**
-
-✅ **Not overwhelming** - 25 files total (manageable)
-✅ **Not too simple** - Has room for all features
-✅ **Logical organization** - Similar to React Native
-✅ **Clear progression** - Build step by step
-✅ **Professional structure** - Can show to employers
-✅ **Beginner-friendly** - Each file has one clear purpose
-
-
-
-## 🛠 Technology Stack
-
-| Technology | Purpose | Implementation |
-|------------|---------|----------------|
-| **Flutter (Dart)** | Cross-platform development | Native Android + Web |
-| **Gemini 2.0 Flash** | AI budgeting and insights | Google AI SDK |
-| **Firebase** | Backend services | Auth, Firestore, Analytics, Functions |
-| **Hive** | Local storage | Offline-first data persistence |
-| **M-Pesa Daraja API** | Mobile money integration | Transaction processing |
-| **SMS Reading** | Transaction analysis | Permission-based SMS parsing |
-| **Provider** | State management | Reactive state updates |
-| **Shared Preferences** | Simple data storage | User preferences |
-| **Local Notifications** | Reminders and alerts | Background notifications |
+### **Phase 4: Polish & Launch (Week 4)**
+13. **Analytics & Charts**: Financial insights dashboard
+14. **Notifications**: Smart alerts and reminders
+15. **Testing & Debug**: Comprehensive testing
+16. **Play Store Release**: Production deployment
 
 ---
 
-## 🔧 Backend Architecture
+## 🚀 Quick Start with Appwrite
 
-### Firebase Services
-- **Authentication**: Phone number verification, user management
-- **Firestore**: Cloud database for user data, transactions, budgets
-- **Cloud Functions**: AI processing, SMS analysis, M-Pesa webhooks
-- **Firebase Analytics**: User behavior tracking
-- **Remote Config**: Feature flags and dynamic configuration
+### 1. Appwrite Setup
+```bash
+# Install Appwrite CLI
+npm install -g appwrite-cli
 
-### Local Storage Strategy
-- **Hive Database**: Primary offline storage for transactions, budgets, goals
-- **Shared Preferences**: User settings and preferences
-- **Encrypted Storage**: Sensitive data like M-Pesa credentials
+# Login to Appwrite
+appwrite login
 
----
+# Initialize project
+appwrite init project
+```
 
-## 🤖 AI Integration Features
+### 2. Flutter Dependencies
+```yaml
+# pubspec.yaml
+dependencies:
+  appwrite: ^11.0.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  provider: ^6.1.1
+  http: ^0.13.6
+  sms_maintained: ^1.0.0
+  permission_handler: ^11.0.1
+```
 
-### Gemini 2.0 Flash Capabilities
-- **Budget Generation**: AI creates personalized budgets based on income patterns
-- **Spending Analysis**: Intelligent categorization and spending insights
-- **Savings Recommendations**: AI suggests optimal savings amounts and strategies
-- **Financial Coaching**: Conversational AI for financial advice
-- **Expense Prediction**: Predict future expenses based on historical data
-- **Goal Achievement**: AI helps users stay on track with financial goals
-
-### AI-Powered Features
-- Smart expense categorization
-- Personalized budget suggestions
-- Spending behavior analysis
-- Financial goal recommendations
-- Motivational nudges and reminders
-- Risk assessment for overspending
-
----
-
-## 📱 Core Features Implementation
-
-### SMS Transaction Analysis
-- **Permission-based SMS reading**: Request user permission to read SMS
-- **Bank SMS parsing**: Extract transaction details from M-Pesa, Airtel Money, T-Kash
-- **Automatic categorization**: AI categorizes transactions automatically
-- **Balance extraction**: Get current balance from SMS notifications
-- **Transaction verification**: Cross-reference with manual entries
-
-### M-Pesa Integration
-- **Daraja API**: Full M-Pesa API integration for payments
-- **Balance inquiry**: Check M-Pesa balance in real-time
-- **Transaction history**: Fetch M-Pesa transaction history
-- **Automated savings**: Transfer money to savings accounts
-- **Bill payments**: Pay bills directly through the app
-
-### Offline-First Architecture
-- **Local data storage**: All data stored locally first
-- **Sync when online**: Automatic sync with cloud when connected
-- **Offline functionality**: Full app functionality without internet
-- **Conflict resolution**: Handle data conflicts during sync
-
----
-
-## 🎯 User Experience Features
-
-### Intelligent Notifications
-- **Spending alerts**: AI warns when approaching budget limits
-- **Savings reminders**: Gentle nudges to save money
-- **Bill reminders**: Never miss a payment deadline
-- **Goal progress**: Celebrate milestones and achievements
-- **AI insights**: Daily financial tips and recommendations
-
-### Gamification Elements
-- **Savings streaks**: Track consecutive days of saving
-- **Achievement badges**: Reward financial milestones
-- **Progress visualization**: Beautiful charts and progress bars
-- **Challenges**: Weekly/monthly savings challenges
-- **Leaderboards**: Compare progress with friends (optional)
-
----
-
-## 🔐 Security & Privacy
-
-### Data Protection
-- **End-to-end encryption**: All sensitive data encrypted
-- **Local storage**: Primary data storage on device
-- **Minimal cloud sync**: Only necessary data synced to cloud
-- **User control**: Users control what data to share
-- **SMS privacy**: SMS data processed locally, not stored in cloud
-
-### Security Features
-- **App lock**: PIN/biometric authentication
-- **Session management**: Secure session handling
-- **API security**: Encrypted API communication
-- **Data validation**: Input validation and sanitization
-- **Audit logging**: Track all financial operations
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Flutter SDK (latest stable version)
-- Dart SDK
-- Android Studio / VS Code
-- Firebase account
-- M-Pesa Daraja API credentials
-- Google AI API key (Gemini 2.0 Flash)
-
-### Installation
-1. Clone the repository
-2. Install dependencies: `flutter pub get`
-3. Configure Firebase (`google-services.json`)
-4. Add API keys to `lib/config/app_config.dart`
-5. Run the app: `flutter run`
-
-### Environment Setup
+### 3. Appwrite Configuration
 ```dart
-// lib/config/app_config.dart
-class AppConfig {
-  static const String geminiApiKey = 'YOUR_GEMINI_API_KEY';
-  static const String mpesaConsumerKey = 'YOUR_MPESA_CONSUMER_KEY';
-  static const String mpesaConsumerSecret = 'YOUR_MPESA_CONSUMER_SECRET';
-  static const String mpesaPasskey = 'YOUR_MPESA_PASSKEY';
-  static const String firebaseProjectId = 'YOUR_FIREBASE_PROJECT_ID';
+// lib/config/appwrite_config.dart
+class AppwriteConfig {
+  static const String projectId = 'YOUR_PROJECT_ID';
+  static const String endpoint = 'YOUR_APPWRITE_ENDPOINT';
+  static const String databaseId = 'dailydime_db';
+  
+  // Collection IDs
+  static const String usersCollection = 'users';
+  static const String transactionsCollection = 'transactions';
+  static const String budgetsCollection = 'budgets';
+  static const String savingsGoalsCollection = 'savings_goals';
+  static const String categoriesCollection = 'categories';
+  
+  // Storage Bucket IDs
+  static const String receiptsBucket = 'receipts';
+  static const String documentsBucket = 'documents';
+  
+  // Function IDs
+  static const String aiBudgetFunction = 'ai-budget-generator';
+  static const String mpesaFunction = 'mpesa-integration';
+  static const String smsAnalyzerFunction = 'sms-analyzer';
+}
+```
+
+### 4. Appwrite Service Setup
+```dart
+// lib/services/appwrite_service.dart
+import 'package:appwrite/appwrite.dart';
+import '../config/appwrite_config.dart';
+
+class AppwriteService {
+  static final Client _client = Client();
+  static late Account _account;
+  static late Databases _databases;
+  static late Storage _storage;
+  static late Functions _functions;
+
+  static void initialize() {
+    _client
+        .setEndpoint(AppwriteConfig.endpoint)
+        .setProject(AppwriteConfig.projectId);
+    
+    _account = Account(_client);
+    _databases = Databases(_client);
+    _storage = Storage(_client);
+    _functions = Functions(_client);
+  }
+
+  // Getters
+  static Account get account => _account;
+  static Databases get databases => _databases;
+  static Storage get storage => _storage;
+  static Functions get functions => _functions;
 }
 ```
 
 ---
 
-## 📊 API Integration
+## 📊 Appwrite Database Schema
 
-### M-Pesa Daraja API
-- **Authentication**: OAuth 2.0 token generation
-- **Balance inquiry**: Real-time balance checks
-- **Transaction processing**: Payment processing
-- **Callback handling**: Webhook processing
-- **Error handling**: Comprehensive error management
+### Collections Structure
 
-### Gemini AI Integration
-- **Budget generation**: Send financial data, receive personalized budgets
-- **Spending analysis**: Analyze spending patterns
-- **Savings recommendations**: AI-powered savings advice
-- **Financial coaching**: Conversational financial assistance
-- **Expense prediction**: Predict future spending patterns
+#### 👤 Users Collection
+```json
+{
+  "name": "users",
+  "attributes": [
+    {"key": "phone", "type": "string", "required": true},
+    {"key": "full_name", "type": "string", "required": true},
+    {"key": "occupation", "type": "string", "required": false},
+    {"key": "monthly_income", "type": "integer", "required": false},
+    {"key": "savings_target", "type": "integer", "required": false},
+    {"key": "preferred_language", "type": "string", "default": "en"},
+    {"key": "notification_preferences", "type": "string", "array": true},
+    {"key": "created_at", "type": "datetime", "required": true},
+    {"key": "updated_at", "type": "datetime", "required": true}
+  ]
+}
+```
 
-### SMS Integration
-- **Permission handling**: Request SMS permissions
-- **SMS parsing**: Extract transaction data from SMS
-- **Bank format support**: Support multiple bank SMS formats
-- **Real-time processing**: Process SMS as they arrive
-- **Data validation**: Validate extracted transaction data
+#### 💰 Transactions Collection
+```json
+{
+  "name": "transactions",
+  "attributes": [
+    {"key": "user_id", "type": "string", "required": true},
+    {"key": "amount", "type": "integer", "required": true},
+    {"key": "type", "type": "string", "required": true}, // income/expense
+    {"key": "category", "type": "string", "required": true},
+    {"key": "description", "type": "string", "required": false},
+    {"key": "source", "type": "string", "required": false}, // manual/sms/mpesa
+    {"key": "sms_id", "type": "string", "required": false},
+    {"key": "mpesa_code", "type": "string", "required": false},
+    {"key": "transaction_date", "type": "datetime", "required": true},
+    {"key": "created_at", "type": "datetime", "required": true}
+  ]
+}
+```
 
----
+#### 📊 Budgets Collection
+```json
+{
+  "name": "budgets",
+  "attributes": [
+    {"key": "user_id", "type": "string", "required": true},
+    {"key": "period_type", "type": "string", "required": true}, // daily/weekly/monthly
+    {"key": "total_budget", "type": "integer", "required": true},
+    {"key": "categories", "type": "string", "array": true},
+    {"key": "ai_generated", "type": "boolean", "default": false},
+    {"key": "start_date", "type": "datetime", "required": true},
+    {"key": "end_date", "type": "datetime", "required": true},
+    {"key": "status", "type": "string", "default": "active"}, // active/completed/paused
+    {"key": "created_at", "type": "datetime", "required": true}
+  ]
+}
+```
 
-## 🧪 Testing Strategy
-
-### Unit Tests
-- Model validation and serialization
-- Utility functions and extensions
-- Business logic and calculations
-- API response parsing
-
-### Integration Tests
-- Firebase integration
-- M-Pesa API integration
-- SMS parsing functionality
-- AI service integration
-
-### Widget Tests
-- UI component testing
-- User interaction testing
-- Navigation testing
-- State management testing
-
----
-
-## 🎨 UI/UX Design Principles
-
-### Design Language
-- **Material Design 3**: Modern Material Design components
-- **Kenyan Context**: Colors and imagery relevant to Kenya
-- **Accessibility**: WCAG compliant design
-- **Responsive**: Works on all screen sizes
-- **Intuitive**: Simple and easy to understand
-
-### Color Scheme
-- **Primary**: Kenya flag colors (red, green, black)
-- **Secondary**: Money-related colors (gold, emerald)
-- **Neutral**: Modern grays and whites
-- **Success**: Green for positive financial actions
-- **Warning**: Orange for budget alerts
-
----
-
-## 🌟 Future Enhancements
-
-### Phase 2 Features
-- **Voice commands**: Voice-controlled expense logging
-- **Receipt scanning**: OCR for receipt digitization
-- **Investment tracking**: Track simple investments
-- **Loan management**: Track loans and repayments
-- **Tax calculations**: Simple tax computation
-
-### Phase 3 Features
-- **Multi-currency support**: Support for USD, EUR, etc.
-- **Advanced AI**: More sophisticated financial advice
-- **Social features**: Share goals with friends
-- **Merchant integration**: Direct payments to merchants
-- **Advanced analytics**: Detailed financial reports
+#### 🎯 Savings Goals Collection
+```json
+{
+  "name": "savings_goals",
+  "attributes": [
+    {"key": "user_id", "type": "string", "required": true},
+    {"key": "title", "type": "string", "required": true},
+    {"key": "description", "type": "string", "required": false},
+    {"key": "target_amount", "type": "integer", "required": true},
+    {"key": "current_amount", "type": "integer", "default": 0},
+    {"key": "daily_target", "type": "integer", "required": false},
+    {"key": "target_date", "type": "datetime", "required": false},
+    {"key": "priority", "type": "string", "default": "medium"}, // low/medium/high
+    {"key": "status", "type": "string", "default": "active"}, // active/completed/paused
+    {"key": "created_at", "type": "datetime", "required": true}
+  ]
+}
+```
 
 ---
 
-## 📈 Success Metrics
+## ⚙️ Appwrite Functions
 
-### User Engagement
-- Daily/Monthly Active Users
-- Session duration and frequency
-- Feature adoption rates
-- User retention rates
+### 1. AI Budget Generator Function
+```javascript
+// functions/ai-budget-generator/src/index.js
+const { Client, Databases } = require('node-appwrite');
 
-### Financial Impact
-- Average savings increase per user
-- Budget adherence rates
-- Financial goal achievement rates
-- Spending reduction percentages
+module.exports = async ({ req, res, log, error }) => {
+  const client = new Client()
+    .setEndpoint(process.env.APPWRITE_FUNCTION_ENDPOINT)
+    .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
+    .setKey(process.env.APPWRITE_FUNCTION_API_KEY);
 
-### Technical Metrics
-- App performance and crash rates
-- API response times
-- SMS parsing accuracy
-- AI recommendation effectiveness
+  const databases = new Databases(client);
+
+  try {
+    const { userId, income, expenses, goals } = JSON.parse(req.body);
+    
+    // Call Gemini AI API
+    const aiResponse = await generateBudgetWithAI({
+      income,
+      expenses, 
+      goals,
+      userContext: await getUserContext(userId)
+    });
+
+    // Save AI-generated budget to database
+    const budget = await databases.createDocument(
+      'dailydime_db',
+      'budgets',
+      ID.unique(),
+      {
+        user_id: userId,
+        ...aiResponse,
+        ai_generated: true
+      }
+    );
+
+    return res.json({ success: true, budget });
+  } catch (err) {
+    error('Budget generation failed: ' + err.message);
+    return res.json({ success: false, error: err.message }, 500);
+  }
+};
+```
+
+### 2. M-Pesa Integration Function
+```javascript
+// functions/mpesa-integration/src/index.js
+module.exports = async ({ req, res, log, error }) => {
+  try {
+    const { action, amount, phoneNumber, userId } = JSON.parse(req.body);
+    
+    switch (action) {
+      case 'balance_inquiry':
+        return await checkMpesaBalance(phoneNumber);
+      case 'send_money':
+        return await sendMoney(amount, phoneNumber);
+      case 'request_money':
+        return await requestMoney(amount, phoneNumber);
+      case 'pay_bill':
+        return await payBill(amount, phoneNumber, billNumber);
+      default:
+        throw new Error('Invalid M-Pesa action');
+    }
+  } catch (err) {
+    error('M-Pesa integration failed: ' + err.message);
+    return res.json({ success: false, error: err.message }, 500);
+  }
+};
+```
 
 ---
 
-## 🤝 Contributing
+## 🔐 Security & Privacy with Appwrite
 
-We welcome contributions from:
-- Flutter developers
-- AI/ML engineers
-- UI/UX designers
-- Financial literacy experts
-- Beta testers (especially in Kenya)
+### Authentication Security
+- **SMS-based Authentication**: Secure phone number verification
+- **Session Management**: Automatic session handling
+- **Role-based Access**: Users can only access their own data
+- **Rate Limiting**: Built-in API rate limiting
 
-### Development Setup
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new features
-5. Submit a pull request
+### Data Protection
+- **Encryption**: All data encrypted at rest and in transit
+- **GDPR Compliant**: Built-in privacy controls
+- **Local Storage**: Primary data stored locally (Hive)
+- **Selective Sync**: Only necessary data synced to cloud
+
+### Permissions Structure
+```json
+{
+  "users": {
+    "read": ["user:userId"],
+    "write": ["user:userId"]
+  },
+  "transactions": {
+    "read": ["user:userId"],
+    "write": ["user:userId"],
+    "create": ["user:userId"]
+  },
+  "budgets": {
+    "read": ["user:userId"],
+    "write": ["user:userId"]
+  }
+}
+```
+
+---
+
+## 🚀 Deployment & Environment Setup
+
+### Prerequisites
+- Flutter SDK (latest stable version)
+- Appwrite Cloud account or self-hosted instance
+- M-Pesa Daraja API credentials
+- Google AI API key (Gemini 2.0 Flash)
+
+### Environment Configuration
+```dart
+// lib/config/app_config.dart
+class AppConfig {
+  // Appwrite Configuration
+  static const String appwriteEndpoint = 'https://cloud.appwrite.io/v1';
+  static const String appwriteProjectId = 'YOUR_APPWRITE_PROJECT_ID';
+  
+  // AI Configuration
+  static const String geminiApiKey = 'YOUR_GEMINI_API_KEY';
+  
+  // M-Pesa Configuration
+  static const String mpesaConsumerKey = 'YOUR_MPESA_CONSUMER_KEY';
+  static const String mpesaConsumerSecret = 'YOUR_MPESA_CONSUMER_SECRET';
+  static const String mpesaPasskey = 'YOUR_MPESA_PASSKEY';
+  static const String mpesaShortcode = 'YOUR_MPESA_SHORTCODE';
+  
+  // Environment
+  static const bool isProduction = bool.fromEnvironment('PRODUCTION');
+}
+```
+
+### Installation Steps
+1. **Clone & Setup**
+   ```bash
+   git clone https://github.com/yourusername/dailydime.git
+   cd dailydime
+   flutter pub get
+   ```
+
+2. **Appwrite Setup**
+   ```bash
+   # Install Appwrite CLI
+   npm install -g appwrite-cli
    
-## 🎯 Project Goals
+   # Initialize Appwrite project
+   appwrite init project
+   appwrite deploy collection
+   appwrite deploy function
+   ```
 
-### Short-term (3-6 months)
-- ✅ Complete MVP with core features
-- ✅ Beta testing with 100+ users
-- ✅ M-Pesa integration working
-- ✅ AI budgeting fully functional
-- ✅ Play Store release
+3. **Configure Environment**
+   ```bash
+   # Copy environment template
+   cp lib/config/app_config.dart.example lib/config/app_config.dart
+   
+   # Add your API keys and configuration
+   # Edit app_config.dart with your credentials
+   ```
 
-### Medium-term (6-12 months)
-- 🎯 10,000+ active users
-- 🎯 Advanced AI features
-- 🎯 Group savings functionality
-- 🎯 Partnership with local SACCOs
-- 🎯 Financial literacy integration
+4. **Run the App**
+   ```bash
+   flutter run
+   ```
 
-### Long-term (1-2 years)
-- 🎯 100,000+ users across Kenya
-- 🎯 Expansion to other African countries
-- 🎯 Full-featured financial platform
-- 🎯 Integration with major banks
-- 🎯 AI-powered financial coaching
+---
 
+## 📱 Real-time Features with Appwrite
 
-**DailyDime - Every Dime Counts. Every Dream Matters.**
+### Live Transaction Updates
+```dart
+// Real-time subscription to user transactions
+AppwriteService.databases.listDocuments(
+  databaseId: AppwriteConfig.databaseId,
+  collectionId: AppwriteConfig.transactionsCollection,
+  queries: [
+    Query.equal('user_id', currentUser.id),
+    Query.orderDesc('transaction_date'),
+  ],
+).then((response) {
+  // Handle initial transactions
+}).catchError((error) {
+  // Handle error
+});
 
-> Transform your financial future with Kenya's smartest budgeting assistant.
+// Subscribe to real-time updates
+final subscription = AppwriteService.client.subscribe([
+  'databases.${AppwriteConfig.databaseId}.collections.${AppwriteConfig.transactionsCollection}.documents'
+]);
+
+subscription.stream.listen((response) {
+  // Handle real-time transaction updates
+  if (response.events.contains('databases.*.collections.*.documents.*.create')) {
+    // New transaction created
+    handleNewTransaction(response.payload);
+  }
+});
+```
+
+---
+
+## 🎯 Project Goals & Timeline
+
+### ✅ **Phase 1: Foundation (Week 1)**
+- [x] Appwrite project setup and configuration
+- [x] Database collections and permissions
+- [x] Flutter project structure with Appwrite integration
+- [x] Basic authentication (phone number + OTP)
+- [x] User profile management
+
+### 🎯 **Phase 2: Core Features (Week 2)**
+- [ ] Transaction CRUD with real-time updates
+- [ ] Offline-first architecture with Hive + Appwrite sync
+- [ ] SMS transaction parsing and categorization  
+- [ ] Basic budget creation and management
+- [ ] Savings goals tracking
+
+### 🚀 **Phase 3: Advanced Features (Week 3)**
+- [ ] Appwrite Functions for AI integration
+- [ ] Gemini AI budget generation
+- [ ] M-Pesa integration via Appwrite Functions
+- [ ] Smart notifications and reminders
+- [ ] Analytics dashboard with charts
+
+### 🎉 **Phase 4: Launch Ready (Week 4)**
+- [ ] Comprehensive testing and bug fixes
+- [ ] Performance optimization
+- [ ] UI/UX polishing
+- [ ] Play Store preparation and release
+- [ ] User onboarding and tutorials
+
+---
+
+## 🎉 Why This Appwrite Approach Wins
+
+### ⚡ **Speed Benefits**
+- **Backend ready in 1 day** vs 1-2 weeks with Firebase/custom
+- **Phone auth works out-of-the-box** for Kenyan numbers
+- **Real-time updates** without complex WebSocket setup
+- **File uploads** ready for receipts and documents
+
+### 💰 **Cost Benefits**
+- **Free tier** covers development and early users (75,000 MAUs)
+- **Predictable pricing** as you scale
+- **No surprise bills** like Firebase can have
+- **Self-hosted option** for full control
+
+### 🛠 **Developer Experience**
+- **Less configuration** than Firebase
+- **Built-in security** with role-based permissions
+- **Easy function deployment** for custom logic
+- **Great Flutter integration** with official SDK
+
+### 📈 **Scalability**
+- **Horizontal scaling** built-in
+- **Global CDN** for fast performance in Kenya
+- **Database optimization** handles financial data well
+- **Migration path** to self-hosted if needed
+
+---
+
+**Ready to build your financial future? Let's make DailyDime happen! 🚀**
+
+> **DailyDime + Appwrite = Fastest path from idea to launched app**
+
+**Every Dime Counts. Every Dream Matters. Every Day Counts.**
