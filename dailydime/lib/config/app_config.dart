@@ -8,8 +8,8 @@
   
   // ========== COLLECTIONS ==========
   static const String usersCollection = '687d25c5003848963461';
-  static const String transactionsCollection = 'transactions';
-  static const String budgetsCollection = 'budgets';
+  static const String transactionsCollection = '687d279f0017bd2ecce1';
+  static const String budgetsCollection = '687d29390004ed2dfd95';
   static const String savingsGoalsCollection = 'savings_goals';
   static const String categoriesCollection = 'categories';
   
