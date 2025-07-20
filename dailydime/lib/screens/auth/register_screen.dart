@@ -194,50 +194,67 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     return Scaffold(
       body: Stack(
         children: [
-          // Background image
-          Positioned(
-            top: -50,
-            left: 0,
-            right: 0,
-            height: size.height * 0.45,
-            child: Image.asset(
-              'assets/images/sign.jpg', // You can use a different image for registration
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF2E8B57),
-                        Color(0xFF20B2AA),
-                        Color(0xFF48D1CC),
-                      ],
-                    ),
-                  ),
-                );
-              },
+          // Background gradient
+          Container(
+            height: size.height,
+            width: size.width,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFF5F5F5),
+                  Colors.white,
+                ],
+              ),
             ),
           ),
           
-          // Green gradient overlay
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: size.height * 0.45,
+          // Top curved header with image background
+          ClipPath(
+            clipper: CustomClipPath(),
             child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF2E8B57).withOpacity(0.8),
-                    Color(0xFF20B2AA).withOpacity(0.8),
-                    Color(0xFF48D1CC).withOpacity(0.8),
-                  ],
-                ),
+              height: size.height * 0.45,
+              width: size.width,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Background image
+                  Image.asset(
+                    'assets/images/sign.jpg',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF2E8B57),
+                              Color(0xFF20B2AA),
+                              Color(0xFF48D1CC),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  // Overlay gradient
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF2E8B57).withOpacity(0.85),
+                          Color(0xFF20B2AA).withOpacity(0.85),
+                          Color(0xFF48D1CC).withOpacity(0.85),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -253,9 +270,20 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: _previousStep,
+                        Material(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: _previousStep,
+                            child: const Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: Icon(
+                                Icons.arrow_back, 
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -275,6 +303,13 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                             fontWeight: FontWeight.bold,
                             fontFamily: 'DMsans',
                             color: Colors.white,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(0, 2),
+                                blurRadius: 4,
+                                color: Color.fromRGBO(0, 0, 0, 0.2),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -287,14 +322,49 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                           ),
                         ),
                         const SizedBox(height: 16),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: (_currentStep + 1) / 3,
-                            backgroundColor: Colors.white.withOpacity(0.3),
-                            color: Colors.white,
-                            minHeight: 8,
-                          ),
+                        
+                        // Enhanced progress bar
+                        Stack(
+                          children: [
+                            // Background track
+                            Container(
+                              height: 8,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            
+                            // Progress indicator
+                            TweenAnimationBuilder<double>(
+                              tween: Tween<double>(
+                                begin: 0.0,
+                                end: (_currentStep + 1) / 3,
+                              ),
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                              builder: (context, value, child) {
+                                return FractionallySizedBox(
+                                  widthFactor: value,
+                                  child: Container(
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -305,53 +375,26 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.95),
+                        color: Colors.white,
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(32),
                           topRight: Radius.circular(32),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, -3),
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, -4),
                           ),
                         ],
                       ),
-                      child: Stack(
+                      child: PageView(
+                        controller: _pageController,
+                        physics: const NeverScrollableScrollPhysics(),
                         children: [
-                          // Decorative SVG elements
-                          Positioned(
-                            top: 20,
-                            right: 20,
-                            child: _buildCircleSvg(16, Colors.green.withOpacity(0.1)),
-                          ),
-                          Positioned(
-                            top: 100,
-                            left: 30,
-                            child: _buildCircleSvg(8, Colors.green.withOpacity(0.1)),
-                          ),
-                          Positioned(
-                            bottom: 80,
-                            right: 40,
-                            child: _buildCircleSvg(12, Colors.green.withOpacity(0.1)),
-                          ),
-                          Positioned(
-                            bottom: 140,
-                            left: 20,
-                            child: _buildCircleSvg(20, Colors.green.withOpacity(0.1)),
-                          ),
-                          
-                          // Page view for steps
-                          PageView(
-                            controller: _pageController,
-                            physics: const NeverScrollableScrollPhysics(),
-                            children: [
-                              _buildStep1(theme),
-                              _buildStep2(theme),
-                              _buildStep3(theme),
-                            ],
-                          ),
+                          _buildStep1(theme),
+                          _buildStep2(theme),
+                          _buildStep3(theme),
                         ],
                       ),
                     ),
@@ -365,21 +408,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     );
   }
 
-  // Helper method to create circle SVG decorations
-  Widget _buildCircleSvg(double size, Color color) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
-    );
-  }
-
   // Step 1: Create your account (Email & Password)
   Widget _buildStep1(ThemeData theme) {
     return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(24),
       child: Form(
         key: _step1FormKey,
@@ -396,7 +428,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       Text(
                         'Let\'s Register Account',
                         style: TextStyle(
-                          fontSize: 22,
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
                           fontFamily: 'DMsans',
                           color: theme.colorScheme.onBackground,
@@ -416,13 +448,11 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 ),
                 Expanded(
                   flex: 2,
-                  child: SvgPicture.asset(
-                    'assets/images/illustration.svg',
-                    height: 120,
-                    placeholderBuilder: (BuildContext context) => Container(
-                      height: 120,
-                      width: 120,
-                      child: Icon(
+                  child: Container(
+                    height: 100,
+                    child: SvgPicture.asset(
+                      'assets/images/illustration.svg',
+                      placeholderBuilder: (BuildContext context) => Icon(
                         Icons.person_add_alt_1,
                         size: 60,
                         color: theme.colorScheme.primary,
@@ -434,8 +464,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             ),
             const SizedBox(height: 32),
             
-            // Email field
-            _buildTextField(
+            // Email field with animation
+            _buildAnimatedTextField(
               label: 'Email',
               controller: _emailController,
               prefixIcon: Icons.email_outlined,
@@ -446,8 +476,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             
             const SizedBox(height: 20),
             
-            // Password field
-            _buildTextField(
+            // Password field with animation
+            _buildAnimatedTextField(
               label: 'Password',
               controller: _passwordController,
               prefixIcon: Icons.lock_outline,
@@ -460,6 +490,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       ? Icons.visibility_off_outlined 
                       : Icons.visibility_outlined,
                   color: theme.colorScheme.onSurface.withOpacity(0.4),
+                  size: 20,
                 ),
                 onPressed: () {
                   setState(() {
@@ -471,7 +502,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             
             const SizedBox(height: 16),
             
-            // Password requirements
+            // Enhanced password requirements
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -514,32 +545,41 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             
             const SizedBox(height: 32),
             
-            // Continue button
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _nextStep,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            // Continue button with animation
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0.9, end: 1.0),
+              duration: const Duration(milliseconds: 500),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _nextStep,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Continue',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'DMsans',
+                        ),
+                      ),
+                    ),
                   ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Continue',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'DMsans',
-                  ),
-                ),
-              ),
+                );
+              },
             ),
             
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             
             // Or continue with
             Padding(
@@ -577,31 +617,35 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildSocialButton(
-                  iconData: Icons.g_mobiledata, 
-                  iconColor: Colors.red,
-                  backgroundColor: Colors.white,
-                  borderColor: Colors.grey.shade300,
+                // Google login
+                _buildSocialLoginButton(
+                  assetName: 'assets/images/google.svg',
+                  fallbackIcon: Icons.g_mobiledata,
+                  fallbackColor: Colors.red,
                   onTap: () {
                     // Google login logic
                   },
                 ),
+                
                 const SizedBox(width: 20),
-                _buildSocialButton(
-                  iconData: Icons.facebook, 
-                  iconColor: Colors.blue.shade700,
-                  backgroundColor: Colors.white,
-                  borderColor: Colors.grey.shade300,
+                
+                // Facebook login
+                _buildSocialLoginButton(
+                  assetName: 'assets/images/facebook.svg',
+                  fallbackIcon: Icons.facebook,
+                  fallbackColor: Colors.blue.shade700,
                   onTap: () {
                     // Facebook login logic
                   },
                 ),
+                
                 const SizedBox(width: 20),
-                _buildSocialButton(
-                  iconData: Icons.apple, 
-                  iconColor: Colors.black,
-                  backgroundColor: Colors.white,
-                  borderColor: Colors.grey.shade300,
+                
+                // Apple login
+                _buildSocialLoginButton(
+                  assetName: 'assets/images/apple.svg',
+                  fallbackIcon: Icons.apple,
+                  fallbackColor: Colors.black,
                   onTap: () {
                     // Apple login logic
                   },
@@ -621,6 +665,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                     style: TextStyle(
                       color: Colors.grey.shade600,
                       fontFamily: 'DMsans',
+                      fontSize: 15,
                     ),
                   ),
                   TextButton(
@@ -633,6 +678,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,
                         fontFamily: 'DMsans',
+                        fontSize: 15,
                       ),
                     ),
                   ),
@@ -648,6 +694,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   // Step 2: Add personal information
   Widget _buildStep2(ThemeData theme) {
     return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(24),
       child: Form(
         key: _step2FormKey,
@@ -657,7 +704,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             Text(
               'Personal Information',
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'DMsans',
                 color: theme.colorScheme.onBackground,
@@ -674,8 +721,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             ),
             const SizedBox(height: 32),
             
-            // Name field
-            _buildTextField(
+            // Name field with animation
+            _buildAnimatedTextField(
               label: 'Name',
               controller: _nameController,
               prefixIcon: Icons.person_outline,
@@ -685,8 +732,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             
             const SizedBox(height: 20),
             
-            // Business name field
-            _buildTextField(
+            // Business name field with animation
+            _buildAnimatedTextField(
               label: 'Business name',
               controller: _businessNameController,
               prefixIcon: Icons.business,
@@ -696,8 +743,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             
             const SizedBox(height: 20),
             
-            // Phone field
-            _buildTextField(
+            // Phone field with animation
+            _buildAnimatedTextField(
               label: 'Phone',
               controller: _phoneController,
               prefixIcon: Icons.phone_android,
@@ -708,86 +755,105 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             
             const SizedBox(height: 24),
             
-            // Terms and Conditions
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: Checkbox(
-                    value: _agreeToTerms,
-                    activeColor: theme.colorScheme.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _agreeToTerms = value ?? false;
-                      });
-                    },
-                  ),
+            // Enhanced Terms and Conditions
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.grey.shade200,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text.rich(
-                    TextSpan(
-                      text: 'I agree to the ',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontFamily: 'DMsans',
-                        color: Colors.grey.shade600,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: _agreeToTerms,
+                      activeColor: theme.colorScheme.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      children: [
-                        TextSpan(
-                          text: 'Terms & Conditions',
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const TextSpan(
-                          text: ' and ',
-                        ),
-                        TextSpan(
-                          text: 'Privacy Policy',
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _agreeToTerms = value ?? false;
+                        });
+                      },
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        text: 'I agree to the ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'DMsans',
+                          color: Colors.grey.shade700,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'Terms & Conditions',
+                            style: TextStyle(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const TextSpan(
+                            text: ' and ',
+                          ),
+                          TextSpan(
+                            text: 'Privacy Policy',
+                            style: TextStyle(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             
             const SizedBox(height: 40),
             
-            // Create account button
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _nextStep,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            // Sign up button with animation
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0.9, end: 1.0),
+              duration: const Duration(milliseconds: 500),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _nextStep,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Sign Up',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'DMsans',
+                        ),
+                      ),
+                    ),
                   ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Sign Up',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'DMsans',
-                  ),
-                ),
-              ),
+                );
+              },
             ),
           ],
         ),
@@ -797,27 +863,41 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
 
   // Step 3: Verification
   Widget _buildStep3(ThemeData theme) {
-    return Padding(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const SizedBox(height: 20),
-          // Verification icon
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.mark_email_read_outlined,
-              size: 60,
-              color: theme.colorScheme.primary,
-            ),
+          
+          // Enhanced verification icon with animation
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.5, end: 1.0),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.mark_email_read_outlined,
+                    size: 60,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              );
+            },
           ),
+          
           const SizedBox(height: 24),
+          
           Text(
             'Verify your account',
             style: TextStyle(
@@ -828,7 +908,9 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             ),
             textAlign: TextAlign.center,
           ),
+          
           const SizedBox(height: 12),
+          
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
@@ -841,91 +923,111 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
               textAlign: TextAlign.center,
             ),
           ),
+          
           const SizedBox(height: 40),
           
-          // OTP fields
+          // Enhanced OTP fields with animation
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(
               4,
-              (index) => Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: theme.colorScheme.primary.withOpacity(0.3),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.shade200.withOpacity(0.5),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+              (index) => TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: 1),
+                duration: Duration(milliseconds: 400 + (index * 100)),
+                curve: Curves.easeOutBack,
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.shade200.withOpacity(0.5),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: TextFormField(
+                        controller: _otpControllers[index],
+                        focusNode: _otpFocusNodes[index],
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        maxLength: 1,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'DMsans',
+                        ),
+                        decoration: const InputDecoration(
+                          counterText: '',
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onChanged: (value) {
+                          if (value.length == 1 && index < 3) {
+                            _otpFocusNodes[index + 1].requestFocus();
+                          }
+                        },
+                      ),
                     ),
-                  ],
-                ),
-                child: TextFormField(
-                  controller: _otpControllers[index],
-                  focusNode: _otpFocusNodes[index],
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  maxLength: 1,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'DMsans',
-                  ),
-                  decoration: const InputDecoration(
-                    counterText: '',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  onChanged: (value) {
-                    if (value.length == 1 && index < 3) {
-                      _otpFocusNodes[index + 1].requestFocus();
-                    }
-                  },
-                ),
+                  );
+                },
               ),
             ),
           ),
           
           const SizedBox(height: 40),
           
-          // Verify button
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _verifyAndCreateAccount,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 0,
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.0,
+          // Verify button with animation
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.9, end: 1.0),
+            duration: const Duration(milliseconds: 500),
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _verifyAndCreateAccount,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    )
-                  : const Text(
-                      'Verify & Create Account',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'DMsans',
-                      ),
+                      elevation: 0,
                     ),
-            ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.0,
+                            ),
+                          )
+                        : const Text(
+                            'Verify & Create Account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'DMsans',
+                            ),
+                          ),
+                  ),
+                ),
+              );
+            },
           ),
           
           const SizedBox(height: 16),
@@ -948,7 +1050,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             ),
           ),
           
-          const Spacer(),
+          const SizedBox(height: 40),
           
           // Resend code
           Row(
@@ -986,7 +1088,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildTextField({
+  // Enhanced animated text field
+  Widget _buildAnimatedTextField({
     required String label,
     required TextEditingController controller,
     required IconData prefixIcon,
@@ -996,71 +1099,89 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            fontFamily: 'DMsans',
-            color: Colors.grey.shade800,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.shade200.withOpacity(0.5),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: TextFormField(
-            controller: controller,
-            obscureText: obscureText,
-            keyboardType: keyboardType,
-            validator: validator,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              fontFamily: 'DMsans',
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOutQuad,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    fontFamily: 'DMsans',
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.shade200.withOpacity(0.5),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: TextFormField(
+                    controller: controller,
+                    obscureText: obscureText,
+                    keyboardType: keyboardType,
+                    validator: validator,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'DMsans',
+                    ),
+                    decoration: InputDecoration(
+                      hintText: hintText,
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 15,
+                        fontFamily: 'DMsans',
+                      ),
+                      prefixIcon: Icon(
+                        prefixIcon,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
+                      suffixIcon: suffixIcon,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            decoration: InputDecoration(
-              hintText: hintText,
-              hintStyle: TextStyle(
-                color: Colors.grey.shade400,
-                fontSize: 15,
-                fontFamily: 'DMsans',
-              ),
-              prefixIcon: Icon(
-                prefixIcon,
-                color: Theme.of(context).colorScheme.primary,
-                size: 20,
-              ),
-              suffixIcon: suffixIcon,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(vertical: 16),
-            ),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
+  // Enhanced password requirement
   Widget _buildPasswordRequirement(ThemeData theme, String text, bool isMet) {
     return Row(
       children: [
-        Icon(
-          isMet ? Icons.check_circle : Icons.circle_outlined,
-          size: 16,
-          color: isMet ? theme.colorScheme.primary : Colors.grey.shade400,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          child: Icon(
+            isMet ? Icons.check_circle : Icons.circle_outlined,
+            size: 16,
+            color: isMet ? theme.colorScheme.primary : Colors.grey.shade400,
+          ),
         ),
         const SizedBox(width: 8),
         Text(
@@ -1078,42 +1199,99 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildSocialButton({
-    required IconData iconData,
-    required Color iconColor,
-    required Color backgroundColor,
-    required Color borderColor,
+  // Enhanced social login button
+  Widget _buildSocialLoginButton({
+    required String assetName,
+    required IconData fallbackIcon,
+    required Color fallbackColor,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: borderColor,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.shade200.withOpacity(0.5),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+      borderRadius: BorderRadius.circular(16),
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.grey.shade200,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade200.withOpacity(0.5),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Center(
-          child: Icon(
-            iconData,
-            size: iconData == Icons.g_mobiledata ? 36 : 28,
-            color: iconColor,
+            child: Center(
+              child: Image.asset(
+                assetName,
+                width: 28,
+                height: 28,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    fallbackIcon,
+                    size: fallbackIcon == Icons.g_mobiledata ? 36 : 28,
+                    color: fallbackColor,
+                  );
+                },
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 6),
+          Text(
+            assetName.contains('google') ? 'Google' :
+            assetName.contains('facebook') ? 'Facebook' : 'Apple',
+            style: TextStyle(
+              fontSize: 12,
+              fontFamily: 'DMsans',
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700,
+            ),
+          ),
+        ],
       ),
     );
+  }
+}
+
+// Custom clipper for curved top container
+class CustomClipPath extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+    path.lineTo(0, size.height - 60);
+    
+    // First curve point
+    path.quadraticBezierTo(
+      size.width / 4, 
+      size.height - 10, 
+      size.width / 2, 
+      size.height - 30
+    );
+    
+    // Second curve point
+    path.quadraticBezierTo(
+      size.width - (size.width / 4), 
+      size.height - 50, 
+      size.width, 
+      size.height - 20
+    );
+    
+    path.lineTo(size.width, 0);
+    path.close();
+    
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) {
+    return true;
   }
 }

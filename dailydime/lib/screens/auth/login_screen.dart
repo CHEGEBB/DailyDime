@@ -197,190 +197,198 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     return Scaffold(
       body: Stack(
         children: [
-          // Main background image - pulled up so it's only visible in the green header part
-          Positioned(
-            top: -50, // Pull image up
-            left: 0,
-            right: 0,
-            height: size.height * 0.45, // Adjust height to cover only green part
-            child: Image.asset(
-              'assets/images/login.jpg',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF2E8B57),
-                        Color(0xFF20B2AA),
-                        Color(0xFF48D1CC),
-                      ],
-                    ),
-                  ),
-                );
-              },
+          // Background curved gradient
+          Container(
+            height: size.height,
+            width: size.width,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFF5F5F5),
+                  Colors.white,
+                ],
+              ),
             ),
           ),
           
-          // Green overlay with gradient
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: size.height * 0.40, // Only cover the top part
+          // Top curved header with image background
+          ClipPath(
+            clipper: CustomClipPath(),
             child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF2E8B57).withOpacity(0.8),
-                    Color(0xFF20B2AA).withOpacity(0.8),
-                    Color(0xFF48D1CC).withOpacity(0.8),
-                  ],
-                ),
+              height: size.height * 0.45,
+              width: size.width,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Background image
+                  Image.asset(
+                    'assets/images/login.jpg',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF2E8B57),
+                              Color(0xFF20B2AA),
+                              Color(0xFF48D1CC),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  // Overlay gradient
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF2E8B57).withOpacity(0.85),
+                          Color(0xFF20B2AA).withOpacity(0.85),
+                          Color(0xFF48D1CC).withOpacity(0.85),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           
           // Main content
           SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  // Top section with logo and title
-                  Container(
-                    height: size.height * 0.35, // Increased header height
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 10),
-                        
-                        // Logo
-                        SlideTransition(
-                          position: _slideAnimation,
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 140,
-                            height: 140,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 140,
-                                height: 140,
-                                child: const Icon(
-                                  Icons.account_balance_wallet,
-                                  size: 90,
-                                  color: Colors.white,
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: SizedBox(
+                height: size.height - MediaQuery.of(context).padding.top,
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    children: [
+                      // Top section with logo and title
+                      Container(
+                        height: size.height * 0.35,
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 10),
+                            
+                            // Logo with animated entrance
+                            SlideTransition(
+                              position: _slideAnimation,
+                              child: Hero(
+                                tag: 'app_logo',
+                                child: Container(
+                                  width: 130,
+                                  height: 130,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 20,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.all(15),
+                                  child: Image.asset(
+                                    'assets/images/logo.png',
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(
+                                        Icons.account_balance_wallet,
+                                        size: 80,
+                                        color: Colors.white,
+                                      );
+                                    },
+                                  ),
                                 ),
-                              );
-                            },
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 20),
-                        
-                        // App name
-                        SlideTransition(
-                          position: _slideAnimation,
-                          child: Text(
-                            'DailyDime',
-                            style: TextStyle(
-                              fontSize: 42,
-                              fontWeight: FontWeight.w800,
-                              fontFamily: 'DMsans', // Changed to DMsans
-                              color: Colors.white,
-                              letterSpacing: -1,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  offset: const Offset(2, 2),
-                                  blurRadius: 8,
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 20),
+                            
+                            // App name with animated entrance
+                            SlideTransition(
+                              position: _slideAnimation,
+                              child: ShaderMask(
+                                shaderCallback: (bounds) => LinearGradient(
+                                  colors: [Colors.white, Colors.white.withOpacity(0.9)],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                ).createShader(bounds),
+                                child: const Text(
+                                  'DailyDime',
+                                  style: TextStyle(
+                                    fontSize: 42,
+                                    fontWeight: FontWeight.w800,
+                                    fontFamily: 'DMsans',
+                                    color: Colors.white,
+                                    letterSpacing: -1,
+                                  ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 8),
-                        
-                        // Subtitle
-                        SlideTransition(
-                          position: _slideAnimation,
-                          child: Text(
-                            'Smart budgeting with AI-powered insights\nfor your M-Pesa and financial goals',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontFamily: 'DMsans', // Changed to DMsans
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white.withOpacity(0.95),
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Bottom white section with login form
-                  Expanded(
-                    child: SlideTransition(
-                      position: _slideAnimation,
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.95), // Slightly lighter form background
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(32),
-                            topRight: Radius.circular(32),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, -3),
+                            
+                            const SizedBox(height: 8),
+                            
+                            // Subtitle with animated entrance
+                            SlideTransition(
+                              position: _slideAnimation,
+                              child: Text(
+                                'Smart budgeting with AI-powered insights\nfor your M-Pesa and financial goals',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontFamily: 'DMsans',
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white.withOpacity(0.95),
+                                  height: 1.4,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        child: Stack(
-                          children: [
-                            // Decorative SVG elements in the form background
-                            Positioned(
-                              top: 20,
-                              right: 20,
-                              child: _buildCircleSvg(16, Colors.green.withOpacity(0.1)),
+                      ),
+                      
+                      // Bottom white section with login form
+                      Expanded(
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(32),
+                                topRight: Radius.circular(32),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, -4),
+                                ),
+                              ],
                             ),
-                            Positioned(
-                              top: 100,
-                              left: 30,
-                              child: _buildCircleSvg(8, Colors.green.withOpacity(0.1)),
-                            ),
-                            Positioned(
-                              bottom: 80,
-                              right: 40,
-                              child: _buildCircleSvg(12, Colors.green.withOpacity(0.1)),
-                            ),
-                            Positioned(
-                              bottom: 140,
-                              left: 20,
-                              child: _buildCircleSvg(20, Colors.green.withOpacity(0.1)),
-                            ),
-                          
-                            // Main form content
-                            SingleChildScrollView(
-                              padding: const EdgeInsets.all(28),
-                              child: Form(
-                                key: _formKey,
+                            child: Form(
+                              key: _formKey,
+                              child: Padding(
+                                padding: const EdgeInsets.all(28),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const SizedBox(height: 16),
-                                    
                                     // Login header
                                     Center(
                                       child: Column(
@@ -390,7 +398,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                             style: TextStyle(
                                               fontSize: 28,
                                               fontWeight: FontWeight.w700,
-                                              fontFamily: 'DMsans', // Changed to DMsans
+                                              fontFamily: 'DMsans',
                                               color: Colors.grey.shade800,
                                             ),
                                           ),
@@ -399,7 +407,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                             'Sign in to continue your financial journey',
                                             style: TextStyle(
                                               fontSize: 16,
-                                              fontFamily: 'DMsans', // Changed to DMsans
+                                              fontFamily: 'DMsans',
                                               fontWeight: FontWeight.w500,
                                               color: Colors.grey.shade600,
                                             ),
@@ -411,7 +419,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     const SizedBox(height: 32),
                                     
                                     // Email field
-                                    _buildModernTextField(
+                                    _buildAnimatedTextField(
                                       controller: _emailController,
                                       hintText: 'Email address',
                                       prefixIcon: Icons.email_outlined,
@@ -422,7 +430,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     const SizedBox(height: 20),
                                     
                                     // Password field
-                                    _buildModernTextField(
+                                    _buildAnimatedTextField(
                                       controller: _passwordController,
                                       hintText: 'Enter your password',
                                       prefixIcon: Icons.lock_outline,
@@ -434,6 +442,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                               ? Icons.visibility_off_outlined 
                                               : Icons.visibility_outlined,
                                           color: Colors.grey.shade600,
+                                          size: 20,
                                         ),
                                         onPressed: () {
                                           setState(() {
@@ -451,20 +460,28 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       children: [
                                         Row(
                                           children: [
-                                            Checkbox(
-                                              value: _rememberMe,
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _rememberMe = value ?? false;
-                                                });
-                                              },
-                                              activeColor: const Color(0xFF2E8B57),
+                                            SizedBox(
+                                              height: 24,
+                                              width: 24,
+                                              child: Checkbox(
+                                                value: _rememberMe,
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    _rememberMe = value ?? false;
+                                                  });
+                                                },
+                                                activeColor: const Color(0xFF2E8B57),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                              ),
                                             ),
+                                            const SizedBox(width: 8),
                                             Text(
                                               'Remember me',
                                               style: TextStyle(
                                                 fontSize: 14,
-                                                fontFamily: 'DMsans', // Changed to DMsans
+                                                fontFamily: 'DMsans',
                                                 fontWeight: FontWeight.w500,
                                                 color: Colors.grey.shade600,
                                               ),
@@ -480,11 +497,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                               ),
                                             );
                                           },
+                                          style: TextButton.styleFrom(
+                                            padding: EdgeInsets.zero,
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
                                           child: Text(
                                             'Forgot password?',
                                             style: TextStyle(
                                               fontSize: 14,
-                                              fontFamily: 'DMsans', // Changed to DMsans
+                                              fontFamily: 'DMsans',
                                               fontWeight: FontWeight.w600,
                                               color: const Color(0xFF2E8B57),
                                             ),
@@ -502,8 +524,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       child: ElevatedButton(
                                         onPressed: _isLoading ? null : _login,
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF2E8B57),
                                           foregroundColor: Colors.white,
+                                          backgroundColor: const Color(0xFF2E8B57),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(16),
                                           ),
@@ -519,157 +541,170 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                                   strokeWidth: 2.0,
                                                 ),
                                               )
-                                            : Text(
+                                            : const Text(
                                                 'Sign In',
                                                 style: TextStyle(
                                                   fontSize: 16,
-                                                  fontFamily: 'DMsans', // Changed to DMsans
+                                                  fontFamily: 'DMsans',
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                       ),
                                     ),
-                                    
-                                    const SizedBox(height: 24),
                                     
                                     // Biometric login (if available)
                                     if (_canCheckBiometrics && _availableBiometrics.isNotEmpty)
                                       Center(
-                                        child: Column(
-                                          children: [
-                                            TextButton.icon(
-                                              onPressed: _authenticateWithBiometrics,
-                                              icon: Icon(
-                                                _availableBiometrics.contains(BiometricType.fingerprint)
-                                                    ? Icons.fingerprint
-                                                    : Icons.face,
-                                                color: const Color(0xFF2E8B57),
-                                              ),
-                                              label: Text(
-                                                'Use ${_availableBiometrics.contains(BiometricType.fingerprint) ? 'Fingerprint' : 'Face ID'}',
-                                                style: TextStyle(
-                                                  color: const Color(0xFF2E8B57),
-                                                  fontFamily: 'DMsans', // Changed to DMsans
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(top: 16),
+                                          child: TextButton.icon(
+                                            onPressed: _authenticateWithBiometrics,
+                                            icon: Icon(
+                                              _availableBiometrics.contains(BiometricType.fingerprint)
+                                                  ? Icons.fingerprint
+                                                  : Icons.face,
+                                              color: const Color(0xFF2E8B57),
+                                              size: 22,
+                                            ),
+                                            label: Text(
+                                              'Use ${_availableBiometrics.contains(BiometricType.fingerprint) ? 'Fingerprint' : 'Face ID'}',
+                                              style: const TextStyle(
+                                                color: Color(0xFF2E8B57),
+                                                fontFamily: 'DMsans',
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
                                               ),
                                             ),
-                                            const SizedBox(height: 16),
-                                          ],
+                                            style: TextButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(vertical: 8),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     
-                                    // Divider
-                                    Row(
+                                    const SizedBox(height: 24),
+                                    
+                                    // Social login section
+                                    Column(
                                       children: [
-                                        Expanded(
-                                          child: Divider(
-                                            color: Colors.grey.shade300,
-                                            thickness: 1,
-                                          ),
+                                        // Divider with text
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Container(
+                                                height: 1,
+                                                color: Colors.grey.shade300,
+                                              ),
+                                            ),
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                'or continue with',
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade600,
+                                                  fontSize: 14,
+                                                  fontFamily: 'DMsans',
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Container(
+                                                height: 1,
+                                                color: Colors.grey.shade300,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                                          child: Text(
-                                            'or continue with',
+                                        
+                                        const SizedBox(height: 24),
+                                        
+                                        // Social login buttons
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            // Google login
+                                            _buildSocialLoginButton(
+                                              onTap: _loginWithGoogle,
+                                              assetName: 'assets/images/google.png',
+                                              label: 'Google',
+                                            ),
+                                            
+                                            const SizedBox(width: 16),
+                                            
+                                            // Facebook login
+                                            _buildSocialLoginButton(
+                                              onTap: _loginWithFacebook,
+                                              assetName: 'assets/images/facebook.svg',
+                                              label: 'Facebook',
+                                            ),
+                                            
+                                            const SizedBox(width: 16),
+                                            
+                                            // Apple login
+                                            _buildSocialLoginButton(
+                                              onTap: _loginWithApple,
+                                              assetName: 'assets/images/apple.png',
+                                              label: 'Apple',
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    
+                                    const Spacer(),
+                                    
+                                    // Register account link
+                                    Center(
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Don\'t have an account?',
                                             style: TextStyle(
                                               color: Colors.grey.shade600,
-                                              fontSize: 14,
-                                              fontFamily: 'DMsans', // Changed to DMsans
+                                              fontSize: 15,
+                                              fontFamily: 'DMsans',
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                        ),
-                                        Expanded(
-                                          child: Divider(
-                                            color: Colors.grey.shade300,
-                                            thickness: 1,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    
-                                    const SizedBox(height: 24),
-                                    
-                                    // Social login buttons
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                      children: [
-                                        _buildSocialButton(
-                                          onPressed: _loginWithGoogle,
-                                          icon: Icons.email,
-                                          label: 'Google',
-                                          color: const Color(0xFF4285F4),
-                                        ),
-                                        _buildSocialButton(
-                                          onPressed: _loginWithFacebook,
-                                          icon: Icons.facebook,
-                                          label: 'Facebook',
-                                          color: const Color(0xFF1877F2),
-                                        ),
-                                        _buildSocialButton(
-                                          onPressed: _loginWithApple,
-                                          icon: Icons.apple,
-                                          label: 'Apple',
-                                          color: Colors.black,
-                                        ),
-                                      ],
-                                    ),
-                                    
-                                    const SizedBox(height: 32),
-                                    
-                                    // Don't have account
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Don\'t have an account?',
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                            fontSize: 15,
-                                            fontFamily: 'DMsans', // Changed to DMsans
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => const RegisterScreen(),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => const RegisterScreen(),
+                                                ),
+                                              );
+                                            },
+                                            style: TextButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                                              minimumSize: Size.zero,
+                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            ),
+                                            child: const Text(
+                                              'Sign up',
+                                              style: TextStyle(
+                                                color: Color(0xFF2E8B57),
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 15,
+                                                fontFamily: 'DMsans',
                                               ),
-                                            );
-                                          },
-                                          style: TextButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                                            minimumSize: const Size(0, 0),
-                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                          ),
-                                          child: Text(
-                                            'Sign up',
-                                            style: TextStyle(
-                                              color: const Color(0xFF2E8B57),
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 15,
-                                              fontFamily: 'DMsans', // Changed to DMsans
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                    
-                                    const SizedBox(height: 24),
                                   ],
                                 ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -678,19 +713,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
   }
 
-  // Helper method to create circle SVG decorations
-  Widget _buildCircleSvg(double size, Color color) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
-    );
-  }
-
-  Widget _buildModernTextField({
+  // Enhanced text field with animation
+  Widget _buildAnimatedTextField({
     required TextEditingController controller,
     required String hintText,
     required IconData prefixIcon,
@@ -699,86 +723,168 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     String? Function(String?)? validator,
     TextInputType? keyboardType,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade200.withOpacity(0.5),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOutQuad,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.95 + (0.05 * value),
+          child: Opacity(
+            opacity: value,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade200.withOpacity(0.5),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextFormField(
+                controller: controller,
+                obscureText: obscureText,
+                validator: validator,
+                keyboardType: keyboardType,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'DMsans',
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 16,
+                    fontFamily: 'DMsans',
+                    fontWeight: FontWeight.w500,
+                  ),
+                  prefixIcon: Icon(
+                    prefixIcon,
+                    color: Colors.grey.shade600,
+                    size: 22,
+                  ),
+                  suffixIcon: suffixIcon,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 18,
+                  ),
+                ),
+              ),
+            ),
           ),
-        ],
-      ),
-      child: TextFormField(
-        controller: controller,
-        obscureText: obscureText,
-        validator: validator,
-        keyboardType: keyboardType,
-        style: const TextStyle(
-          fontSize: 16,
-          fontFamily: 'DMsans', // Changed to DMsans
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(
-            color: Colors.grey.shade500,
-            fontSize: 16,
-            fontFamily: 'DMsans', // Changed to DMsans
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: Icon(
-            prefixIcon,
-            color: Colors.grey.shade600,
-            size: 22,
-          ),
-          suffixIcon: suffixIcon,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 18,
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildSocialButton({
-    required VoidCallback onPressed,
-    required IconData icon,
+  // Enhanced social login button
+  Widget _buildSocialLoginButton({
+    required VoidCallback onTap,
+    required String assetName,
     required String label,
-    required Color color,
   }) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: ElevatedButton.icon(
-          onPressed: _isLoading ? null : onPressed,
-          icon: Icon(icon, color: color, size: 20),
-          label: Text(
+    return GestureDetector(
+      onTap: _isLoading ? null : onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade200.withOpacity(0.8),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Image.asset(
+                assetName,
+                width: 28,
+                height: 28,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback icons if assets not found
+                  IconData iconData = Icons.error;
+                  Color iconColor = Colors.grey;
+                  
+                  if (label == 'Google') {
+                    iconData = Icons.g_mobiledata;
+                    iconColor = Colors.red;
+                  } else if (label == 'Facebook') {
+                    iconData = Icons.facebook;
+                    iconColor = Colors.blue;
+                  } else if (label == 'Apple') {
+                    iconData = Icons.apple;
+                    iconColor = Colors.black;
+                  }
+                  
+                  return Icon(
+                    iconData,
+                    size: label == 'Google' ? 36 : 28,
+                    color: iconColor,
+                  );
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
             label,
             style: TextStyle(
-              color: color,
-              fontSize: 14,
-              fontFamily: 'DMsans', // Changed to DMsans
-              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              fontFamily: 'DMsans',
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700,
             ),
           ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: color,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey.shade300),
-            ),
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-          ),
-        ),
+        ],
       ),
     );
+  }
+}
+
+// Custom clipper for curved top container
+class CustomClipPath extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+    path.lineTo(0, size.height - 60);
+    
+    // First curve point
+    path.quadraticBezierTo(
+      size.width / 4, 
+      size.height - 10, 
+      size.width / 2, 
+      size.height - 30
+    );
+    
+    // Second curve point
+    path.quadraticBezierTo(
+      size.width - (size.width / 4), 
+      size.height - 50, 
+      size.width, 
+      size.height - 20
+    );
+    
+    path.lineTo(size.width, 0);
+    path.close();
+    
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) {
+    return true;
   }
 }

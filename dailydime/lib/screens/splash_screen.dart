@@ -153,19 +153,36 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Simple loading indicator (like Canva's circle)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withOpacity(0.9),
-                            ),
+                          // Simple loading indicator with subtle dollar sign
+                          Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withOpacity(0.15),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '\$',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                           
                           const SizedBox(height: 60),
                           
-                          // App name in elegant font
+                          // App name in elegant font with subtle tagline
                           Text(
                             'DailyDime',
                             style: TextStyle(
@@ -181,6 +198,19 @@ class _SplashScreenState extends State<SplashScreen>
                                   blurRadius: 8,
                                 ),
                               ],
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 12),
+                          
+                          // Subtle finance tagline
+                          Text(
+                            'smart money, daily wins',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.7),
+                              fontWeight: FontWeight.w300,
+                              letterSpacing: 0.8,
                             ),
                           ),
                         ],
