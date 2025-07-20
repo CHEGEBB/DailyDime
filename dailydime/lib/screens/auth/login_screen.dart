@@ -626,7 +626,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                             // Google login
                                             _buildSocialLoginButton(
                                               onTap: _loginWithGoogle,
-                                              assetName: 'assets/images/google.svg',
+                                              assetName: 'assets/images/google.png',
                                               label: 'Google',
                                             ),
                                             

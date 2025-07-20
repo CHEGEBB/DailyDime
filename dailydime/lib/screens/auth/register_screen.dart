@@ -619,7 +619,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
               children: [
                 // Google login
                 _buildSocialLoginButton(
-                  assetName: 'assets/images/google.svg',
+                  assetName: 'assets/images/google.png',
                   fallbackIcon: Icons.g_mobiledata,
                   fallbackColor: Colors.red,
                   onTap: () {
