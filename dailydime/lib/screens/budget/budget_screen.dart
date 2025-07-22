@@ -460,10 +460,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                         default:
                                           return Container();
                                       }
-                                      return SideTitleWidget(
-                                        axisSide: meta.axisSide,
-                                        child: Text(text, style: style),
-                                      );
+                                     return SideTitleWidget(
+  meta: meta,  // Add this required parameter
+  child: Text(text, style: style),
+);
                                     },
                                   ),
                                 ),
@@ -474,7 +474,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                     getTitlesWidget: (value, meta) {
                                       if (value == 0) return Container();
                                       return SideTitleWidget(
-                                        axisSide: meta.axisSide,
+                                        meta:meta,
                                         child: Text(
                                           '${(value / 1000).toInt()}K',
                                           style: const TextStyle(

@@ -1,6 +1,6 @@
 {
-    "name": "dailydime",
-    "short_name": "dailydime",
+    "name": "dailydime_fresh",
+    "short_name": "dailydime_fresh",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,4 +1,4 @@
-# dailydime
+# dailydime_fresh
 
 A new Flutter project.
 

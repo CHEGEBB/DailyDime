@@ -66,7 +66,7 @@ class ProgressChart extends StatelessWidget {
                           final index = value.toInt();
                           if (index >= 0 && index < days.length) {
                             return SideTitleWidget(
-                              axisSide: meta.axisSide, // Add this line
+                              meta:meta,
 
                               child: Text(
                                 days[index],
@@ -88,7 +88,7 @@ class ProgressChart extends StatelessWidget {
                         reservedSize: 42,
                         getTitlesWidget: (value, meta) {
                           return SideTitleWidget(
-                            axisSide: meta.axisSide,
+                            meta:meta,
                             child: Text(
                               'KES ${value.toInt()}',
                               style: TextStyle(
