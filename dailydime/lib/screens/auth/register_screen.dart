@@ -58,7 +58,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _authService.initialize();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -174,6 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
       );
     }
   }
+  
 
   // For social login with Google
   Future<void> _signUpWithGoogle() async {
@@ -328,15 +328,19 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     return null;
   }
 
-  String? _validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter your phone number';
-    }
-    if (!RegExp(r'^\d{9,17}$').hasMatch(value)) {
-      return 'Please enter a valid phone number';
-    }
-    return null;
+ String? _validatePhone(String? value) {
+  if (value == null || value.isEmpty) {
+    return 'Please enter your phone number';
   }
+  // Remove spaces, dashes, parentheses for validation
+  String cleanedValue = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+  
+  // Allow + at the beginning followed by 10-15 digits
+  if (!RegExp(r'^\+?\d{10,15}$').hasMatch(cleanedValue)) {
+    return 'Please enter a valid phone number';
+  }
+  return null;
+}
 
   @override
   Widget build(BuildContext context) {

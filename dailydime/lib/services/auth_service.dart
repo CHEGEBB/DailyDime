@@ -15,12 +15,8 @@ class AuthService {
     ..setProject(AppConfig.appwriteProjectId)
     ..setSelfSigned(status: true); // Remove this in production
   
-  late final Account account;
-  
-  // Initialize the account instance
-  void initialize() {
-    account = Account(client);
-  }
+  // Initialize account directly - no need for separate initialize method
+  late final Account account = Account(client);
 
   // Get the current user
   Future<models.User?> getCurrentUser() async {
@@ -30,28 +26,29 @@ class AuthService {
       return null;
     }
   }
+
   // Create OAuth2 session (Google, Facebook, Apple)
-Future<void> createOAuthSession(String provider) async {
-  try {
-    OAuthProvider oauthProvider;
-    switch (provider.toLowerCase()) {
-      case 'google':
-        oauthProvider = OAuthProvider.google;
-        break;
-      case 'facebook':
-        oauthProvider = OAuthProvider.facebook;
-        break;
-      case 'apple':
-        oauthProvider = OAuthProvider.apple;
-        break;
-      default:
-        throw ArgumentError('Unsupported OAuth provider: $provider');
+  Future<void> createOAuthSession(String provider) async {
+    try {
+      OAuthProvider oauthProvider;
+      switch (provider.toLowerCase()) {
+        case 'google':
+          oauthProvider = OAuthProvider.google;
+          break;
+        case 'facebook':
+          oauthProvider = OAuthProvider.facebook;
+          break;
+        case 'apple':
+          oauthProvider = OAuthProvider.apple;
+          break;
+        default:
+          throw ArgumentError('Unsupported OAuth provider: $provider');
+      }
+      await account.createOAuth2Session(provider: oauthProvider);
+    } catch (e) {
+      rethrow;
     }
-    await account.createOAuth2Session(provider: oauthProvider);
-  } catch (e) {
-    rethrow;
   }
-}
 
   // Create a new account
   Future<models.User> createAccount({
@@ -104,6 +101,15 @@ Future<void> createOAuthSession(String provider) async {
     }
   }
 
+  // Logout from all sessions
+  Future<void> logoutFromAllSessions() async {
+    try {
+      await account.deleteSessions();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Reset password
   Future<void> resetPassword({required String email}) async {
     try {
@@ -116,19 +122,44 @@ Future<void> createOAuthSession(String provider) async {
     }
   }
 
-  // Update account
-  Future<models.User> updateAccount({
-    String? name,
-    String? phone,
-  }) async {
+  // Update account name
+  Future<models.User> updateAccountName({required String name}) async {
     try {
-      return await account.updateName(name: name ?? '');
+      return await account.updateName(name: name);
     } catch (e) {
       rethrow;
     }
   }
 
+  // Update account email
+  Future<models.User> updateEmail({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      return await account.updateEmail(
+        email: email,
+        password: password,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
 
+  // Update account password
+  Future<models.User> updatePassword({
+    required String password,
+    required String oldPassword,
+  }) async {
+    try {
+      return await account.updatePassword(
+        password: password,
+        oldPassword: oldPassword,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
 
   // Create phone session
   Future<models.Token> createPhoneSession({required String phone}) async {
@@ -157,11 +188,79 @@ Future<void> createOAuthSession(String provider) async {
     }
   }
 
+  // Create email verification
+  Future<models.Token> createEmailVerification({required String url}) async {
+    try {
+      return await account.createVerification(url: url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Confirm email verification
+  Future<models.Token> confirmEmailVerification({
+    required String userId,
+    required String secret,
+  }) async {
+    try {
+      return await account.updateVerification(
+        userId: userId,
+        secret: secret,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Get current session
+  Future<models.Session?> getCurrentSession() async {
+    try {
+      return await account.getSession(sessionId: 'current');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Get all sessions
+  Future<models.SessionList?> getAllSessions() async {
+    try {
+      return await account.listSessions();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Check if user is authenticated
+  Future<bool> isAuthenticated() async {
+    try {
+      final user = await getCurrentUser();
+      return user != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Handle authentication errors
   String handleAuthError(Object e) {
     if (e is AppwriteException) {
-      return e.message ?? 'An unknown error occurred';
+      switch (e.code) {
+        case 401:
+          return 'Invalid credentials. Please check your email and password.';
+        case 409:
+          return 'An account with this email already exists.';
+        case 429:
+          return 'Too many requests. Please wait a moment and try again.';
+        case 500:
+          return 'Server error. Please try again later.';
+        default:
+          return e.message ?? 'An unknown error occurred';
+      }
     }
     return 'An unexpected error occurred. Please try again.';
+  }
+
+  // Clean up resources (optional)
+  void dispose() {
+    // Any cleanup code if needed
   }
 }

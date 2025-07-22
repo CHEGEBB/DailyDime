@@ -38,7 +38,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _authService.initialize();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
