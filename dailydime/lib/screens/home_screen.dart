@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:dailydime/screens/mpesa_screen.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -461,134 +462,144 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ),
               
-              // Quick Action Icons
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Quick Actions',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final bool useCompactLayout = constraints.maxWidth < 350;
-                          
-                          if (useCompactLayout) {
-                            // Compact layout with Wrap for very small screens
-                            return Wrap(
-                              alignment: WrapAlignment.spaceAround,
-                              spacing: 8,
-                              runSpacing: 12,
-                              children: [
-                                _buildQuickAction(
-                                  context,
-                                  iconData: Icons.add,
-                                  iconColor: accentColor,
-                                  label: 'Top up',
-                                  onTap: () {
-                                    _showAddMoneyBottomSheet(context);
-                                  },
-                                ),
-                                _buildQuickAction(
-                                  context,
-                                  iconData: Icons.qr_code_scanner_rounded,
-                                  iconColor: Colors.blue,
-                                  label: 'Receive',
-                                  onTap: () {},
-                                ),
-                                _buildQuickAction(
-                                  context,
-                                  iconData: Icons.send_rounded,
-                                  iconColor: Colors.purple,
-                                  label: 'Send',
-                                  onTap: () {},
-                                ),
-                                _buildQuickAction(
-                                  context,
-                                  iconData: Icons.payment_rounded,
-                                  iconColor: Colors.orange,
-                                  label: 'Pay',
-                                  onTap: () {},
-                                ),
-                                _buildQuickAction(
-                                  context,
-                                  iconData: Icons.pie_chart,
-                                  iconColor: Colors.red,
-                                  label: 'Budget',
-                                  onTap: widget.onNavigateToBudget ?? () {},
-                                ),
-                              ],
-                            );
-                          }
-                          
-                          // Default layout with Row
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildQuickAction(
-                                context,
-                                iconData: Icons.add,
-                                iconColor: accentColor,
-                                label: 'Top up',
-                                onTap: () {
-                                  _showAddMoneyBottomSheet(context);
-                                },
-                              ),
-                              _buildQuickAction(
-                                context,
-                                iconData: Icons.qr_code_scanner_rounded,
-                                iconColor: Colors.blue,
-                                label: 'Receive',
-                                onTap: () {},
-                              ),
-                              _buildQuickAction(
-                                context,
-                                iconData: Icons.send_rounded,
-                                iconColor: Colors.purple,
-                                label: 'Send',
-                                onTap: () {},
-                              ),
-                              _buildQuickAction(
-                                context,
-                                iconData: Icons.payment_rounded,
-                                iconColor: Colors.orange,
-                                label: 'Pay',
-                                onTap: () {},
-                              ),
-                              _buildQuickAction(
-                                context,
-                                iconData: Icons.pie_chart,
-                                iconColor: Colors.red,
-                                label: 'Budget',
-                                onTap: widget.onNavigateToBudget ?? () {},
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+             // Quick Action Icons
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Quick Actions',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 16),
+      Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final bool useCompactLayout = constraints.maxWidth < 350;
+            
+            if (useCompactLayout) {
+              // Compact layout with Wrap for very small screens
+              return Wrap(
+                alignment: WrapAlignment.spaceAround,
+                spacing: 8,
+                runSpacing: 12,
+                children: [
+                  _buildQuickAction(
+                    context,
+                    iconData: Icons.add,
+                    iconColor: accentColor,
+                    label: 'Top up',
+                    onTap: () {
+                      _showAddMoneyBottomSheet(context);
+                    },
+                  ),
+                  _buildQuickAction(
+                    context,
+                    iconData: Icons.phone_android,
+                    iconColor: Colors.green,
+                    label: 'M-PESA',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => MpesaScreen()),
+                      );
+                    },
+                  ),
+                  _buildQuickAction(
+                    context,
+                    iconData: Icons.savings,
+                    iconColor: Colors.orange,
+                    label: 'Savings',
+                    onTap: widget.onNavigateToSavings ?? () {},
+                  ),
+                  _buildQuickAction(
+                    context,
+                    iconData: Icons.pie_chart,
+                    iconColor: Colors.red,
+                    label: 'Budget',
+                    onTap: widget.onNavigateToBudget ?? () {},
+                  ),
+                  _buildQuickAction(
+                    context,
+                    iconData: Icons.auto_awesome,
+                    iconColor: Colors.purple,
+                    label: 'AI Insights',
+                    onTap: widget.onNavigateToAI ?? () {},
+                  ),
+                ],
+              );
+            }
+            
+            // Default layout with Row
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildQuickAction(
+                  context,
+                  iconData: Icons.add,
+                  iconColor: accentColor,
+                  label: 'Top up',
+                  onTap: () {
+                    _showAddMoneyBottomSheet(context);
+                  },
                 ),
-              ),
+                _buildQuickAction(
+                  context,
+                  iconData: Icons.phone_android,
+                  iconColor: Colors.green,
+                  label: 'M-PESA',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => MpesaScreen()),
+                    );
+                  },
+                ),
+                _buildQuickAction(
+                  context,
+                  iconData: Icons.savings,
+                  iconColor: Colors.orange,
+                  label: 'Savings',
+                  onTap: widget.onNavigateToSavings ?? () {},
+                ),
+                _buildQuickAction(
+                  context,
+                  iconData: Icons.pie_chart,
+                  iconColor: Colors.red,
+                  label: 'Budget',
+                  onTap: widget.onNavigateToBudget ?? () {},
+                ),
+                _buildQuickAction(
+                  context,
+                  iconData: Icons.auto_awesome,
+                  iconColor: Colors.purple,
+                  label: 'AI Insights',
+                  onTap: widget.onNavigateToAI ?? () {},
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    ],
+  ),
+),
               
               // Spending Overview
               Padding(
