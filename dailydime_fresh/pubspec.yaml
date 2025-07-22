@@ -1,0 +1,97 @@
+name: dailydime
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  intl: ^0.20.0
+  flutter_svg: ^2.0.10
+  fl_chart: ^1.0.0
+  local_auth: ^2.1.0
+
+  # Appwrite Backend
+  appwrite: ^17.0.0
+
+  # State Management
+  provider: ^6.1.1
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # HTTP and Permissions
+  http: ^1.4.0
+  permission_handler: ^12.0.0
+
+  # Shared Preferences
+  shared_preferences: ^2.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  dio: ^5.0.0
+
+  # Hive code generation
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.14
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/images/illustration.svg
+    - assets/images/logo.png
+
+  fonts:
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Montserrat-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Montserrat-Bold.ttf
+          weight: 700
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Outfit-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Outfit-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Outfit-Bold.ttf
+          weight: 700
+    - family: DMsans
+      fonts:
+        - asset: assets/fonts/DMsans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/DMsans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/DMsans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/DMsans-Bold.ttf
+          weight: 700
+    - family: Pacifico
+      fonts:
+        - asset: assets/fonts/Pacifico-Regular.ttf
+          weight: 400
