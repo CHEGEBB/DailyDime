@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dailydime/screens/main_navigation.dart';
 import 'package:dailydime/services/auth_service.dart';
@@ -19,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   String _errorMessage = '';
   bool _isVerifying = false;
   String? _userId;
+  String? _userEmail;
   
   // Initialize auth service
   final AuthService _authService = AuthService();
@@ -41,13 +43,13 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   
   // OTP controllers
   final List<TextEditingController> _otpControllers = List.generate(
-    4, 
+    6, 
     (index) => TextEditingController(),
   );
   
   // Focus nodes for OTP fields
   final List<FocusNode> _otpFocusNodes = List.generate(
-    4, 
+    6, 
     (index) => FocusNode(),
   );
   
@@ -139,6 +141,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     });
     
     try {
+      // Create the user account
       final user = await _authService.createAccount(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -146,18 +149,22 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         phone: _phoneController.text.trim(),
       );
       
+      // Create email token for verification (6-digit code)
+      final token = await _authService.createEmailToken(
+        email: _emailController.text.trim()
+      );
+      
       setState(() {
         _isLoading = false;
         _currentStep++;
-        _userId = user.$id;
+        _userId = token.userId;
+        _userEmail = _emailController.text.trim();
       });
       
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      
-      // Send verification email would happen automatically with Appwrite
       
     } catch (e) {
       setState(() {
@@ -173,7 +180,43 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
       );
     }
   }
-  
+
+  Future<void> _resendVerificationCode() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final token = await _authService.createEmailToken(
+        email: _userEmail ?? _emailController.text.trim()
+      );
+      
+      setState(() {
+        _isLoading = false;
+        _userId = token.userId;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification code resent to your email'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _authService.handleAuthError(e);
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   // For social login with Google
   Future<void> _signUpWithGoogle() async {
@@ -268,13 +311,14 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     }
   }
 
-  void _verifyAndCreateAccount() {
+  Future<void> _verifyEmail() async {
+    // Combine all OTP fields into one string
     final otp = _otpControllers.map((controller) => controller.text).join();
     
-    if (otp.length != 4) {
+    if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter the 4-digit verification code'),
+          content: Text('Please enter the 6-digit verification code'),
           backgroundColor: Colors.red,
         ),
       );
@@ -283,11 +327,16 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     
     setState(() {
       _isLoading = true;
+      _errorMessage = '';
     });
 
-    // In a real scenario, we would verify the OTP with Appwrite
-    // For now, just simulate verification
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      // Verify the email token with the 6-digit code
+      await _authService.verifyEmailToken(
+        userId: _userId ?? '',
+        secret: otp,
+      );
+      
       setState(() {
         _isLoading = false;
       });
@@ -297,7 +346,20 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         MaterialPageRoute(builder: (context) => const MainNavigation()),
         (route) => false,
       );
-    });
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _authService.handleAuthError(e);
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // Validators
@@ -328,19 +390,19 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     return null;
   }
 
- String? _validatePhone(String? value) {
-  if (value == null || value.isEmpty) {
-    return 'Please enter your phone number';
+  String? _validatePhone(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your phone number';
+    }
+    // Remove spaces, dashes, parentheses for validation
+    String cleanedValue = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    
+    // Allow + at the beginning followed by 10-15 digits
+    if (!RegExp(r'^\+?\d{10,15}$').hasMatch(cleanedValue)) {
+      return 'Please enter a valid phone number';
+    }
+    return null;
   }
-  // Remove spaces, dashes, parentheses for validation
-  String cleanedValue = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-  
-  // Allow + at the beginning followed by 10-15 digits
-  if (!RegExp(r'^\+?\d{10,15}$').hasMatch(cleanedValue)) {
-    return 'Please enter a valid phone number';
-  }
-  return null;
-}
 
   @override
   Widget build(BuildContext context) {
@@ -1094,7 +1156,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     );
   }
 
-  // Step 3: Verification
+  // Step 3: Verification - Completely revamped with improved OTP
   Widget _buildStep3(ThemeData theme) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -1144,10 +1206,37 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
           
           const SizedBox(height: 12),
           
+          if (_errorMessage.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red.shade400, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _errorMessage,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
-              'We\'ve sent a 4-digit verification code to your email ${_emailController.text}',
+              'We\'ve sent a 6-digit verification code to your email ${_userEmail ?? _emailController.text}',
               style: TextStyle(
                 fontSize: 16,
                 fontFamily: 'DMsans',
@@ -1159,61 +1248,69 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
           
           const SizedBox(height: 40),
           
-          // Enhanced OTP fields with animation
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(
-              4,
-              (index) => TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0, end: 1),
-                duration: Duration(milliseconds: 400 + (index * 100)),
-                curve: Curves.easeOutBack,
-                builder: (context, value, child) {
-                  return Transform.scale(
-                    scale: value,
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: theme.colorScheme.primary.withOpacity(0.3),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.shade200.withOpacity(0.5),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: TextFormField(
-                        controller: _otpControllers[index],
-                        focusNode: _otpFocusNodes[index],
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        maxLength: 1,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'DMsans',
-                        ),
-                        decoration: const InputDecoration(
-                          counterText: '',
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        onChanged: (value) {
-                          if (value.length == 1 && index < 3) {
-                            _otpFocusNodes[index + 1].requestFocus();
+          // 6-digit OTP input with improved backspace handling
+          Form(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(
+                6,
+                (index) => SizedBox(
+                  width: 45,
+                  child: RawKeyboardListener(
+                    focusNode: FocusNode(),
+                    onKey: (RawKeyEvent event) {
+                      if (event is RawKeyDownEvent) {
+                        if (event.logicalKey == LogicalKeyboardKey.backspace) {
+                          // Handle backspace - move to previous field
+                          if (_otpControllers[index].text.isEmpty && index > 0) {
+                            _otpFocusNodes[index-1].requestFocus();
+                            _otpControllers[index-1].clear();
                           }
-                        },
+                        }
+                      }
+                    },
+                    child: TextFormField(
+                      controller: _otpControllers[index],
+                      focusNode: _otpFocusNodes[index],
+                      onChanged: (value) {
+                        if (value.length == 1 && index < 5) {
+                          // Move to next field
+                          _otpFocusNodes[index+1].requestFocus();
+                        } else if (value.isEmpty && index > 0) {
+                          // Move to previous field on backspace
+                          _otpFocusNodes[index-1].requestFocus();
+                        }
+                      },
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(1),
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.red),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             ),
           ),
@@ -1231,7 +1328,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _verifyAndCreateAccount,
+                    onPressed: _isLoading ? null : _verifyEmail,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.colorScheme.primary,
                       foregroundColor: Colors.white,
@@ -1285,7 +1382,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
           
           const SizedBox(height: 40),
           
-          // Resend code
+          // Resend code with actual implementation
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -1297,14 +1394,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 ),
               ),
               TextButton(
-                onPressed: () {
-                  // Resend code logic
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Verification code resent!'),
-                    ),
-                  );
-                },
+                onPressed: _isLoading ? null : _resendVerificationCode,
                 child: Text(
                   'Resend',
                   style: TextStyle(

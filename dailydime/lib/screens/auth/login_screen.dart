@@ -286,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     return Scaffold(
       body: Stack(
         children: [
-          // Background curved gradient
+          // Background gradient
           Container(
             height: size.height,
             width: size.width,
@@ -353,250 +353,152 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           
           // Main content
           SafeArea(
-            child: SingleChildScrollView(
-              physics: const ClampingScrollPhysics(),
-              child: SizedBox(
-                height: size.height - MediaQuery.of(context).padding.top,
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Column(
-                    children: [
-                      // Top section with logo and title
-                      Container(
-                        height: size.height * 0.35,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 10),
-                            
-                            // Logo with animated entrance
-                            SlideTransition(
-                              position: _slideAnimation,
-                              child: Hero(
-                                tag: 'app_logo',
-                                child: Container(
-                                  width: 130,
-                                  height: 130,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.15),
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        blurRadius: 20,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
-                                  ),
-                                  padding: const EdgeInsets.all(15),
-                                  child: Image.asset(
-                                    'assets/images/logo.png',
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return const Icon(
-                                        Icons.account_balance_wallet,
-                                        size: 80,
-                                        color: Colors.white,
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ),
-                            
-                            const SizedBox(height: 20),
-                            
-                            // App name with animated entrance
-                            SlideTransition(
-                              position: _slideAnimation,
-                              child: ShaderMask(
-                                shaderCallback: (bounds) => LinearGradient(
-                                  colors: [Colors.white, Colors.white.withOpacity(0.9)],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ).createShader(bounds),
-                                child: const Text(
-                                  'DailyDime',
-                                  style: TextStyle(
-                                    fontSize: 42,
-                                    fontWeight: FontWeight.w800,
-                                    fontFamily: 'DMsans',
-                                    color: Colors.white,
-                                    letterSpacing: -1,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            
-                            const SizedBox(height: 8),
-                            
-                            // Subtitle with animated entrance
-                            SlideTransition(
-                              position: _slideAnimation,
-                              child: Text(
-                                'Smart budgeting with AI-powered insights\nfor your M-Pesa and financial goals',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontFamily: 'DMsans',
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white.withOpacity(0.95),
-                                  height: 1.4,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      // Bottom white section with login form
-                      Expanded(
-                        child: SlideTransition(
-                          position: _slideAnimation,
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(32),
-                                topRight: Radius.circular(32),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, -4),
-                                ),
-                              ],
-                            ),
-                            child: Form(
-                              key: _formKey,
-                              child: Padding(
-                                padding: const EdgeInsets.all(28),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Login header
-                                    Center(
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            'Welcome Back',
-                                            style: TextStyle(
-                                              fontSize: 28,
-                                              fontWeight: FontWeight.w700,
-                                              fontFamily: 'DMsans',
-                                              color: Colors.grey.shade800,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Sign in to continue your financial journey',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontFamily: 'DMsans',
-                                              fontWeight: FontWeight.w500,
-                                              color: Colors.grey.shade600,
-                                            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Column(
+                        children: [
+                          // Top section with logo and title
+                          Container(
+                            height: size.height * 0.35,
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(height: 10),
+                                
+                                // Logo with animated entrance
+                                SlideTransition(
+                                  position: _slideAnimation,
+                                  child: Hero(
+                                    tag: 'app_logo',
+                                    child: Container(
+                                      width: 120,
+                                      height: 120,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.15),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.1),
+                                            blurRadius: 20,
+                                            spreadRadius: 2,
                                           ),
                                         ],
                                       ),
-                                    ),
-                                    
-                                    const SizedBox(height: 24),
-                                    
-                                    // Error message
-                                    if (_errorMessage.isNotEmpty)
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        margin: const EdgeInsets.only(bottom: 20),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.shade50,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: Colors.red.shade200),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.error_outline, color: Colors.red.shade400, size: 20),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Text(
-                                                _errorMessage,
-                                                style: TextStyle(
-                                                  color: Colors.red.shade700,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    
-                                    // Email field
-                                    _buildAnimatedTextField(
-                                      controller: _emailController,
-                                      hintText: 'Email address',
-                                      prefixIcon: Icons.email_outlined,
-                                      validator: _validateEmail,
-                                      keyboardType: TextInputType.emailAddress,
-                                    ),
-                                    
-                                    const SizedBox(height: 20),
-                                    
-                                    // Password field
-                                    _buildAnimatedTextField(
-                                      controller: _passwordController,
-                                      hintText: 'Enter your password',
-                                      prefixIcon: Icons.lock_outline,
-                                      obscureText: _obscurePassword,
-                                      validator: _validatePassword,
-                                      suffixIcon: IconButton(
-                                        icon: Icon(
-                                          _obscurePassword 
-                                              ? Icons.visibility_off_outlined 
-                                              : Icons.visibility_outlined,
-                                          color: Colors.grey.shade600,
-                                          size: 20,
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            _obscurePassword = !_obscurePassword;
-                                          });
+                                      padding: const EdgeInsets.all(15),
+                                      child: Image.asset(
+                                        'assets/images/logo.png',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return const Icon(
+                                            Icons.account_balance_wallet,
+                                            size: 80,
+                                            color: Colors.white,
+                                          );
                                         },
                                       ),
                                     ),
-                                    
-                                    const SizedBox(height: 16),
-                                    
-                                    // Remember me and forgot password
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
+                                  ),
+                                ),
+                                
+                                const SizedBox(height: 20),
+                                
+                                // App name with animated entrance
+                                SlideTransition(
+                                  position: _slideAnimation,
+                                  child: ShaderMask(
+                                    shaderCallback: (bounds) => LinearGradient(
+                                      colors: [Colors.white, Colors.white.withOpacity(0.9)],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ).createShader(bounds),
+                                    child: const Text(
+                                      'DailyDime',
+                                      style: TextStyle(
+                                        fontSize: 42,
+                                        fontWeight: FontWeight.w800,
+                                        fontFamily: 'DMsans',
+                                        color: Colors.white,
+                                        letterSpacing: -1,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                
+                                const SizedBox(height: 8),
+                                
+                                // Subtitle with animated entrance
+                                SlideTransition(
+                                  position: _slideAnimation,
+                                  child: Text(
+                                    'Smart budgeting with AI-powered insights\nfor your M-Pesa and financial goals',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontFamily: 'DMsans',
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white.withOpacity(0.95),
+                                      height: 1.4,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Bottom white section with login form
+                          SlideTransition(
+                            position: _slideAnimation,
+                            child: Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(32),
+                                  topRight: Radius.circular(32),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, -4),
+                                  ),
+                                ],
+                              ),
+                              child: Form(
+                                key: _formKey,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Login header
+                                      Center(
+                                        child: Column(
                                           children: [
-                                            SizedBox(
-                                              height: 24,
-                                              width: 24,
-                                              child: Checkbox(
-                                                value: _rememberMe,
-                                                onChanged: (value) {
-                                                  setState(() {
-                                                    _rememberMe = value ?? false;
-                                                  });
-                                                },
-                                                activeColor: const Color(0xFF2E8B57),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(4),
-                                                ),
+                                            Text(
+                                              'Welcome Back',
+                                              style: TextStyle(
+                                                fontSize: 28,
+                                                fontWeight: FontWeight.w700,
+                                                fontFamily: 'DMsans',
+                                                color: Colors.grey.shade800,
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
+                                            const SizedBox(height: 8),
                                             Text(
-                                              'Remember me',
+                                              'Sign in to continue your financial journey',
                                               style: TextStyle(
-                                                fontSize: 14,
+                                                fontSize: 16,
                                                 fontFamily: 'DMsans',
                                                 fontWeight: FontWeight.w500,
                                                 color: Colors.grey.shade600,
@@ -604,147 +506,258 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                             ),
                                           ],
                                         ),
-                                        TextButton(
+                                      ),
+                                      
+                                      const SizedBox(height: 24),
+                                      
+                                      // Error message
+                                      if (_errorMessage.isNotEmpty)
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          margin: const EdgeInsets.only(bottom: 20),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade50,
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: Colors.red.shade200),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.error_outline, color: Colors.red.shade400, size: 20),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  _errorMessage,
+                                                  style: TextStyle(
+                                                    color: Colors.red.shade700,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      
+                                      // Email field - ENHANCED
+                                      _buildAnimatedTextField(
+                                        label: 'Email',
+                                        controller: _emailController,
+                                        hintText: 'Enter your email address',
+                                        prefixIcon: Icons.email_outlined,
+                                        validator: _validateEmail,
+                                        keyboardType: TextInputType.emailAddress,
+                                      ),
+                                      
+                                      const SizedBox(height: 20),
+                                      
+                                      // Password field - ENHANCED
+                                      _buildAnimatedTextField(
+                                        label: 'Password',
+                                        controller: _passwordController,
+                                        hintText: 'Enter your password',
+                                        prefixIcon: Icons.lock_outline,
+                                        obscureText: _obscurePassword,
+                                        validator: _validatePassword,
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            _obscurePassword 
+                                                ? Icons.visibility_off_outlined 
+                                                : Icons.visibility_outlined,
+                                            color: Colors.grey.shade600,
+                                            size: 20,
+                                          ),
                                           onPressed: () {
-                                            Navigator.push(
-                                              context, 
-                                              MaterialPageRoute(
-                                                builder: (context) => const ForgotPasswordScreen(),
-                                              ),
-                                            );
+                                            setState(() {
+                                              _obscurePassword = !_obscurePassword;
+                                            });
                                           },
-                                          style: TextButton.styleFrom(
-                                            padding: EdgeInsets.zero,
-                                            minimumSize: Size.zero,
-                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                          ),
-                                          child: Text(
-                                            'Forgot password?',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontFamily: 'DMsans',
-                                              fontWeight: FontWeight.w600,
-                                              color: const Color(0xFF2E8B57),
-                                            ),
-                                          ),
                                         ),
-                                      ],
-                                    ),
-                                    
-                                    const SizedBox(height: 24),
-                                    
-                                    // Login button
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 56,
-                                      child: ElevatedButton(
-                                        onPressed: _isLoading ? null : _login,
-                                        style: ElevatedButton.styleFrom(
-                                          foregroundColor: Colors.white,
-                                          backgroundColor: const Color(0xFF2E8B57),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(16),
-                                          ),
-                                          elevation: 0,
-                                          shadowColor: Colors.transparent,
-                                        ),
-                                        child: _isLoading
-                                            ? const SizedBox(
-                                                width: 24,
+                                      ),
+                                      
+                                      const SizedBox(height: 16),
+                                      
+                                      // Remember me and forgot password - IMPROVED LAYOUT
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              SizedBox(
                                                 height: 24,
-                                                child: CircularProgressIndicator(
-                                                  color: Colors.white,
-                                                  strokeWidth: 2.0,
+                                                width: 24,
+                                                child: Checkbox(
+                                                  value: _rememberMe,
+                                                  onChanged: (value) {
+                                                    setState(() {
+                                                      _rememberMe = value ?? false;
+                                                    });
+                                                  },
+                                                  activeColor: const Color(0xFF2E8B57),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
                                                 ),
-                                              )
-                                            : const Text(
-                                                'Sign In',
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Remember me',
                                                 style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontFamily: 'DMsans',
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                      ),
-                                    ),
-                                    
-                                    // Biometric login (if available)
-                                    if (_canCheckBiometrics && _availableBiometrics.isNotEmpty)
-                                      Center(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(top: 16),
-                                          child: TextButton.icon(
-                                            onPressed: _authenticateWithBiometrics,
-                                            icon: Icon(
-                                              _availableBiometrics.contains(BiometricType.fingerprint)
-                                                  ? Icons.fingerprint
-                                                  : Icons.face,
-                                              color: const Color(0xFF2E8B57),
-                                              size: 22,
-                                            ),
-                                            label: Text(
-                                              'Use ${_availableBiometrics.contains(BiometricType.fingerprint) ? 'Fingerprint' : 'Face ID'}',
-                                              style: const TextStyle(
-                                                color: Color(0xFF2E8B57),
-                                                fontFamily: 'DMsans',
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            style: TextButton.styleFrom(
-                                              padding: const EdgeInsets.symmetric(vertical: 8),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    
-                                    const SizedBox(height: 24),
-                                    
-                                    // Social login section
-                                    Column(
-                                      children: [
-                                        // Divider with text
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Container(
-                                                height: 1,
-                                                color: Colors.grey.shade300,
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                                              child: Text(
-                                                'or continue with',
-                                                style: TextStyle(
-                                                  color: Colors.grey.shade600,
                                                   fontSize: 14,
                                                   fontFamily: 'DMsans',
                                                   fontWeight: FontWeight.w500,
+                                                  color: Colors.grey.shade600,
                                                 ),
                                               ),
+                                            ],
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context, 
+                                                MaterialPageRoute(
+                                                  builder: (context) => const ForgotPasswordScreen(),
+                                                ),
+                                              );
+                                            },
+                                            style: TextButton.styleFrom(
+                                              padding: EdgeInsets.zero,
+                                              minimumSize: Size.zero,
+                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                             ),
-                                            Expanded(
-                                              child: Container(
-                                                height: 1,
-                                                color: Colors.grey.shade300,
+                                            child: Text(
+                                              'Forgot password?',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontFamily: 'DMsans',
+                                                fontWeight: FontWeight.w600,
+                                                color: const Color(0xFF2E8B57),
                                               ),
                                             ),
-                                          ],
+                                          ),
+                                        ],
+                                      ),
+                                      
+                                      const SizedBox(height: 32),
+                                      
+                                      // Login button - ENHANCED
+                                      TweenAnimationBuilder<double>(
+                                        tween: Tween<double>(begin: 0.9, end: 1.0),
+                                        duration: const Duration(milliseconds: 500),
+                                        builder: (context, value, child) {
+                                          return Transform.scale(
+                                            scale: value,
+                                            child: SizedBox(
+                                              width: double.infinity,
+                                              height: 56,
+                                              child: ElevatedButton(
+                                                onPressed: _isLoading ? null : _login,
+                                                style: ElevatedButton.styleFrom(
+                                                  foregroundColor: Colors.white,
+                                                  backgroundColor: const Color(0xFF2E8B57),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(16),
+                                                  ),
+                                                  elevation: 0,
+                                                  shadowColor: Colors.transparent,
+                                                ),
+                                                child: _isLoading
+                                                    ? const SizedBox(
+                                                        width: 24,
+                                                        height: 24,
+                                                        child: CircularProgressIndicator(
+                                                          color: Colors.white,
+                                                          strokeWidth: 2.0,
+                                                        ),
+                                                      )
+                                                    : const Text(
+                                                        'Sign In',
+                                                        style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontFamily: 'DMsans',
+                                                          fontWeight: FontWeight.w600,
+                                                        ),
+                                                      ),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      ),
+                                      
+                                      // Biometric login (if available)
+                                      if (_canCheckBiometrics && _availableBiometrics.isNotEmpty)
+                                        Center(
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(top: 16),
+                                            child: TextButton.icon(
+                                              onPressed: _authenticateWithBiometrics,
+                                              icon: Icon(
+                                                _availableBiometrics.contains(BiometricType.fingerprint)
+                                                    ? Icons.fingerprint
+                                                    : Icons.face,
+                                                color: const Color(0xFF2E8B57),
+                                                size: 22,
+                                              ),
+                                              label: Text(
+                                                'Use ${_availableBiometrics.contains(BiometricType.fingerprint) ? 'Fingerprint' : 'Face ID'}',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF2E8B57),
+                                                  fontFamily: 'DMsans',
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                              style: TextButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                        
-                                        const SizedBox(height: 24),
-                                        
-                                        // Social login buttons - Fixed container height to prevent overflow
-                                        Container(
-                                          height: 100,
-                                          child: Row(
+                                      
+                                      const SizedBox(height: 24),
+                                      
+                                      // Social login section - IMPROVED LAYOUT
+                                      Column(
+                                        children: [
+                                          // Divider with text
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Container(
+                                                  height: 1,
+                                                  color: Colors.grey.shade300,
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                                child: Text(
+                                                  'or continue with',
+                                                  style: TextStyle(
+                                                    color: Colors.grey.shade600,
+                                                    fontSize: 14,
+                                                    fontFamily: 'DMsans',
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Container(
+                                                  height: 1,
+                                                  color: Colors.grey.shade300,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          
+                                          const SizedBox(height: 24),
+                                          
+                                          // Social login buttons - RESPONSIVE LAYOUT FIX
+                                          Row(
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
                                               // Google login
                                               _buildSocialLoginButton(
                                                 onTap: _loginWithGoogle,
-                                                assetName: 'assets/images/google.png',
+                                                icon: Icons.g_mobiledata,
+                                                iconColor: Colors.red,
                                                 label: 'Google',
                                               ),
                                               
@@ -753,7 +766,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                               // Facebook login
                                               _buildSocialLoginButton(
                                                 onTap: _loginWithFacebook,
-                                                assetName: 'assets/images/facebook.svg',
+                                                icon: Icons.facebook,
+                                                iconColor: Colors.blue.shade700,
                                                 label: 'Facebook',
                                               ),
                                               
@@ -762,69 +776,72 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                               // Apple login
                                               _buildSocialLoginButton(
                                                 onTap: _loginWithApple,
-                                                assetName: 'assets/images/apple.svg',
+                                                icon: Icons.apple,
+                                                iconColor: Colors.black,
                                                 label: 'Apple',
                                               ),
                                             ],
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                    
-                                    const Spacer(),
-                                    
-                                    // Register account link
-                                    Center(
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            'Don\'t have an account?',
-                                            style: TextStyle(
-                                              color: Colors.grey.shade600,
-                                              fontSize: 15,
-                                              fontFamily: 'DMsans',
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) => const RegisterScreen(),
-                                                ),
-                                              );
-                                            },
-                                            style: TextButton.styleFrom(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                                              minimumSize: Size.zero,
-                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                            ),
-                                            child: const Text(
-                                              'Sign up',
-                                              style: TextStyle(
-                                                color: Color(0xFF2E8B57),
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 15,
-                                                fontFamily: 'DMsans',
-                                              ),
-                                            ),
-                                          ),
                                         ],
                                       ),
-                                    ),
-                                  ],
+                                      
+                                      const SizedBox(height: 32),
+                                      
+                                      // Register account link
+                                      Center(
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'Don\'t have an account?',
+                                              style: TextStyle(
+                                                color: Colors.grey.shade600,
+                                                fontSize: 15,
+                                                fontFamily: 'DMsans',
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) => const RegisterScreen(),
+                                                  ),
+                                                );
+                                              },
+                                              style: TextButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                minimumSize: Size.zero,
+                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                              ),
+                                              child: const Text(
+                                                'Sign up',
+                                                style: TextStyle(
+                                                  color: Color(0xFF2E8B57),
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 15,
+                                                  fontFamily: 'DMsans',
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      
+                                      const SizedBox(height: 16),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -832,8 +849,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
   }
 
-  // Enhanced text field with animation
+  // Enhanced text field with animation - IMPROVED DESIGN AND CONSISTENCY
   Widget _buildAnimatedTextField({
+    required String label,
     required TextEditingController controller,
     required String hintText,
     required IconData prefixIcon,
@@ -847,54 +865,69 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeOutQuad,
       builder: (context, value, child) {
-        return Transform.scale(
-          scale: 0.95 + (0.05 * value),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.shade200.withOpacity(0.5),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextFormField(
-                controller: controller,
-                obscureText: obscureText,
-                validator: validator,
-                keyboardType: keyboardType,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'DMsans',
-                  fontWeight: FontWeight.w500,
-                ),
-                decoration: InputDecoration(
-                  hintText: hintText,
-                  hintStyle: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 16,
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
                     fontFamily: 'DMsans',
-                    fontWeight: FontWeight.w500,
-                  ),
-                  prefixIcon: Icon(
-                    prefixIcon,
-                    color: Colors.grey.shade600,
-                    size: 22,
-                  ),
-                  suffixIcon: suffixIcon,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 18,
+                    color: Colors.grey.shade800,
                   ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.shade200.withOpacity(0.5),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: TextFormField(
+                    controller: controller,
+                    obscureText: obscureText,
+                    validator: validator,
+                    keyboardType: keyboardType,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'DMsans',
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: hintText,
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 15,
+                        fontFamily: 'DMsans',
+                        fontWeight: FontWeight.w500,
+                      ),
+                      prefixIcon: Icon(
+                        prefixIcon,
+                        color: const Color(0xFF2E8B57),
+                        size: 22,
+                      ),
+                      suffixIcon: suffixIcon,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 18,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -905,7 +938,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   // Enhanced social login button with fixed size constraints
   Widget _buildSocialLoginButton({
     required VoidCallback onTap,
-    required String assetName,
+    required IconData icon,
+    required Color iconColor,
     required String label,
   }) {
     return GestureDetector(
@@ -929,32 +963,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ],
             ),
             child: Center(
-              child: Image.asset(
-                assetName,
-                width: 28,
-                height: 28,
-                errorBuilder: (context, error, stackTrace) {
-                  // Fallback icons if assets not found
-                  IconData iconData = Icons.error;
-                  Color iconColor = Colors.grey;
-                  
-                  if (label == 'Google') {
-                    iconData = Icons.g_mobiledata;
-                    iconColor = Colors.red;
-                  } else if (label == 'Facebook') {
-                    iconData = Icons.facebook;
-                    iconColor = Colors.blue;
-                  } else if (label == 'Apple') {
-                    iconData = Icons.apple;
-                    iconColor = Colors.black;
-                  }
-                  
-                  return Icon(
-                    iconData,
-                    size: label == 'Google' ? 36 : 28,
-                    color: iconColor,
-                  );
-                },
+              child: Icon(
+                icon,
+                size: icon == Icons.g_mobiledata ? 36 : 28,
+                color: iconColor,
               ),
             ),
           ),
