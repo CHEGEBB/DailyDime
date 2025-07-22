@@ -4,8 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dailydime/screens/auth/register_screen.dart';
 import 'package:dailydime/screens/auth/forgot_password_screen.dart';
-import 'package:dailydime/screens/home_screen.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:dailydime/services/auth_service.dart';
+import 'package:appwrite/appwrite.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -20,6 +21,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  String _errorMessage = '';
+  
+  // Initialize auth service
+  final AuthService _authService = AuthService();
+  
   final LocalAuthentication _localAuth = LocalAuthentication();
   bool _canCheckBiometrics = false;
   List<BiometricType> _availableBiometrics = [];
@@ -32,6 +38,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+    _authService.initialize();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -45,6 +52,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
     _animationController.forward();
     _checkBiometrics();
+    _checkLoggedInUser();
+  }
+
+  Future<void> _checkLoggedInUser() async {
+    try {
+      final user = await _authService.getCurrentUser();
+      if (user != null) {
+        // User is already logged in, navigate to home
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const MainNavigation()),
+          );
+        }
+      }
+    } catch (e) {
+      // Error checking user, continue to login screen
+    }
   }
 
   Future<void> _checkBiometrics() async {
@@ -98,6 +122,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     if (!mounted) return;
 
     if (authenticated) {
+      // This would typically verify with your backend
+      // For now, we'll just navigate to home
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const MainNavigation()),
       );
@@ -107,40 +133,88 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Future<void> _loginWithGoogle() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = '';
     });
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {
-      _isLoading = false;
-    });
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const MainNavigation()),
-    );
+    
+    try {
+      await _authService.createOAuthSession('google');
+      
+      // Successful login will redirect
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
+      );
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _authService.handleAuthError(e);
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _loginWithFacebook() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = '';
     });
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {
-      _isLoading = false;
-    });
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const MainNavigation()),
-    );
+    
+    try {
+      await _authService.createOAuthSession('facebook');
+      
+      // Successful login will redirect
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
+      );
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _authService.handleAuthError(e);
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _loginWithApple() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = '';
     });
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {
-      _isLoading = false;
-    });
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const MainNavigation()),
-    );
+    
+    try {
+      await _authService.createOAuthSession('apple');
+      
+      // Successful login will redirect
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
+      );
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _authService.handleAuthError(e);
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -171,21 +245,37 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     return null;
   }
 
-  void _login() {
+  Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
+        _errorMessage = '';
       });
 
-      Future.delayed(const Duration(seconds: 2), () {
+      try {
+        await _authService.login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+        
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const MainNavigation()),
+          );
+        }
+      } catch (e) {
         setState(() {
           _isLoading = false;
+          _errorMessage = _authService.handleAuthError(e);
         });
         
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const MainNavigation()),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_errorMessage),
+            backgroundColor: Colors.red,
+          ),
         );
-      });
+      }
     }
   }
 
@@ -416,7 +506,34 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       ),
                                     ),
                                     
-                                    const SizedBox(height: 32),
+                                    const SizedBox(height: 24),
+                                    
+                                    // Error message
+                                    if (_errorMessage.isNotEmpty)
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        margin: const EdgeInsets.only(bottom: 20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.shade50,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.red.shade200),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.error_outline, color: Colors.red.shade400, size: 20),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                _errorMessage,
+                                                style: TextStyle(
+                                                  color: Colors.red.shade700,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     
                                     // Email field
                                     _buildAnimatedTextField(
@@ -619,35 +736,38 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         
                                         const SizedBox(height: 24),
                                         
-                                        // Social login buttons
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            // Google login
-                                            _buildSocialLoginButton(
-                                              onTap: _loginWithGoogle,
-                                              assetName: 'assets/images/google.png',
-                                              label: 'Google',
-                                            ),
-                                            
-                                            const SizedBox(width: 16),
-                                            
-                                            // Facebook login
-                                            _buildSocialLoginButton(
-                                              onTap: _loginWithFacebook,
-                                              assetName: 'assets/images/facebook.svg',
-                                              label: 'Facebook',
-                                            ),
-                                            
-                                            const SizedBox(width: 16),
-                                            
-                                            // Apple login
-                                            _buildSocialLoginButton(
-                                              onTap: _loginWithApple,
-                                              assetName: 'assets/images/apple.svg',
-                                              label: 'Apple',
-                                            ),
-                                          ],
+                                        // Social login buttons - Fixed container height to prevent overflow
+                                        Container(
+                                          height: 100,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              // Google login
+                                              _buildSocialLoginButton(
+                                                onTap: _loginWithGoogle,
+                                                assetName: 'assets/images/google.png',
+                                                label: 'Google',
+                                              ),
+                                              
+                                              const SizedBox(width: 16),
+                                              
+                                              // Facebook login
+                                              _buildSocialLoginButton(
+                                                onTap: _loginWithFacebook,
+                                                assetName: 'assets/images/facebook.svg',
+                                                label: 'Facebook',
+                                              ),
+                                              
+                                              const SizedBox(width: 16),
+                                              
+                                              // Apple login
+                                              _buildSocialLoginButton(
+                                                onTap: _loginWithApple,
+                                                assetName: 'assets/images/apple.svg',
+                                                label: 'Apple',
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -783,7 +903,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
   }
 
-  // Enhanced social login button
+  // Enhanced social login button with fixed size constraints
   Widget _buildSocialLoginButton({
     required VoidCallback onTap,
     required String assetName,
@@ -792,6 +912,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     return GestureDetector(
       onTap: _isLoading ? null : onTap,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 60,

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:dailydime/screens/home_screen.dart';
+import 'package:dailydime/screens/main_navigation.dart';
+import 'package:dailydime/services/auth_service.dart';
+import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/models.dart' as models;
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -13,6 +16,12 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   final PageController _pageController = PageController();
   int _currentStep = 0;
   bool _isLoading = false;
+  String _errorMessage = '';
+  bool _isVerifying = false;
+  String? _userId;
+  
+  // Initialize auth service
+  final AuthService _authService = AuthService();
   
   // Form controllers
   final _emailController = TextEditingController();
@@ -49,6 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
+    _authService.initialize();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -104,13 +114,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
           return;
         }
         
-        setState(() {
-          _currentStep++;
-        });
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+        _registerUser();
       }
     }
   }
@@ -129,12 +133,160 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     }
   }
 
+  Future<void> _registerUser() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    
+    try {
+      final user = await _authService.createAccount(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        name: "${_nameController.text.trim()} ${_lastNameController.text.trim()}",
+        phone: _phoneController.text.trim(),
+      );
+      
+      setState(() {
+        _isLoading = false;
+        _currentStep++;
+        _userId = user.$id;
+      });
+      
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      
+      // Send verification email would happen automatically with Appwrite
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _authService.handleAuthError(e);
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // For social login with Google
+  Future<void> _signUpWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    
+    try {
+      await _authService.createOAuthSession('google');
+      
+      // Successful login will redirect
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
+        (route) => false,
+      );
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _authService.handleAuthError(e);
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // For social login with Facebook
+  Future<void> _signUpWithFacebook() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    
+    try {
+      await _authService.createOAuthSession('facebook');
+      
+      // Successful login will redirect
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
+        (route) => false,
+      );
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _authService.handleAuthError(e);
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // For social login with Apple
+  Future<void> _signUpWithApple() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    
+    try {
+      await _authService.createOAuthSession('apple');
+      
+      // Successful login will redirect
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
+        (route) => false,
+      );
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _authService.handleAuthError(e);
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _verifyAndCreateAccount() {
+    final otp = _otpControllers.map((controller) => controller.text).join();
+    
+    if (otp.length != 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter the 4-digit verification code'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
     setState(() {
       _isLoading = true;
     });
-    
-    // Simulate verification process
+
+    // In a real scenario, we would verify the OTP with Appwrite
+    // For now, just simulate verification
     Future.delayed(const Duration(seconds: 2), () {
       setState(() {
         _isLoading = false;
@@ -142,7 +294,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
       
       // Navigate to home screen
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
         (route) => false,
       );
     });
@@ -180,7 +332,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     if (value == null || value.isEmpty) {
       return 'Please enter your phone number';
     }
-    if (!RegExp(r'^\d{9,10}$').hasMatch(value)) {
+    if (!RegExp(r'^\d{9,17}$').hasMatch(value)) {
       return 'Please enter a valid phone number';
     }
     return null;
@@ -464,6 +616,32 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             ),
             const SizedBox(height: 32),
             
+            if (_errorMessage.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade400, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _errorMessage,
+                        style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
             // Email field with animation
             _buildAnimatedTextField(
               label: 'Email',
@@ -556,7 +734,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _nextStep,
+                      onPressed: _isLoading ? null : _nextStep,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
                         foregroundColor: Colors.white,
@@ -565,14 +743,23 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Continue',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'DMsans',
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.0,
+                              ),
+                            )
+                          : const Text(
+                              'Continue',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'DMsans',
+                              ),
+                            ),
                     ),
                   ),
                 );
@@ -613,44 +800,41 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
               ),
             ),
             
-            // Social login buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Google login
-                _buildSocialLoginButton(
-                  assetName: 'assets/images/google.png',
-                  fallbackIcon: Icons.g_mobiledata,
-                  fallbackColor: Colors.red,
-                  onTap: () {
-                    // Google login logic
-                  },
-                ),
-                
-                const SizedBox(width: 20),
-                
-                // Facebook login
-                _buildSocialLoginButton(
-                  assetName: 'assets/images/facebook.svg',
-                  fallbackIcon: Icons.facebook,
-                  fallbackColor: Colors.blue.shade700,
-                  onTap: () {
-                    // Facebook login logic
-                  },
-                ),
-                
-                const SizedBox(width: 20),
-                
-                // Apple login
-                _buildSocialLoginButton(
-                  assetName: 'assets/images/apple.svg',
-                  fallbackIcon: Icons.apple,
-                  fallbackColor: Colors.black,
-                  onTap: () {
-                    // Apple login logic
-                  },
-                ),
-              ],
+            // Social login buttons - fixed overflow issue with proper layout
+            Container(
+              height: 100,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Google login
+                  _buildSocialLoginButton(
+                    assetName: 'assets/images/google.png',
+                    fallbackIcon: Icons.g_mobiledata,
+                    fallbackColor: Colors.red,
+                    onTap: _signUpWithGoogle,
+                  ),
+                  
+                  const SizedBox(width: 20),
+                  
+                  // Facebook login
+                  _buildSocialLoginButton(
+                    assetName: 'assets/images/facebook.svg',
+                    fallbackIcon: Icons.facebook,
+                    fallbackColor: Colors.blue.shade700,
+                    onTap: _signUpWithFacebook,
+                  ),
+                  
+                  const SizedBox(width: 20),
+                  
+                  // Apple login
+                  _buildSocialLoginButton(
+                    assetName: 'assets/images/apple.svg',
+                    fallbackIcon: Icons.apple,
+                    fallbackColor: Colors.black,
+                    onTap: _signUpWithApple,
+                  ),
+                ],
+              ),
             ),
             
             const SizedBox(height: 24),
@@ -721,12 +905,49 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             ),
             const SizedBox(height: 32),
             
+            if (_errorMessage.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade400, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _errorMessage,
+                        style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
             // Name field with animation
             _buildAnimatedTextField(
-              label: 'Name',
+              label: 'First Name',
               controller: _nameController,
               prefixIcon: Icons.person_outline,
-              hintText: 'Enter your name',
+              hintText: 'Enter your first name',
+              validator: _validateName,
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Last Name field
+            _buildAnimatedTextField(
+              label: 'Last Name',
+              controller: _lastNameController,
+              prefixIcon: Icons.person_outline,
+              hintText: 'Enter your last name',
               validator: _validateName,
             ),
             
@@ -734,11 +955,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             
             // Business name field with animation
             _buildAnimatedTextField(
-              label: 'Business name',
+              label: 'Business name (optional)',
               controller: _businessNameController,
               prefixIcon: Icons.business,
               hintText: 'Enter your business name',
-              validator: _validateName,
             ),
             
             const SizedBox(height: 20),
@@ -833,7 +1053,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _nextStep,
+                      onPressed: _isLoading ? null : _nextStep,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
                         foregroundColor: Colors.white,
@@ -842,14 +1062,23 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Sign Up',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'DMsans',
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.0,
+                              ),
+                            )
+                          : const Text(
+                              'Sign Up',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'DMsans',
+                              ),
+                            ),
                     ),
                   ),
                 );
@@ -1036,7 +1265,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
           TextButton(
             onPressed: () {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                MaterialPageRoute(builder: (context) => const MainNavigation()),
                 (route) => false,
               );
             },
@@ -1199,7 +1428,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     );
   }
 
-  // Enhanced social login button
+  // Enhanced social login button with fixed size constraints
   Widget _buildSocialLoginButton({
     required String assetName,
     required IconData fallbackIcon,
@@ -1207,9 +1436,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     required VoidCallback onTap,
   }) {
     return InkWell(
-      onTap: onTap,
+      onTap: _isLoading ? null : onTap,
       borderRadius: BorderRadius.circular(16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 60,
