@@ -12,8 +12,8 @@ import 'package:dailydime/config/app_config.dart';
 @pragma('vm:entry-point')
 void backgroundMessageHandler(SmsMessage message) async {
   // This function runs in the background when SMS is received
-  if (_isMpesaMessage(message)) {
-    final transaction = _parseMpesaMessage(message);
+  if (SmsService._isMpesaMessage(message)) {
+    final transaction = SmsService._parseMpesaMessage(message);
     if (transaction != null) {
       // Store locally
       await StorageService.instance.saveTransaction(transaction);

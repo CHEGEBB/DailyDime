@@ -1,8 +1,10 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:dailydime/screens/splash_screen.dart';
 import 'package:dailydime/config/theme.dart';
+import 'package:dailydime/providers/transaction_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,11 +20,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'DailyDime',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme(),
-      home: const SplashScreen(), // Changed from MainNavigation to SplashScreen
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) => TransactionProvider(),
+        ),
+        // Add other providers here if you have them
+      ],
+      child: MaterialApp(
+        title: 'DailyDime',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme(),
+        home: const SplashScreen(),
+      ),
     );
   }
 }

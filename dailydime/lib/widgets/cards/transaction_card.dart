@@ -19,7 +19,7 @@ class TransactionCard extends StatelessWidget {
     required this.date,
     required this.isExpense,
     required this.icon,
-    required this.color, required bool isSms,
+    required this.color, required bool isSms, required void Function() onTap,
   }) : super(key: key);
 
   @override
