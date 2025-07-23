@@ -18,6 +18,23 @@ class TransactionProvider with ChangeNotifier {
   bool _isLoading = true;
   String _filter = 'All';
   String _timeframe = 'This Month';
+  Set<String> _selectedCategories = <String>{};
+  
+  // Available categories for filtering
+  final List<String> _availableCategories = [
+    'All Categories',
+    'Food & Dining',
+    'Transport',
+    'Shopping',
+    'Entertainment',
+    'Bills & Utilities',
+    'Healthcare',
+    'Education',
+    'Transfer',
+    'Balance',
+    'Income',
+    'Other'
+  ];
   
   // Getters
   List<Transaction> get transactions => _transactions;
@@ -26,6 +43,15 @@ class TransactionProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String get filter => _filter;
   String get timeframe => _timeframe;
+  Set<String> get selectedCategories => _selectedCategories;
+  List<String> get availableCategories => _availableCategories;
+  
+  // Setter for selectedCategories
+  set selectedCategories(Set<String> categories) {
+    _selectedCategories = Set.from(categories);
+    _applyFilters();
+    notifyListeners();
+  }
   
   // Initialize the provider
   Future<void> initialize() async {
@@ -202,12 +228,66 @@ class TransactionProvider with ChangeNotifier {
     notifyListeners();
   }
   
+  // Toggle category selection
+  void toggleCategorySelection(String category) {
+    if (category == 'All Categories') {
+      // If "All Categories" is selected, clear all other selections
+      _selectedCategories.clear();
+    } else {
+      // Remove "All Categories" if it was selected
+      _selectedCategories.remove('All Categories');
+      
+      // Toggle the selected category
+      if (_selectedCategories.contains(category)) {
+        _selectedCategories.remove(category);
+      } else {
+        _selectedCategories.add(category);
+      }
+    }
+    
+    _applyFilters();
+    notifyListeners();
+  }
+  
+  // Clear all category selections
+  void clearCategorySelections() {
+    _selectedCategories.clear();
+    _applyFilters();
+    notifyListeners();
+  }
+  
+  // Set selected categories
+  void setSelectedCategories(Set<String> categories) {
+    _selectedCategories = Set.from(categories);
+    _applyFilters();
+    notifyListeners();
+  }
+  
+  // Check if a category is selected
+  bool isCategorySelected(String category) {
+    if (category == 'All Categories') {
+      return _selectedCategories.isEmpty;
+    }
+    return _selectedCategories.contains(category);
+  }
+  
+  // Get unique categories from transactions
+  List<String> getTransactionCategories() {
+    final categories = _transactions
+        .map((t) => t.category)
+        .where((category) => category.isNotEmpty)
+        .toSet()
+        .toList();
+    categories.sort();
+    return ['All Categories', ...categories];
+  }
+  
   // Apply filters to transactions
   void _applyFilters() {
     // Start with all transactions
     _filteredTransactions = List.from(_transactions);
     
-    // Apply category filter
+    // Apply category filter (legacy filter)
     if (_filter != 'All') {
       if (_filter == 'Income') {
         _filteredTransactions = _filteredTransactions.where((t) => !t.isExpense).toList();
@@ -216,6 +296,13 @@ class TransactionProvider with ChangeNotifier {
       } else if (_filter == 'Transfers') {
         _filteredTransactions = _filteredTransactions.where((t) => t.category == 'Transfer').toList();
       }
+    }
+    
+    // Apply selected categories filter
+    if (_selectedCategories.isNotEmpty && !_selectedCategories.contains('All Categories')) {
+      _filteredTransactions = _filteredTransactions.where((t) => 
+        _selectedCategories.contains(t.category)
+      ).toList();
     }
     
     // Apply timeframe filter
@@ -243,6 +330,21 @@ class TransactionProvider with ChangeNotifier {
         t.date.isAfter(startOfLastMonth.subtract(const Duration(minutes: 1))) && 
         t.date.isBefore(endOfLastMonth.add(const Duration(days: 1)))
       ).toList();
+    } else if (_timeframe == 'Last 3 Months') {
+      final threeMonthsAgo = DateTime(now.year, now.month - 3, now.day);
+      _filteredTransactions = _filteredTransactions.where((t) => 
+        t.date.isAfter(threeMonthsAgo.subtract(const Duration(minutes: 1)))
+      ).toList();
+    } else if (_timeframe == 'Last 6 Months') {
+      final sixMonthsAgo = DateTime(now.year, now.month - 6, now.day);
+      _filteredTransactions = _filteredTransactions.where((t) => 
+        t.date.isAfter(sixMonthsAgo.subtract(const Duration(minutes: 1)))
+      ).toList();
+    } else if (_timeframe == 'This Year') {
+      final startOfYear = DateTime(now.year, 1, 1);
+      _filteredTransactions = _filteredTransactions.where((t) => 
+        t.date.isAfter(startOfYear.subtract(const Duration(minutes: 1)))
+      ).toList();
     }
     // Custom timeframe handling would go here
   }
@@ -256,6 +358,57 @@ class TransactionProvider with ChangeNotifier {
     await _loadBalance();
     
     _isLoading = false;
+    notifyListeners();
+  }
+  
+  // Get transactions for a specific category
+  List<Transaction> getTransactionsByCategory(String category) {
+    if (category == 'All Categories') {
+      return _transactions;
+    }
+    return _transactions.where((t) => t.category == category).toList();
+  }
+  
+  // Get total amount for selected categories
+  double getTotalAmountForSelectedCategories() {
+    if (_selectedCategories.isEmpty) {
+      return _filteredTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    }
+    
+    return _filteredTransactions
+        .where((t) => _selectedCategories.contains(t.category))
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+  
+  // Get expense total for selected categories
+  double getExpenseTotalForSelectedCategories() {
+    if (_selectedCategories.isEmpty) {
+      return _filteredTransactions
+          .where((t) => t.isExpense)
+          .fold(0.0, (sum, t) => sum + t.amount);
+    }
+    
+    return _filteredTransactions
+        .where((t) => t.isExpense && _selectedCategories.contains(t.category))
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+  
+  // Get income total for selected categories
+  double getIncomeTotalForSelectedCategories() {
+    if (_selectedCategories.isEmpty) {
+      return _filteredTransactions
+          .where((t) => !t.isExpense)
+          .fold(0.0, (sum, t) => sum + t.amount);
+    }
+    
+    return _filteredTransactions
+        .where((t) => !t.isExpense && _selectedCategories.contains(t.category))
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+  
+  // Apply filters (public method)
+  void applyFilters() {
+    _applyFilters();
     notifyListeners();
   }
   

@@ -1247,7 +1247,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                     onSelected: (selected) {
                       setState(() {
                         if (category == 'All Categories') {
-                          provider.selectedCategories = [];
+                          provider.selectedCategories = <String>{};
                         } else {
                           if (selected) {
                             provider.selectedCategories.add(category);
@@ -1710,4 +1710,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         return Colors.grey.shade700;
     }
   }
+}
+
+extension on TransactionProvider {
+  void resetFilters() {}
 }
