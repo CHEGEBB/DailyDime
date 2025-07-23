@@ -1,5 +1,4 @@
 // lib/screens/transactions/transactions_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:dailydime/screens/transactions/add_transaction_screen.dart';
 import 'package:dailydime/widgets/cards/transaction_card.dart';
@@ -8,6 +7,14 @@ import 'package:provider/provider.dart';
 import 'package:dailydime/providers/transaction_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:dailydime/services/transaction_ai_service.dart';
+import 'package:dailydime/config/app_config.dart';
+import 'package:dailydime/models/transaction.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import 'package:dailydime/widgets/cards/insight_card.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:animate_do/animate_do.dart';
+import 'dart:math' as math;
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({Key? key}) : super(key: key);
@@ -21,16 +28,27 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   final ScrollController _scrollController = ScrollController();
   final currencyFormat = NumberFormat.currency(symbol: 'KES ', decimalDigits: 2);
   bool _isCompactHeader = false;
+  bool _isLoadingInsights = false;
+  List<String> _insights = [];
+  
+  // Color scheme
+  final accentColor = const Color(0xFF26D07C); // Emerald green accent
   
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _scrollController.addListener(_onScroll);
     
     // Initialize provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<TransactionProvider>(context, listen: false).initialize();
+      final provider = Provider.of<TransactionProvider>(context, listen: false);
+      provider.initialize();
+      
+      // Load AI insights once data is available
+      if (!provider.isLoading) {
+        _loadInsights(provider.filteredTransactions);
+      }
     });
   }
 
@@ -42,6 +60,34 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     } else if (_scrollController.offset <= 140 && _isCompactHeader) {
       setState(() {
         _isCompactHeader = false;
+      });
+    }
+  }
+  
+  Future<void> _loadInsights(List<dynamic> transactions) async {
+    if (transactions.isEmpty) return;
+    
+    setState(() {
+      _isLoadingInsights = true;
+    });
+    
+    try {
+      final typedTransactions = transactions.map((tx) => tx as Transaction).toList();
+      final result = await TransactionAIService().generateSpendingInsights(
+        typedTransactions,
+        timeframe: 'week',
+      );
+      
+      if (result['success'] && result['insights'].isNotEmpty) {
+        setState(() {
+          _insights = List<String>.from(result['insights']);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading insights: $e');
+    } finally {
+      setState(() {
+        _isLoadingInsights = false;
       });
     }
   }
@@ -57,7 +103,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accentColor = const Color(0xFF26D07C); // Emerald green accent
     final size = MediaQuery.of(context).size;
     
     return Scaffold(
@@ -67,22 +112,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
           final isLoading = transactionProvider.isLoading;
           
           if (isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(Color(0xFF26D07C)),
-              ),
-            );
+            return _buildLoadingState();
           }
           
           final transactions = transactionProvider.filteredTransactions;
           final balance = transactionProvider.currentBalance;
+          
+          // Refresh insights if needed
+          if (_insights.isEmpty && !_isLoadingInsights) {
+            _loadInsights(transactions);
+          }
           
           return NestedScrollView(
             controller: _scrollController,
             headerSliverBuilder: (context, innerBoxIsScrolled) {
               return [
                 SliverAppBar(
-                  expandedHeight: 260.0,
+                  expandedHeight: 310.0,
                   floating: false,
                   pinned: true,
                   backgroundColor: _isCompactHeader ? accentColor : Colors.white,
@@ -90,7 +136,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                   title: _isCompactHeader 
                       ? Text(
                           'Transactions',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 20,
                             color: Colors.white,
@@ -103,7 +149,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                         Icons.search, 
                         color: _isCompactHeader ? Colors.white : Colors.black87,
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        _showSearchSheet(context);
+                      },
                     ),
                     IconButton(
                       icon: Icon(
@@ -116,7 +164,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                     ),
                   ],
                   flexibleSpace: FlexibleSpaceBar(
-                    background: _buildHeader(accentColor, balance, size),
+                    background: _buildHeader(accentColor, balance, size, transactions),
                   ),
                   bottom: PreferredSize(
                     preferredSize: const Size.fromHeight(48),
@@ -138,7 +186,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                         indicatorColor: accentColor,
                         indicatorWeight: 3,
                         tabs: const [
-                          Tab(text: 'All Transactions'),
+                          Tab(text: 'All'),
+                          Tab(text: 'Income'),
+                          Tab(text: 'Expenses'),
                         ],
                       ),
                     ),
@@ -150,6 +200,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               controller: _tabController,
               children: [
                 _buildTransactionsList(transactions),
+                _buildTransactionsList(transactions.where((tx) => !tx.isExpense).toList()),
+                _buildTransactionsList(transactions.where((tx) => tx.isExpense).toList()),
               ],
             ),
           );
@@ -170,7 +222,57 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     );
   }
 
-  Widget _buildHeader(Color accentColor, double balance, Size size) {
+  Widget _buildLoadingState() {
+    return Skeletonizer(
+      enabled: true,
+      child: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              expandedHeight: 310.0,
+              floating: false,
+              pinned: true,
+              backgroundColor: Colors.white,
+              flexibleSpace: FlexibleSpaceBar(
+                background: _buildHeader(accentColor, 0, MediaQuery.of(context).size, []),
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(48),
+                child: Container(
+                  color: Colors.white,
+                  child: TabBar(
+                    controller: _tabController,
+                    tabs: const [
+                      Tab(text: 'All'),
+                      Tab(text: 'Income'),
+                      Tab(text: 'Expenses'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ];
+        },
+        body: ListView.builder(
+          itemCount: 10,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(Color accentColor, double balance, Size size, List<dynamic> transactions) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -210,111 +312,97 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 ),
               ),
               const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                    width: 1,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Current Balance',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      currencyFormat.format(balance),
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Consumer<TransactionProvider>(
-                      builder: (context, provider, child) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildQuickStat(
-                              'Income',
-                              Icons.arrow_downward,
-                              Colors.green.shade300,
-                              _calculateIncome(provider.filteredTransactions),
-                              size,
-                            ),
-                            _buildQuickStat(
-                              'Expenses',
-                              Icons.arrow_upward,
-                              Colors.red.shade300,
-                              _calculateExpenses(provider.filteredTransactions),
-                              size,
-                            ),
-                            _buildQuickStat(
-                              'Savings',
-                              Icons.savings,
-                              Colors.amber.shade300,
-                              balance * 0.1, // Just a placeholder for savings
-                              size,
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
+              _buildWeeklySpendingSummary(balance, transactions, size),
+              const SizedBox(height: 16),
+              _buildAIInsightCard(),
             ],
           ),
         ),
       ),
     );
   }
-
-  Widget _buildQuickStat(String title, IconData icon, Color iconColor, double amount, Size size) {
+  
+  Widget _buildWeeklySpendingSummary(double balance, List<dynamic> transactions, Size size) {
+    // Calculate weekly budget and remaining amount
+    final weeklyBudget = 40000.0; // This would come from your budget settings
+    final weeklySpent = _calculateWeeklySpending(transactions);
+    final remaining = weeklyBudget - weeklySpent;
+    final percentUsed = (weeklySpent / weeklyBudget * 100).clamp(0, 100).toInt();
+    
     return Container(
-      width: (size.width - 80) / 3,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                icon,
-                size: 14,
-                color: iconColor,
+              const Text(
+                'Weekly Spending Summary',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
-              const SizedBox(width: 4),
               Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.white,
+                'Jul 12-18',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            currencyFormat.format(amount).split('.').first,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildSummaryItem('Total Spent', 'KES ${weeklySpent.toInt()}'),
+              _buildSummaryItem('Budget', 'KES ${weeklyBudget.toInt()}'),
+              _buildSummaryItem('Remaining', 'KES ${remaining.toInt()}'),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                '$percentUsed% of weekly budget used',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$percentUsed%',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: percentUsed > 90 ? Colors.red : Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: percentUsed / 100,
+              backgroundColor: Colors.grey.shade200,
+              color: percentUsed > 90 ? Colors.red : accentColor,
+              minHeight: 8,
             ),
           ),
         ],
@@ -322,16 +410,205 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     );
   }
 
-  double _calculateIncome(List<dynamic> transactions) {
-    return transactions
-        .where((t) => !t.isExpense)
-        .fold(0.0, (sum, transaction) => sum + transaction.amount);
+  Widget _buildSummaryItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    );
   }
-
-  double _calculateExpenses(List<dynamic> transactions) {
-    return transactions
-        .where((t) => t.isExpense)
-        .fold(0.0, (sum, transaction) => sum + transaction.amount);
+  
+  Widget _buildAIInsightCard() {
+    if (_isLoadingInsights) {
+      return Skeletonizer(
+        enabled: true,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lightbulb_outline,
+                  color: Colors.amber,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Insight',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Loading your personalized financial insights...',
+                      style: TextStyle(
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    if (_insights.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.lightbulb_outline,
+                color: Colors.amber.shade700,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'AI Insight',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Add more transactions to get personalized insights',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () {},
+              child: Text(
+                'Get More Tips',
+                style: TextStyle(
+                  color: accentColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Display the first insight (main insight)
+    final insight = _insights.isNotEmpty ? _insights[0] : 
+      'You spent KES 5,300 on food last week, which is 32% higher than your usual average. Consider meal prepping to reduce expenses.';
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.lightbulb_outline,
+              color: Colors.amber.shade700,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'AI Insight',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  insight,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              _showAllInsights();
+            },
+            child: Text(
+              'Get More Tips',
+              style: TextStyle(
+                color: accentColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTransactionsList(List<dynamic> transactions) {
@@ -356,8 +633,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     return RefreshIndicator(
       onRefresh: () async {
         await Provider.of<TransactionProvider>(context, listen: false).refreshTransactions();
+        
+        // Refresh insights
+        final refreshedTransactions = Provider.of<TransactionProvider>(context, listen: false).filteredTransactions;
+        _loadInsights(refreshedTransactions);
       },
-      color: const Color(0xFF26D07C),
+      color: accentColor,
       child: ListView.builder(
         padding: const EdgeInsets.only(top: 16, bottom: 80),
         itemCount: sortedDates.length,
@@ -365,36 +646,55 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
           final date = sortedDates[index];
           final dateTransactions = groupedTransactions[date]!;
           
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDateHeader(date),
-              ...dateTransactions.map((transaction) {
-                return Column(
-                  children: [
-                    TransactionCard(
-                      title: transaction.title,
-                      category: transaction.category,
-                      amount: transaction.amount,
-                      date: transaction.date,
-                      isExpense: transaction.isExpense,
-                      icon: transaction.icon,
-                      color: transaction.color,
-                      isSms: transaction.isSms,
-                      onTap: () => _showTransactionDetails(transaction),
-                    ),
-                    // Show AI insight for some transactions
-                    if (transaction.category == 'Food' || transaction.amount > 1000)
-                      _buildInsightForTransaction(transaction),
-                  ],
-                );
-              }).toList(),
-              const SizedBox(height: 8),
-            ],
+          return FadeInUp(
+            delay: Duration(milliseconds: index * 50),
+            duration: const Duration(milliseconds: 300),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDateHeader(date),
+                ...dateTransactions.map((transaction) {
+                  return Column(
+                    children: [
+                      TransactionCard(
+                        title: transaction.title,
+                        category: transaction.category,
+                        amount: transaction.amount,
+                        date: transaction.date,
+                        isExpense: transaction.isExpense,
+                        icon: transaction.icon,
+                        color: transaction.color,
+                        isSms: transaction.isSms,
+                        onTap: () => _showTransactionDetails(transaction),
+                      ),
+                      // Show AI insight for some transactions
+                      if (_shouldShowInsightForTransaction(transaction))
+                        _buildInsightForTransaction(transaction),
+                    ],
+                  );
+                }).toList(),
+                const SizedBox(height: 8),
+              ],
+            ),
           );
         },
       ),
     );
+  }
+  
+  bool _shouldShowInsightForTransaction(dynamic transaction) {
+    // Only show insights for certain transactions to avoid overloading the UI
+    if (transaction.amount > 1000) {
+      // Show for larger transactions
+      return true;
+    }
+    
+    if (transaction.category == 'Food' || transaction.category == 'Transport') {
+      // Show for common categories
+      return math.Random().nextBool(); // Only show for 50% of these transactions
+    }
+    
+    return false;
   }
 
   Widget _buildDateHeader(String dateString) {
@@ -430,9 +730,37 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               ),
             ),
           ),
+          const Spacer(),
+          Text(
+            _calculateDayTotal(dateString),
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              color: Colors.grey.shade700,
+            ),
+          ),
         ],
       ),
     );
+  }
+  
+  String _calculateDayTotal(String dateString) {
+    final provider = Provider.of<TransactionProvider>(context, listen: false);
+    final transactions = provider.filteredTransactions;
+    
+    double total = 0;
+    for (var tx in transactions) {
+      if (DateFormat('yyyy-MM-dd').format(tx.date) == dateString) {
+        if (tx.isExpense) {
+          total -= tx.amount;
+        } else {
+          total += tx.amount;
+        }
+      }
+    }
+    
+    final sign = total >= 0 ? '+' : '';
+    return '$sign${currencyFormat.format(total)}';
   }
 
   Widget _buildInsightForTransaction(dynamic transaction) {
@@ -478,10 +806,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.receipt_long,
-            size: 64,
-            color: Colors.grey.shade400,
+          Image.asset(
+            'assets/images/empty_transactions.png',
+            height: 180,
           ),
           const SizedBox(height: 16),
           Text(
@@ -493,13 +820,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Add your first transaction or wait for M-Pesa messages',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Add your first transaction or wait for M-Pesa messages to be detected',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
           CustomButton(
@@ -520,8 +850,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   }
 
   void _showTransactionDetails(dynamic transaction) {
-    final accentColor = const Color(0xFF26D07C);
-    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -537,7 +865,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                const Text(
                   'Transaction Details',
                   style: TextStyle(
                     fontSize: 20,
@@ -573,7 +901,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                     children: [
                       Text(
                         transaction.title,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
@@ -618,48 +946,78 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               _buildDetailItem('Source', 'SMS Message'),
             
             const SizedBox(height: 24),
-            if (transaction.category == 'Food' || transaction.amount > 1000)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            FutureBuilder<Map<String, dynamic>>(
+              future: TransactionAIService().generateTransactionInsight(
+                transaction,
+                Provider.of<TransactionProvider>(context, listen: false)
+                    .filteredTransactions
+                    .map((tx) => tx as Transaction)
+                    .toList(),
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
                       children: [
-                        Icon(
-                          Icons.lightbulb,
-                          size: 18,
-                          color: Colors.blue.shade700,
+                        const SizedBox(width: 8, height: 8, child: CircularProgressIndicator(strokeWidth: 2)),
+                        const SizedBox(width: 12),
+                        const Text('Generating insight...'),
+                      ],
+                    ),
+                  );
+                }
+                
+                if (snapshot.hasData && snapshot.data!['success']) {
+                  final insight = snapshot.data!['insight'];
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.lightbulb,
+                              size: 18,
+                              color: Colors.blue.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'AI Insight',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(height: 12),
                         Text(
-                          'AI Insight',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.blue.shade700,
+                          insight ?? 'No insight available for this transaction.',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black87,
+                            height: 1.5,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      transaction.category == 'Food'
-                          ? 'Your food spending is 15% higher than last month. Consider meal prepping on weekends to reduce expenses by up to KES 4,000 monthly.'
-                          : 'This transaction represents 8% of your monthly income. Setting aside 10% of large purchases for your savings could help you reach your goals faster.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.black87,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  );
+                }
+                
+                return const SizedBox.shrink();
+              },
+            ),
             
             const SizedBox(height: 24),
             Row(
@@ -712,7 +1070,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
           Flexible(
             child: Text(
               value,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: Colors.black87,
@@ -726,13 +1084,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   }
 
   void _showDeleteConfirmation(dynamic transaction) {
-    final accentColor = const Color(0xFF26D07C);
-    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Transaction'),
-        content: Text('Are you sure you want to delete this ${transaction.amount} ${transaction.title} transaction?'),
+        content: Text('Are you sure you want to delete this ${currencyFormat.format(transaction.amount)} ${transaction.title} transaction?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -758,7 +1114,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   }
 
   void _showFilterBottomSheet(BuildContext context) {
-    final accentColor = const Color(0xFF26D07C);
     final provider = Provider.of<TransactionProvider>(context, listen: false);
     
     showModalBottomSheet(
@@ -777,7 +1132,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Filter Transactions',
                     style: TextStyle(
                       fontSize: 20,
@@ -792,7 +1147,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 ],
               ),
               const SizedBox(height: 24),
-              Text(
+              const Text(
                 'Transaction Type',
                 style: TextStyle(
                   fontSize: 16,
@@ -824,7 +1179,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 }).toList(),
               ),
               const SizedBox(height: 24),
-              Text(
+              const Text(
                 'Time Period',
                 style: TextStyle(
                   fontSize: 16,
@@ -856,6 +1211,56 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 }).toList(),
               ),
               const SizedBox(height: 24),
+              const Text(
+                'Categories',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  'All Categories',
+                  'Food',
+                  'Transport',
+                  'Shopping',
+                  'Utilities',
+                  'Health',
+                  'Education',
+                  'Entertainment',
+                ].map((category) {
+                  return FilterChip(
+                    label: Text(category),
+                    selected: provider.selectedCategories.contains(category) || 
+                             (category == 'All Categories' && provider.selectedCategories.isEmpty),
+                    selectedColor: accentColor.withOpacity(0.2),
+                    labelStyle: TextStyle(
+                      color: provider.selectedCategories.contains(category) || 
+                             (category == 'All Categories' && provider.selectedCategories.isEmpty)
+                          ? accentColor
+                          : Colors.black87,
+                    ),
+                    onSelected: (selected) {
+                      setState(() {
+                        if (category == 'All Categories') {
+                          provider.selectedCategories = [];
+                        } else {
+                          if (selected) {
+                            provider.selectedCategories.add(category);
+                          } else {
+                            provider.selectedCategories.remove(category);
+                          }
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(
@@ -863,6 +1268,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                       isSmall: false,
                       text: 'Apply Filters',
                       onPressed: () {
+                        provider.applyFilters();
                         Navigator.pop(context);
                       },
                     ),
@@ -878,10 +1284,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                       text: 'Reset Filters',
                       onPressed: () {
                         setState(() {
-                          provider.setFilter('All');
-                          provider.setTimeframe('This Month');
+                          provider.resetFilters();
                         });
-                        Navigator.pop(context);
                       },
                       isOutlined: true,
                     ),
@@ -893,5 +1297,417 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         ),
       ),
     );
+  }
+  
+  void _showSearchSheet(BuildContext context) {
+    final provider = Provider.of<TransactionProvider>(context, listen: false);
+    final TextEditingController searchController = TextEditingController();
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return Container(
+            padding: const EdgeInsets.all(24),
+            height: MediaQuery.of(context).size.height * 0.8,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: searchController,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          hintText: 'Search transactions...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                          suffixIcon: searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() {
+                                      searchController.clear();
+                                    });
+                                  },
+                                )
+                              : null,
+                        ),
+                        onChanged: (value) {
+                          setState(() {});
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: searchController.text.isEmpty
+                      ? _buildRecentSearches()
+                      : _buildSearchResults(searchController.text, provider.filteredTransactions),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+  
+  Widget _buildRecentSearches() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Recent Searches',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            'Food',
+            'Transport',
+            'Mpesa',
+            'Shopping',
+          ].map((term) => ActionChip(
+            label: Text(term),
+            onPressed: () {},
+          )).toList(),
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'Popular Categories',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            'Food & Dining',
+            'Transport',
+            'Shopping',
+            'Utilities',
+            'Health',
+            'Education',
+            'Entertainment',
+          ].map((category) => ActionChip(
+            avatar: Icon(
+              _getCategoryIcon(category),
+              size: 16,
+              color: _getCategoryColor(category),
+            ),
+            label: Text(category),
+            onPressed: () {},
+          )).toList(),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildSearchResults(String query, List<dynamic> transactions) {
+    // Filter transactions based on search query
+    final filteredTransactions = transactions.where((tx) {
+      final title = tx.title?.toLowerCase() ?? '';
+      final category = tx.category?.toLowerCase() ?? '';
+      final amount = tx.amount.toString();
+      final q = query.toLowerCase();
+      
+      return title.contains(q) || category.contains(q) || amount.contains(q);
+    }).toList();
+    
+    if (filteredTransactions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No matching transactions found',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try a different search term',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      itemCount: filteredTransactions.length,
+      itemBuilder: (context, index) {
+        final tx = filteredTransactions[index];
+        return ListTile(
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: tx.color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              tx.icon,
+              color: tx.color,
+              size: 24,
+            ),
+          ),
+          title: Text(
+            tx.title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          subtitle: Text(
+            '${tx.category} • ${DateFormat('MMM d, yyyy').format(tx.date)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          trailing: Text(
+            currencyFormat.format(tx.amount),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: tx.isExpense ? Colors.red.shade700 : accentColor,
+            ),
+          ),
+          onTap: () {
+            Navigator.pop(context);
+            _showTransactionDetails(tx);
+          },
+        );
+      },
+    );
+  }
+  
+  void _showAllInsights() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        height: MediaQuery.of(context).size.height * 0.7,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Financial Insights',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.black54),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _isLoadingInsights
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Analyzing your transactions...',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _insights.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.lightbulb_outline,
+                                size: 64,
+                                color: Colors.amber.shade200,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No insights available yet',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Add more transactions to get personalized insights',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: _insights.length,
+                          itemBuilder: (context, index) {
+                            return InsightCard(
+                              title: index == 0 ? 'Summary' : 'Insight ${index}',
+                              content: _insights[index],
+                              iconData: _getInsightIcon(index),
+                              color: _getInsightColor(index),
+                            );
+                          },
+                        ),
+            ),
+            const SizedBox(height: 16),
+            CustomButton(
+              isSmall: false,
+              text: 'Generate More Insights',
+              onPressed: () {
+                Navigator.pop(context);
+                final transactions = Provider.of<TransactionProvider>(context, listen: false).filteredTransactions;
+                _loadInsights(transactions);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  // Helper methods
+  double _calculateWeeklySpending(List<dynamic> transactions) {
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday % 7));
+    startOfWeek.subtract(const Duration(hours: 24)); // Start from Sunday
+    
+    return transactions
+        .where((tx) => tx.isExpense && tx.date.isAfter(startOfWeek))
+        .fold(0.0, (sum, tx) => sum + tx.amount);
+  }
+  
+  IconData _getInsightIcon(int index) {
+    switch (index) {
+      case 0:
+        return Icons.assessment;
+      case 1:
+        return Icons.trending_up;
+      case 2:
+        return Icons.category;
+      case 3:
+        return Icons.schedule;
+      case 4:
+        return Icons.tips_and_updates;
+      default:
+        return Icons.lightbulb_outline;
+    }
+  }
+  
+  Color _getInsightColor(int index) {
+    switch (index) {
+      case 0:
+        return Colors.blue.shade700;
+      case 1:
+        return Colors.green.shade700;
+      case 2:
+        return Colors.purple.shade700;
+      case 3:
+        return Colors.orange.shade700;
+      case 4:
+        return Colors.red.shade700;
+      default:
+        return Colors.amber.shade700;
+    }
+  }
+  
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'food & dining':
+      case 'food':
+        return Icons.restaurant;
+      case 'transport':
+        return Icons.directions_bus;
+      case 'shopping':
+        return Icons.shopping_bag;
+      case 'utilities':
+        return Icons.power;
+      case 'health':
+        return Icons.medical_services;
+      case 'education':
+        return Icons.school;
+      case 'entertainment':
+        return Icons.movie;
+      default:
+        return Icons.category;
+    }
+  }
+  
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'food & dining':
+      case 'food':
+        return Colors.green.shade700;
+      case 'transport':
+        return Colors.blue.shade700;
+      case 'shopping':
+        return Colors.purple.shade700;
+      case 'utilities':
+        return Colors.orange.shade700;
+      case 'health':
+        return Colors.red.shade700;
+      case 'education':
+        return Colors.indigo.shade700;
+      case 'entertainment':
+        return Colors.pink.shade400;
+      default:
+        return Colors.grey.shade700;
+    }
   }
 }
