@@ -46,7 +46,7 @@ class _MpesaScreenState extends State<MpesaScreen> with SingleTickerProviderStat
   
   // Banner images for carousel
   final List<String> _bannerImages = [
-    'assets/images/banner1.png',
+    'assets/images/banner1.jpg',
     'assets/images/banner2.png',
     'assets/images/banner3.png',
     'assets/images/banner4.png',
