@@ -1,407 +1,567 @@
-// lib/services/mpesa_handling_service.dart
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../config/app_config.dart';
-import 'package:appwrite/appwrite.dart';
 
+// Configuration class reference
+import 'package:dailydime/config/app_config.dart';
+
+/// Models for M-Pesa integration
+class PaymentRequest {
+  final String phone;
+  final String amount;
+  final String accountReference;
+  final String transactionDesc;
+
+  PaymentRequest({
+    required this.phone,
+    required this.amount,
+    this.accountReference = "DailyDime",
+    this.transactionDesc = "DailyDime Payment",
+  });
+
+  Map<String, dynamic> toJson() => {
+        'phone': phone,
+        'amount': amount,
+        'accountReference': accountReference,
+        'transactionDesc': transactionDesc,
+      };
+}
+
+class MpesaResponse {
+  final bool success;
+  final String? merchantRequestID;
+  final String? checkoutRequestID;
+  final String? responseCode;
+  final String? customerMessage;
+  final String? errorMessage;
+
+  MpesaResponse({
+    required this.success,
+    this.merchantRequestID,
+    this.checkoutRequestID,
+    this.responseCode,
+    this.customerMessage,
+    this.errorMessage,
+  });
+
+  factory MpesaResponse.fromJson(Map<String, dynamic> json) {
+    // Handle nested data structure from your API response
+    final data = json['data'] as Map<String, dynamic>?;
+    
+    return MpesaResponse(
+      success: json['success'] ?? false,
+      merchantRequestID: data?['merchantRequestID'],
+      checkoutRequestID: data?['checkoutRequestID'],
+      responseCode: data?['responseCode'],
+      customerMessage: data?['customerMessage'] ?? json['message'],
+      errorMessage: json['error'] ?? (json['success'] == false ? json['message'] : null),
+    );
+  }
+
+  factory MpesaResponse.error(String message) {
+    return MpesaResponse(
+      success: false,
+      errorMessage: message,
+    );
+  }
+}
+
+enum PaymentStatus {
+  pending,
+  completed,
+  failed,
+  cancelled,
+  unknown,
+}
+
+class PaymentStatusResponse {
+  final bool success;
+  final PaymentStatus status;
+  final String? responseCode;
+  final String? resultCode;
+  final String? resultDesc;
+  final String? errorMessage;
+
+  PaymentStatusResponse({
+    required this.success,
+    required this.status,
+    this.responseCode,
+    this.resultCode,
+    this.resultDesc,
+    this.errorMessage,
+  });
+
+  factory PaymentStatusResponse.fromJson(Map<String, dynamic> json) {
+    PaymentStatus status = PaymentStatus.unknown;
+    
+    // Handle nested data structure
+    final data = json['data'] as Map<String, dynamic>?;
+    
+    if (json['success'] == true && data != null) {
+      final resultCode = data['ResultCode']?.toString() ?? '';
+      
+      switch (resultCode) {
+        case '0':
+          status = PaymentStatus.completed;
+          break;
+        case '1':
+          status = PaymentStatus.failed;
+          break;
+        case '1032':
+          status = PaymentStatus.cancelled;
+          break;
+        default:
+          status = data['ResultDesc']?.toString()?.toLowerCase().contains('pending') ?? false
+              ? PaymentStatus.pending
+              : PaymentStatus.unknown;
+      }
+    }
+
+    return PaymentStatusResponse(
+      success: json['success'] ?? false,
+      status: status,
+      responseCode: data?['ResponseCode'],
+      resultCode: data?['ResultCode']?.toString(),
+      resultDesc: data?['ResultDesc'],
+      errorMessage: json['error'] ?? (json['success'] == false ? json['message'] : null),
+    );
+  }
+
+  factory PaymentStatusResponse.error(String message) {
+    return PaymentStatusResponse(
+      success: false,
+      status: PaymentStatus.unknown,
+      errorMessage: message,
+    );
+  }
+}
+
+class MpesaException implements Exception {
+  final String message;
+  final int? statusCode;
+  final dynamic originalError;
+
+  MpesaException(this.message, {this.statusCode, this.originalError});
+
+  @override
+  String toString() => 'MpesaException: $message (Code: $statusCode)';
+}
+
+/// Service for handling M-Pesa integration with Appwrite Cloud Functions
 class MpesaHandlingService {
-  // Singleton pattern
-  static final MpesaHandlingService _instance = MpesaHandlingService._internal();
-  factory MpesaHandlingService() => _instance;
-  MpesaHandlingService._internal();
-
-  // Store the access token with expiry
-  String? _accessToken;
+  final http.Client _httpClient;
+  
+  // Function IDs - FIXED: Include 'function-' prefix as shown in Appwrite console
+  static const String _mpesaAuthFunctionId = 'function-mpesa-auth';
+  static const String _mpesaStkPushFunctionId = 'function-6880bbaf0000f09b4c55';
+  static const String _mpesaQueryFunctionId = 'function-6880bd20000e7035d1b8';
+  
+  // Appwrite endpoints - FIXED: Use cloud.appwrite.io domain
+  late final String _baseUrl;
+  late final Map<String, String> _defaultHeaders;
+  
+  // Token cache management
+  String? _cachedToken;
   DateTime? _tokenExpiry;
   
-  // Transaction types
-  static const PAY = 'pay';
-  static const SEND = 'send';
-  static const WITHDRAW = 'withdraw';
+  // Rate limiting
+  DateTime? _lastRequestTime;
+  final _minRequestInterval = const Duration(milliseconds: 500);
   
-  // Transaction statuses
-  static const STATUS_PENDING = 'pending';
-  static const STATUS_COMPLETED = 'completed';
-  static const STATUS_FAILED = 'failed';
+  // Retry configuration
+  final int _maxRetries = 3;
+  final Duration _retryDelay = const Duration(seconds: 2);
 
-  // Get access token from Safaricom
-  Future<String> getAccessToken() async {
-    // Check if token exists and is valid
-    if (_accessToken != null && _tokenExpiry != null && _tokenExpiry!.isAfter(DateTime.now())) {
-      return _accessToken!;
-    }
-
-    // Create the authentication string (base64 encoded)
-    String auth = base64Encode(utf8.encode('${AppConfig.mpesaConsumerKey}:${AppConfig.mpesaConsumerSecret}'));
-    
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.mpesaBaseUrl}${AppConfig.mpesaAuthUrl}'),
-        headers: {
-          'Authorization': 'Basic $auth',
-          'Accept': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-        _accessToken = jsonResponse['access_token'];
-        // Token expires in 1 hour, set expiry to 55 minutes to be safe
-        _tokenExpiry = DateTime.now().add(Duration(minutes: 55));
-        return _accessToken!;
-      } else {
-        throw Exception('Failed to get access token: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Network error when getting access token: $e');
-    }
+  MpesaHandlingService({http.Client? httpClient})
+      : _httpClient = httpClient ?? http.Client() {
+    // FIXED: Use the correct Appwrite Cloud domain and structure
+    _baseUrl = 'https://cloud.appwrite.io/v1/functions';
+    _defaultHeaders = {
+      'Content-Type': 'application/json',
+      'X-Appwrite-Project': AppConfig.appwriteProjectId,
+      // Add API key if you have one configured for server-side access
+      if (AppConfig.appwriteApiKey != null) 'X-Appwrite-Key': AppConfig.appwriteApiKey!,
+    };
   }
 
-  // STK Push (Lipa Na MPesa Online)
-  Future<Map<String, dynamic>> initiateSTKPush({
-    required String phoneNumber, 
-    required double amount, 
-    required String accountReference,
-    String? transactionDesc,
-  }) async {
-    // Format phone number to required format (254XXXXXXXXX)
-    phoneNumber = AppConfig.formatPhoneNumber(phoneNumber);
-    
-    // Get access token
-    final accessToken = await getAccessToken();
-    
-    // Generate timestamp in the format YYYYMMDDHHmmss
-    final timestamp = DateTime.now().toUtc().toString()
-        .replaceAll(RegExp(r'[^0-9]'), '')
-        .substring(0, 14);
-    
-    // Generate password (base64 of shortcode+passkey+timestamp)
-    final password = base64Encode(utf8.encode('${AppConfig.mpesaShortcode}${AppConfig.mpesaPasskey}$timestamp'));
-    
-    // Create the request body
-    final body = {
-      'BusinessShortCode': AppConfig.mpesaShortcode,
-      'Password': password,
-      'Timestamp': timestamp,
-      'TransactionType': 'CustomerPayBillOnline',
-      'Amount': amount.toStringAsFixed(0),
-      'PartyA': phoneNumber,
-      'PartyB': AppConfig.mpesaShortcode,
-      'PhoneNumber': phoneNumber,
-      'CallBackURL': AppConfig.isDevelopment 
-          ? 'https://webhook.site/your-webhook-id' // For testing
-          : 'https://yourdomain.com/api/mpesa/callback',
-      'AccountReference': accountReference,
-      'TransactionDesc': transactionDesc ?? 'Payment via DailyDime',
-    };
-
+  /// Gets a valid access token for M-Pesa API, using cache if available
+  Future<String?> getAccessToken() async {
     try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.mpesaBaseUrl}${AppConfig.mpesaStkPushUrl}'),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode(body),
-      );
+      // Check if we have a valid cached token
+      if (_cachedToken != null && _tokenExpiry != null && _tokenExpiry!.isAfter(DateTime.now())) {
+        debugPrint('Using cached M-Pesa token');
+        return _cachedToken;
+      }
 
-      final responseData = json.decode(response.body);
+      // Request a new token
+      await _respectRateLimit();
       
-      // Save transaction to database if request was successful
-      if (responseData.containsKey('ResponseCode') && 
-          responseData['ResponseCode'] == '0') {
-        _saveTransaction(
-          type: PAY,
-          amount: amount,
-          phoneNumber: phoneNumber,
-          status: STATUS_PENDING,
-          reference: accountReference,
-          checkoutRequestId: responseData['CheckoutRequestID'],
+      // FIXED: Use POST with empty body for execution
+      final response = await _executeWithRetry(() => _httpClient.post(
+        Uri.parse('$_baseUrl/$_mpesaAuthFunctionId/executions'),
+        headers: _defaultHeaders,
+        body: jsonEncode({}), // Empty body for auth function
+      ));
+
+      final responseData = jsonDecode(response.body);
+      debugPrint('Auth response: ${response.body}');
+      
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw MpesaException(
+          'Authentication failed: ${response.body}',
+          statusCode: response.statusCode,
         );
       }
 
-      return responseData;
-    } catch (e) {
-      throw Exception('Error initiating STK push: $e');
-    }
-  }
+      // FIXED: Handle the response structure correctly
+      String? accessToken;
+      int expiresIn = 3599;
 
-  // Check status of STK push
-  Future<Map<String, dynamic>> checkSTKStatus({
-    required String checkoutRequestID,
-  }) async {
-    // Get access token
-    final accessToken = await getAccessToken();
-    
-    // Generate timestamp in the format YYYYMMDDHHmmss
-    final timestamp = DateTime.now().toUtc().toString()
-        .replaceAll(RegExp(r'[^0-9]'), '')
-        .substring(0, 14);
-    
-    // Generate password
-    final password = base64Encode(utf8.encode('${AppConfig.mpesaShortcode}${AppConfig.mpesaPasskey}$timestamp'));
-    
-    // Create the request body
-    final body = {
-      'BusinessShortCode': AppConfig.mpesaShortcode,
-      'Password': password,
-      'Timestamp': timestamp,
-      'CheckoutRequestID': checkoutRequestID,
-    };
+      // Check if the response has the token directly or in a nested structure
+      if (responseData['access_token'] != null) {
+        accessToken = responseData['access_token'];
+        expiresIn = responseData['expires_in'] ?? 3599;
+      } else if (responseData['success'] == true) {
+        // If wrapped in success response
+        final data = responseData['data'];
+        if (data != null) {
+          accessToken = data['access_token'];
+          expiresIn = data['expires_in'] ?? 3599;
+        }
+      }
 
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.mpesaBaseUrl}${AppConfig.mpesaStkQueryUrl}'),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode(body),
-      );
-
-      final responseData = json.decode(response.body);
-      
-      // Update transaction status in database
-      if (responseData.containsKey('ResultCode')) {
-        String status = responseData['ResultCode'] == '0' 
-            ? STATUS_COMPLETED 
-            : STATUS_FAILED;
-            
-        _updateTransactionStatus(
-          checkoutRequestId: checkoutRequestID,
-          status: status,
+      if (accessToken == null) {
+        throw MpesaException(
+          'No access token in response: ${response.body}',
+          statusCode: response.statusCode,
         );
       }
 
-      return responseData;
-    } catch (e) {
-      throw Exception('Error checking STK status: $e');
+      // Cache the token
+      _cachedToken = accessToken;
+      _tokenExpiry = DateTime.now().add(Duration(seconds: expiresIn - 60)); // Buffer of 60 seconds
+      
+      debugPrint('Generated new M-Pesa token, expires in $expiresIn seconds');
+      return _cachedToken;
+    } catch (error) {
+      final mpesaError = handleError(error);
+      debugPrint('M-Pesa authentication error: ${mpesaError.toString()}');
+      return null; // Return null instead of rethrowing to handle gracefully
     }
   }
 
-  // B2C Payment (Business to Customer)
-  Future<Map<String, dynamic>> sendMoneyToCustomer({
-    required String phoneNumber,
-    required double amount,
-    required String remarks,
-  }) async {
-    // In a real app, this would be implemented via a secure server-side endpoint
-    // B2C requires security credentials that shouldn't be in client-side code
+  /// Initiates an STK Push to the user's phone
+  Future<MpesaResponse> initiateSTKPush(PaymentRequest request) async {
+    try {
+      // Validate the payment amount
+      if (!validatePaymentAmount(double.tryParse(request.amount) ?? 0)) {
+        return MpesaResponse.error('Invalid payment amount. Amount must be between KES 1 and KES 150,000');
+      }
+
+      // Format the phone number
+      final formattedPhone = formatPhoneNumber(request.phone);
+      if (formattedPhone == null) {
+        return MpesaResponse.error('Invalid phone number format. Use format: 254XXXXXXXXX');
+      }
+
+      // Create a request with the formatted phone number
+      final formattedRequest = PaymentRequest(
+        phone: formattedPhone,
+        amount: request.amount,
+        accountReference: request.accountReference,
+        transactionDesc: request.transactionDesc,
+      );
+
+      await _respectRateLimit();
+      
+      debugPrint('Sending STK Push request to: $_baseUrl/$_mpesaStkPushFunctionId/executions');
+      debugPrint('Request body: ${jsonEncode(formattedRequest.toJson())}');
+      
+      final response = await _executeWithRetry(() => _httpClient.post(
+        Uri.parse('$_baseUrl/$_mpesaStkPushFunctionId/executions'),
+        headers: _defaultHeaders,
+        body: jsonEncode(formattedRequest.toJson()),
+      ));
+
+      debugPrint('STK Push response status: ${response.statusCode}');
+      debugPrint('STK Push response body: ${response.body}');
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw MpesaException(
+          'STK Push failed: ${response.body}',
+          statusCode: response.statusCode,
+        );
+      }
+
+      final responseData = jsonDecode(response.body);
+      return MpesaResponse.fromJson(responseData);
+    } catch (error) {
+      final mpesaError = handleError(error);
+      debugPrint('STK Push error: ${mpesaError.toString()}');
+      return MpesaResponse.error(mpesaError.message);
+    }
+  }
+
+  /// Queries the status of a payment
+  Future<PaymentStatusResponse> queryPaymentStatus(String checkoutRequestID) async {
+    try {
+      if (checkoutRequestID.isEmpty) {
+        return PaymentStatusResponse.error('Checkout request ID cannot be empty');
+      }
+
+      await _respectRateLimit();
+      
+      debugPrint('Querying payment status for: $checkoutRequestID');
+      
+      final response = await _executeWithRetry(() => _httpClient.post(
+        Uri.parse('$_baseUrl/$_mpesaQueryFunctionId/executions'),
+        headers: _defaultHeaders,
+        body: jsonEncode({'checkoutRequestID': checkoutRequestID}),
+      ));
+
+      debugPrint('Query response status: ${response.statusCode}');
+      debugPrint('Query response body: ${response.body}');
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw MpesaException(
+          'Payment query failed: ${response.body}',
+          statusCode: response.statusCode,
+        );
+      }
+
+      final responseData = jsonDecode(response.body);
+      return PaymentStatusResponse.fromJson(responseData);
+    } catch (error) {
+      final mpesaError = handleError(error);
+      debugPrint('Payment query error: ${mpesaError.toString()}');
+      return PaymentStatusResponse.error(mpesaError.message);
+    }
+  }
+
+  /// Formats a phone number to the required format (254XXXXXXXXX)
+  String? formatPhoneNumber(String phone) {
+    // Remove any spaces, dashes or other separators
+    String cleaned = phone.replaceAll(RegExp(r'[^\d]'), '');
     
-    // For demo purposes, create a mock transaction
-    final transactionId = 'TX-${DateTime.now().millisecondsSinceEpoch}';
+    // Handle case where user includes the + sign (e.g., +254...)
+    if (phone.startsWith('+')) {
+      cleaned = cleaned;
+    }
     
-    // Save to database
-    _saveTransaction(
-      type: SEND,
-      amount: amount,
-      phoneNumber: AppConfig.formatPhoneNumber(phoneNumber),
-      status: STATUS_COMPLETED, // Assume success for demo
-      reference: remarks,
-      transactionId: transactionId,
+    // If starts with 0, replace with 254
+    if (cleaned.startsWith('0') && cleaned.length == 10) {
+      cleaned = '254${cleaned.substring(1)}';
+    }
+    
+    // If starts with 7 or 1, prefix with 254
+    if ((cleaned.startsWith('7') || cleaned.startsWith('1')) && cleaned.length == 9) {
+      cleaned = '254$cleaned';
+    }
+    
+    // Validate the resulting number
+    if (cleaned.startsWith('254') && cleaned.length == 12) {
+      return cleaned;
+    }
+    
+    return null; // Invalid format
+  }
+
+  /// Validates if the payment amount is within acceptable range
+  bool validatePaymentAmount(double amount) {
+    // M-Pesa has minimum and maximum limits
+    const double MIN_AMOUNT = 1.0;
+    const double MAX_AMOUNT = 150000.0;
+    
+    return amount >= MIN_AMOUNT && amount <= MAX_AMOUNT;
+  }
+
+  /// Handles and formats errors from the API
+  MpesaException handleError(dynamic error) {
+    if (error is MpesaException) {
+      return error;
+    }
+    
+    if (error is http.ClientException) {
+      return MpesaException(
+        'Network error: ${error.message}',
+        originalError: error,
+      );
+    }
+    
+    if (error is FormatException) {
+      return MpesaException(
+        'Invalid response format: ${error.message}',
+        originalError: error,
+      );
+    }
+    
+    return MpesaException(
+      'M-Pesa operation failed: ${error.toString()}',
+      originalError: error,
     );
-    
-    // Return mock response
-    return {
-      'success': true,
-      'transactionId': transactionId,
-      'amount': amount,
-      'recipient': phoneNumber,
-      'timestamp': DateTime.now().toIso8601String(),
-    };
   }
 
-  // Check account balance
-  Future<Map<String, dynamic>> checkAccountBalance() async {
-    // In a real app, this would be implemented via a secure server-side endpoint
-    // Get current balance from recent transactions
-    try {
-      final transactions = await getRecentTransactions(limit: 1);
-      double balance = 25000.00; // Default fallback balance
-      
-      if (transactions.isNotEmpty && transactions[0].containsKey('runningBalance')) {
-        balance = transactions[0]['runningBalance'];
+  /// Respects rate limiting by ensuring minimum time between requests
+  Future<void> _respectRateLimit() async {
+    if (_lastRequestTime != null) {
+      final elapsed = DateTime.now().difference(_lastRequestTime!);
+      if (elapsed < _minRequestInterval) {
+        final waitTime = _minRequestInterval - elapsed;
+        await Future.delayed(waitTime);
       }
-      
-      return {
-        'success': true,
-        'balance': balance,
-        'currency': 'KES',
-        'timestamp': DateTime.now().toIso8601String(),
-      };
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Failed to retrieve balance: $e',
-      };
     }
+    _lastRequestTime = DateTime.now();
   }
 
-  // Get recent transactions
-  Future<List<Map<String, dynamic>>> getRecentTransactions({int limit = 10}) async {
-    // In a real app, fetch from Appwrite database
-    // For demo, return mock data
-    final List<Map<String, dynamic>> mockTransactions = [
-      {
-        'id': 'tx1',
-        'type': SEND,
-        'amount': 1000.0,
-        'recipient': '254712345678',
-        'description': 'Payment to John',
-        'status': STATUS_COMPLETED,
-        'timestamp': DateTime.now().subtract(Duration(hours: 2)).toIso8601String(),
-        'runningBalance': 24000.0,
-      },
-      {
-        'id': 'tx2',
-        'type': PAY,
-        'amount': 2500.0,
-        'recipient': 'Supermarket',
-        'description': 'Grocery shopping',
-        'status': STATUS_COMPLETED,
-        'timestamp': DateTime.now().subtract(Duration(days: 1)).toIso8601String(),
-        'runningBalance': 25000.0,
-      },
-      {
-        'id': 'tx3',
-        'type': WITHDRAW,
-        'amount': 5000.0,
-        'recipient': 'ATM',
-        'description': 'Cash withdrawal',
-        'status': STATUS_COMPLETED,
-        'timestamp': DateTime.now().subtract(Duration(days: 3)).toIso8601String(),
-        'runningBalance': 27500.0,
-      },
-    ];
-    
-    return mockTransactions.take(limit).toList();
-  }
-
-  // Save transaction to database
-  Future<void> _saveTransaction({
-    required String type,
-    required double amount,
-    required String phoneNumber,
-    required String status,
-    required String reference,
-    String? checkoutRequestId,
-    String? transactionId,
-  }) async {
-    // In a real app, save to Appwrite database
-    // For demo, just print to console
-    debugPrint('Saving transaction: $type, $amount, $phoneNumber, $status, $reference');
-    
-    // Implementation with Appwrite would look like:
-    /*
-    try {
-      final databases = Databases(Client());
-      await databases.createDocument(
-        databaseId: AppConfig.databaseId,
-        collectionId: AppConfig.transactionsCollection,
-        documentId: ID.unique(),
-        data: {
-          'type': type,
-          'amount': amount,
-          'phoneNumber': phoneNumber,
-          'status': status,
-          'reference': reference,
-          'checkoutRequestId': checkoutRequestId,
-          'transactionId': transactionId,
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-      );
-    } catch (e) {
-      debugPrint('Error saving transaction: $e');
-    }
-    */
-  }
-  
-  // Update transaction status
-  Future<void> _updateTransactionStatus({
-    required String checkoutRequestId,
-    required String status,
-  }) async {
-    // In a real app, update in Appwrite database
-    debugPrint('Updating transaction status: $checkoutRequestId to $status');
-    
-    // Implementation with Appwrite would look like:
-    /*
-    try {
-      final databases = Databases(Client());
-      
-      // First, query to find the document by checkoutRequestId
-      final response = await databases.listDocuments(
-        databaseId: AppConfig.databaseId,
-        collectionId: AppConfig.transactionsCollection,
-        queries: [
-          Query.equal('checkoutRequestId', checkoutRequestId),
-        ],
-      );
-      
-      if (response.documents.isNotEmpty) {
-        final document = response.documents.first;
+  /// Executes a function with retry logic
+  Future<http.Response> _executeWithRetry(Future<http.Response> Function() operation) async {
+    int attempts = 0;
+    while (attempts < _maxRetries) {
+      try {
+        final response = await operation();
         
-        await databases.updateDocument(
-          databaseId: AppConfig.databaseId,
-          collectionId: AppConfig.transactionsCollection,
-          documentId: document.$id,
-          data: {
-            'status': status,
-            'updatedAt': DateTime.now().toIso8601String(),
-          },
+        // Check if we should retry based on status code
+        if (response.statusCode >= 500) {
+          throw http.ClientException('Server error: ${response.statusCode}');
+        }
+        
+        return response;
+      } catch (e) {
+        attempts++;
+        if (attempts >= _maxRetries) rethrow;
+        
+        // Only retry on network/server errors, not on client errors
+        if (e is http.ClientException && e.message.contains('4')) {
+          rethrow;
+        }
+        
+        debugPrint('Retrying operation (${attempts}/${_maxRetries}) after error: $e');
+        await Future.delayed(_retryDelay * attempts);
+      }
+    }
+    
+    throw MpesaException('Maximum retry attempts exceeded');
+  }
+  
+  /// Complete payment flow with status monitoring
+  Future<PaymentStatusResponse> processPaymentWithStatusCheck({
+    required PaymentRequest request,
+    Duration maxWaitTime = const Duration(minutes: 2),
+    Duration checkInterval = const Duration(seconds: 5),
+  }) async {
+    try {
+      // Step 1: Initiate STK Push
+      final stkResponse = await initiateSTKPush(request);
+      
+      if (!stkResponse.success || stkResponse.checkoutRequestID == null) {
+        return PaymentStatusResponse.error(
+          stkResponse.errorMessage ?? 'Failed to initiate payment'
         );
       }
-    } catch (e) {
-      debugPrint('Error updating transaction status: $e');
+
+      // Step 2: Monitor payment status
+      final checkoutRequestID = stkResponse.checkoutRequestID!;
+      final startTime = DateTime.now();
+      
+      while (DateTime.now().difference(startTime) < maxWaitTime) {
+        await Future.delayed(checkInterval);
+        
+        final statusResponse = await queryPaymentStatus(checkoutRequestID);
+        
+        if (statusResponse.success) {
+          // If payment is completed or failed, return immediately
+          if (statusResponse.status == PaymentStatus.completed ||
+              statusResponse.status == PaymentStatus.failed ||
+              statusResponse.status == PaymentStatus.cancelled) {
+            return statusResponse;
+          }
+        }
+      }
+      
+      // Timeout reached
+      return PaymentStatusResponse.error('Payment status check timed out');
+      
+    } catch (error) {
+      return PaymentStatusResponse.error(
+        'Payment processing failed: ${error.toString()}'
+      );
     }
-    */
   }
 
-  // Parse MPESA SMS for transaction data
-  Map<String, dynamic>? parseMpesaSMS(String message) {
-    // Pattern to match M-PESA messages for received money
-    RegExp receiveRegex = RegExp(
-      r'([A-Z0-9]+) Confirmed\.[\s\S]*?Ksh([0-9,.]+)[\s\S]*?from ([A-Z0-9 ]+)[\s\S]*?on ([0-9/]+) at ([0-9:]+)[\s\S]*?New M-PESA balance is Ksh([0-9,.]+)',
-      caseSensitive: true,
-    );
-
-    // Pattern for payments made
-    RegExp payRegex = RegExp(
-      r'([A-Z0-9]+) Confirmed\.[\s\S]*?Ksh([0-9,.]+)[\s\S]*?paid to ([A-Z0-9 ]+)[\s\S]*?on ([0-9/]+) at ([0-9:]+)[\s\S]*?New M-PESA balance is Ksh([0-9,.]+)',
-      caseSensitive: true,
-    );
-
-    Match? match = receiveRegex.firstMatch(message);
-    String type = 'RECEIVED';
-
-    if (match == null) {
-      match = payRegex.firstMatch(message);
-      type = 'PAID';
-      
-      if (match == null) {
-        return null; // Not a recognized M-PESA message
-      }
+  /// Validates transaction before processing
+  Future<Map<String, dynamic>> validateTransaction(PaymentRequest request) async {
+    final errors = <String>[];
+    final warnings = <String>[];
+    
+    // Phone number validation
+    if (formatPhoneNumber(request.phone) == null) {
+      errors.add('Invalid phone number format');
     }
-
-    // Parse amount (remove commas)
-    double amount = double.parse(match.group(2)!.replaceAll(',', ''));
     
-    // Parse balance
-    double balance = double.parse(match.group(6)!.replaceAll(',', ''));
+    // Amount validation
+    final amount = double.tryParse(request.amount) ?? 0;
+    if (!validatePaymentAmount(amount)) {
+      errors.add('Amount must be between KES 1 and KES 150,000');
+    }
     
-    // Parse date and time
-    String date = match.group(4)!;
-    String time = match.group(5)!;
+    // Additional validations
+    if (request.accountReference.isEmpty) {
+      warnings.add('Account reference is empty');
+    }
+    
+    if (request.transactionDesc.isEmpty) {
+      warnings.add('Transaction description is empty');
+    }
     
     return {
-      'transactionId': match.group(1),
-      'amount': amount,
-      'party': match.group(3),
-      'date': date,
-      'time': time,
-      'balance': balance,
-      'type': type,
+      'isValid': errors.isEmpty,
+      'errors': errors,
+      'warnings': warnings,
     };
+  }
+
+  /// Utility method to test connection to M-Pesa services
+  Future<bool> testConnection() async {
+    try {
+      final token = await getAccessToken();
+      return token != null && token.isNotEmpty;
+    } catch (e) {
+      debugPrint('Connection test failed: $e');
+      return false;
+    }
+  }
+
+  /// Get payment method information
+  Map<String, dynamic> getPaymentMethodInfo() {
+    return {
+      'name': 'M-Pesa',
+      'currency': 'KES',
+      'minAmount': 1.0,
+      'maxAmount': 150000.0,
+      'supportedCountries': ['KE'],
+      'processingTime': '1-5 minutes',
+      'fees': 'As per M-Pesa rates',
+    };
+  }
+
+  /// Format amount for display
+  String formatAmount(double amount, {String currency = 'KES'}) {
+    return '$currency ${amount.toStringAsFixed(2)}';
+  }
+
+  /// Generate a unique transaction reference
+  String generateTransactionReference() {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return 'DDME_$timestamp';
+  }
+
+  /// Dispose method to clean up resources
+  void dispose() {
+    _cachedToken = null;
+    _tokenExpiry = null;
+    _lastRequestTime = null;
+    _httpClient.close();
   }
 }

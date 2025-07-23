@@ -1,8 +1,11 @@
-// lib/screens/mpesa_screen.dart
+import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
-import '../services/mpesa_handling_service.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import 'package:dailydime/services/mpesa_handling_service.dart';
 
 class MpesaScreen extends StatefulWidget {
   const MpesaScreen({Key? key}) : super(key: key);
@@ -13,880 +16,362 @@ class MpesaScreen extends StatefulWidget {
 
 class _MpesaScreenState extends State<MpesaScreen> with SingleTickerProviderStateMixin {
   final MpesaHandlingService _mpesaService = MpesaHandlingService();
-  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _referenceController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   
-  late TabController _tabController;
-  bool _isProcessing = false;
-  String? _statusMessage;
-  bool _isSuccess = false;
-  bool _showContactSearch = false;
+  // State variables
+  bool _isLoading = false;
+  bool _isProcessingPayment = false;
   
-  // For balance display
-  double _balance = 0;
-  bool _loadingBalance = true;
-  Timer? _refreshTimer;
+  // Payment tracking
+  String? _currentCheckoutId;
+  PaymentStatus _paymentStatus = PaymentStatus.unknown;
+  Timer? _statusCheckTimer;
+  
+  // Animation controller for payment process
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+  
+  // Focus node for form fields
+  final FocusNode _amountFocusNode = FocusNode();
+  final FocusNode _phoneFocusNode = FocusNode();
+  
+  // Form validation
+  final _formKey = GlobalKey<FormState>();
+  String? _amountError;
+  String? _phoneError;
+  
+  // Quick amount options
+  final List<int> _quickAmounts = [50, 100, 200, 500, 1000];
+  
+  // Banner images for carousel
+  final List<String> _bannerImages = [
+    'assets/images/banner1.png',
+    'assets/images/banner2.png',
+    'assets/images/banner3.png',
+    'assets/images/banner4.png',
+    'assets/images/banner5.png',
+  ];
+  
+  int _currentBannerIndex = 0;
+  Timer? _bannerTimer;
   
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _referenceController.text = 'DailyDime';
-    _loadBalance();
     
-    // Set up periodic balance refresh
-    _refreshTimer = Timer.periodic(Duration(minutes: 2), (_) {
-      _loadBalance();
+    // Initialize animation controller
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+    
+    // Start banner auto-scroll
+    _startBannerAutoScroll();
+  }
+  
+  void _startBannerAutoScroll() {
+    _bannerTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      setState(() {
+        _currentBannerIndex = (_currentBannerIndex + 1) % _bannerImages.length;
+      });
     });
   }
   
   @override
   void dispose() {
-    _tabController.dispose();
-    _phoneController.dispose();
     _amountController.dispose();
-    _referenceController.dispose();
-    _refreshTimer?.cancel();
+    _phoneController.dispose();
+    _amountFocusNode.dispose();
+    _phoneFocusNode.dispose();
+    _animationController.dispose();
+    _statusCheckTimer?.cancel();
+    _bannerTimer?.cancel();
+    _mpesaService.dispose();
     super.dispose();
   }
   
-  Future<void> _loadBalance() async {
-    if (mounted) {
-      setState(() {
-        _loadingBalance = true;
-      });
-    }
-    
-    try {
-      final result = await _mpesaService.checkAccountBalance();
-      if (mounted) {
-        setState(() {
-          _balance = result['balance'];
-          _loadingBalance = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _loadingBalance = false;
-        });
-      }
-    }
-  }
-  
-  Future<void> _initiateStkPush() async {
-    if (_phoneController.text.isEmpty || _amountController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter phone number and amount'))
-      );
+  /// Initiates a payment with STK Push
+  Future<void> _initiatePayment() async {
+    if (!_formKey.currentState!.validate()) {
       return;
     }
     
+    // Clear previous errors
     setState(() {
-      _isProcessing = true;
-      _statusMessage = null;
-      _isSuccess = false;
+      _amountError = null;
+      _phoneError = null;
+    });
+    
+    // Start payment process
+    setState(() {
+      _isProcessingPayment = true;
+      _paymentStatus = PaymentStatus.pending;
     });
     
     try {
-      final amount = double.parse(_amountController.text);
-      final result = await _mpesaService.initiateSTKPush(
-        phoneNumber: _phoneController.text,
-        amount: amount,
-        accountReference: _referenceController.text,
+      // Provide haptic feedback
+      HapticFeedback.mediumImpact();
+      
+      // Start animation
+      _animationController.forward();
+      
+      final paymentRequest = PaymentRequest(
+        phone: _phoneController.text,
+        amount: _amountController.text,
       );
       
-      setState(() {
-        _isProcessing = false;
-        
-        if (result.containsKey('ResponseCode') && result['ResponseCode'] == '0') {
-          _isSuccess = true;
-          _statusMessage = 'Please check your phone to complete the transaction';
-          
-          // Start checking status after 10 seconds
-          Timer(Duration(seconds: 10), () {
-            _checkTransactionStatus(result['CheckoutRequestID']);
-          });
-        } else {
-          _isSuccess = false;
-          _statusMessage = result['errorMessage'] ?? 'Transaction failed to initialize';
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _isProcessing = false;
-        _isSuccess = false;
-        _statusMessage = 'Error: ${e.toString()}';
-      });
-    }
-  }
-  
-  Future<void> _checkTransactionStatus(String checkoutRequestId) async {
-    try {
-      final result = await _mpesaService.checkSTKStatus(
-        checkoutRequestID: checkoutRequestId,
-      );
+      final response = await _mpesaService.initiateSTKPush(paymentRequest);
       
-      if (mounted) {
+      if (!response.success) {
+        // Handle error
         setState(() {
-          if (result.containsKey('ResultCode') && result['ResultCode'] == '0') {
-            _isSuccess = true;
-            _statusMessage = 'Transaction completed successfully!';
-            _loadBalance(); // Refresh balance
-          } else {
-            _isSuccess = false;
-            _statusMessage = result['ResultDesc'] ?? 'Transaction failed or is still processing';
+          _isProcessingPayment = false;
+          if (response.errorMessage?.contains('phone') ?? false) {
+            _phoneError = response.errorMessage;
+          } else if (response.errorMessage?.contains('amount') ?? false) {
+            _amountError = response.errorMessage;
           }
         });
+        
+        _showErrorSnackbar(response.errorMessage ?? 'Payment initiation failed');
+        _animationController.reverse();
+        return;
       }
+      
+      // Store checkout ID for status tracking
+      _currentCheckoutId = response.checkoutRequestID;
+      
+      // Start checking payment status
+      _startStatusChecking();
+      
+      // Show customer message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response.customerMessage ?? 'Check your phone to complete the payment'),
+          backgroundColor: const Color(0xFF00A884),
+        ),
+      );
     } catch (e) {
-      debugPrint('Error checking transaction status: $e');
+      setState(() {
+        _isProcessingPayment = false;
+      });
+      
+      _showErrorSnackbar('Payment failed: ${e.toString()}');
+      _animationController.reverse();
     }
   }
   
-  Future<void> _sendMoney() async {
-    if (_phoneController.text.isEmpty || _amountController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter phone number and amount'))
-      );
+  /// Starts periodic checking of payment status
+  void _startStatusChecking() {
+    // Cancel any existing timer
+    _statusCheckTimer?.cancel();
+    
+    // Check status every 3 seconds
+    _statusCheckTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (timer) => _checkPaymentStatus(),
+    );
+  }
+  
+  /// Checks the current payment status
+  Future<void> _checkPaymentStatus() async {
+    if (_currentCheckoutId == null) {
+      _statusCheckTimer?.cancel();
       return;
     }
     
-    setState(() {
-      _isProcessing = true;
-      _statusMessage = null;
-      _isSuccess = false;
-    });
-    
     try {
-      final amount = double.parse(_amountController.text);
-      final remarks = _referenceController.text.isEmpty ? 'Sent via DailyDime' : _referenceController.text;
-      
-      final result = await _mpesaService.sendMoneyToCustomer(
-        phoneNumber: _phoneController.text,
-        amount: amount,
-        remarks: remarks,
-      );
+      final statusResponse = await _mpesaService.queryPaymentStatus(_currentCheckoutId!);
       
       setState(() {
-        _isProcessing = false;
+        _paymentStatus = statusResponse.status;
+      });
+      
+      // If payment is complete or failed, stop checking
+      if (_paymentStatus == PaymentStatus.completed || 
+          _paymentStatus == PaymentStatus.failed ||
+          _paymentStatus == PaymentStatus.cancelled) {
+        _statusCheckTimer?.cancel();
         
-        if (result['success'] == true) {
-          _isSuccess = true;
-          _statusMessage = 'KES ${amount.toStringAsFixed(2)} sent successfully';
-          _loadBalance(); // Refresh balance
-        } else {
-          _isSuccess = false;
-          _statusMessage = result['message'] ?? 'Failed to send money';
-        }
-      });
+        // Finish the payment process
+        _finishPaymentProcess();
+      }
     } catch (e) {
-      setState(() {
-        _isProcessing = false;
-        _isSuccess = false;
-        _statusMessage = 'Error: ${e.toString()}';
-      });
+      debugPrint('Error checking payment status: ${e.toString()}');
     }
   }
-
+  
+  /// Finishes the payment process and updates UI
+  void _finishPaymentProcess() async {
+    setState(() {
+      _isProcessingPayment = false;
+    });
+    
+    // Show appropriate message based on status
+    if (_paymentStatus == PaymentStatus.completed) {
+      // Reverse animation
+      _animationController.reverse();
+      
+      // Show success message
+      _showSuccessDialog();
+    } else if (_paymentStatus == PaymentStatus.failed || _paymentStatus == PaymentStatus.cancelled) {
+      // Reverse animation
+      _animationController.reverse();
+      
+      // Show error message
+      _showErrorSnackbar(_paymentStatus == PaymentStatus.cancelled 
+          ? 'Payment was cancelled' 
+          : 'Payment failed. Please try again.');
+    }
+    
+    // Reset checkout ID
+    _currentCheckoutId = null;
+  }
+  
+  /// Shows a success dialog
+  void _showSuccessDialog() {
+    final amount = double.tryParse(_amountController.text) ?? 0;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF00D13A), size: 28),
+            const SizedBox(width: 8),
+            const Text('Payment Successful'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('KES ${amount.toStringAsFixed(2)} has been sent successfully.'),
+            const SizedBox(height: 16),
+            const Text('Your transaction has been processed.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Reset form
+              _amountController.clear();
+              _phoneController.clear();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00D13A),
+            ),
+            child: const Text('New Payment'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// Shows an error snackbar
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red.shade800,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            
-            // Tab bar
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: 20),
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(30),
-                  color: Color(0xFF26D07C),
-                ),
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey.shade700,
-                tabs: [
-                  Tab(text: 'Pay'),
-                  Tab(text: 'Send'),
-                  Tab(text: 'Services'),
-                ],
-              ),
+      body: _buildMainContent(),
+    );
+  }
+  
+  Widget _buildMainContent() {
+    return Stack(
+      children: [
+        // Gradient background
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF00A884),
+                Color(0xFF00D13A),
+                Colors.white,
+              ],
+              stops: [0.0, 0.3, 0.6],
             ),
-            
-            SizedBox(height: 20),
-            
-            // Tab content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildPayTab(),
-                  _buildSendTab(),
-                  _buildServicesTab(),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+        
+        // Main content
+        SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: _isLoading 
+                    ? _buildLoadingState()
+                    : _buildBodyContent(),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
   
   Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // App bar with back button
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(Icons.arrow_back_ios_new, size: 20),
-                ),
-              ),
-              SizedBox(width: 16),
-              Text(
-                'M-PESA',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Spacer(),
-              _buildBalanceRefreshButton(),
-            ],
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        image: DecorationImage(
+          image: const AssetImage('assets/images/pattern.png'),
+          fit: BoxFit.cover,
+          colorFilter: ColorFilter.mode(
+            Colors.black.withOpacity(0.1),
+            BlendMode.dstATop,
           ),
-          
-          SizedBox(height: 24),
-          
-          // Balance card
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF26D07C), Color(0xFF1EA66D)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0xFF26D07C).withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Available Balance',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
-                  ),
-                ),
-                SizedBox(height: 8),
-                _loadingBalance
-                    ? Container(
-                        width: 120,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Text(
-                        'KES ${_balance.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ],
-            ),
-          ),
-          
-          SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildBalanceRefreshButton() {
-    return GestureDetector(
-      onTap: _loadBalance,
-      child: Container(
-        padding: EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
         ),
-        child: Icon(Icons.refresh, size: 20),
       ),
-    );
-  }
-  
-  Widget _buildPayTab() {
-    return SingleChildScrollView(
-      physics: BouncingScrollPhysics(),
-      padding: EdgeInsets.symmetric(horizontal: 20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Pay via M-PESA',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          
-          SizedBox(height: 20),
-          
-          // Quick pay options
-          _buildQuickPayOptions(),
-          
-          SizedBox(height: 30),
-          
-          // Phone number input
-          _buildPhoneInput(),
-          
-          SizedBox(height: 20),
-          
-          // Amount input
-          _buildAmountInput(hint: 'Enter amount to pay'),
-          
-          SizedBox(height: 20),
-          
-          // Reference input
-          _buildReferenceInput(hint: 'Business name or reference'),
-          
-          SizedBox(height: 30),
-          
-          // Pay button
-          _buildActionButton(
-            text: 'Pay Now',
-            isProcessing: _isProcessing,
-            onPressed: _initiateStkPush,
-          ),
-          
-          // Status message
-          if (_statusMessage != null) _buildStatusMessage(),
-          
-          SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildSendTab() {
-    return SingleChildScrollView(
-      physics: BouncingScrollPhysics(),
-      padding: EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Send Money',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              TextButton.icon(
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () {
-                  setState(() {
-                    _showContactSearch = !_showContactSearch;
-                  });
-                },
-                icon: Icon(
-                  _showContactSearch ? Icons.close : Icons.contacts, 
-                  size: 16, 
-                  color: Color(0xFF26D07C),
-                ),
-                label: Text(
-                  _showContactSearch ? 'Close' : 'Contacts',
-                  style: TextStyle(
-                    color: Color(0xFF26D07C),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  backgroundColor: Color(0xFF26D07C).withOpacity(0.1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          SizedBox(height: 20),
-          
-          // Contacts search
-          if (_showContactSearch) _buildContactSearch(),
-          
-          // Frequent contacts
-          if (!_showContactSearch) _buildFrequentContacts(),
-          
-          SizedBox(height: 20),
-          
-          // Phone number input
-          _buildPhoneInput(),
-          
-          SizedBox(height: 20),
-          
-          // Amount input
-          _buildAmountInput(hint: 'Enter amount to send'),
-          
-          SizedBox(height: 20),
-          
-          // Reference input
-          _buildReferenceInput(hint: 'Add a message (optional)'),
-          
-          SizedBox(height: 30),
-          
-          // Send button
-          _buildActionButton(
-            text: 'Send Money',
-            isProcessing: _isProcessing,
-            onPressed: _sendMoney,
-          ),
-          
-          // Status message
-          if (_statusMessage != null) _buildStatusMessage(),
-          
-          SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildServicesTab() {
-    return SingleChildScrollView(
-      physics: BouncingScrollPhysics(),
-      padding: EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'M-PESA Services',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          
-          SizedBox(height: 20),
-          
-          // Services grid
-          GridView.count(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            childAspectRatio: 1.2,
-            crossAxisSpacing: 15,
-            mainAxisSpacing: 15,
-            children: [
-              _buildServiceCard(
-                icon: Icons.account_balance,
-                title: 'Check Balance',
-                description: 'View M-PESA balance',
-                color: Color(0xFF26D07C),
-                onTap: _loadBalance,
-              ),
-              _buildServiceCard(
-                icon: Icons.history,
-                title: 'Statements',
-                description: 'View your transactions',
-                color: Colors.blue,
-                onTap: () {},
-              ),
-              _buildServiceCard(
-                icon: Icons.point_of_sale,
-                title: 'Lipa na M-PESA',
-                description: 'Pay for goods & services',
-                color: Colors.orange,
-                onTap: () {
-                  _tabController.animateTo(0);
+                  // Navigate back
+                  Navigator.of(context).pop();
                 },
               ),
-              _buildServiceCard(
-                icon: Icons.credit_card,
-                title: 'Withdraw Cash',
-                description: 'From ATM or agent',
-                color: Colors.purple,
-                onTap: () {},
-              ),
-              _buildServiceCard(
-                icon: Icons.account_balance_wallet,
-                title: 'M-Shwari',
-                description: 'Save and get loans',
-                color: Colors.teal,
-                onTap: () {},
-              ),
-              _buildServiceCard(
-                icon: Icons.receipt_long,
-                title: 'Pay Bills',
-                description: 'Utilities & subscriptions',
-                color: Colors.red,
-                onTap: () {},
-              ),
-            ],
-          ),
-          
-          SizedBox(height: 30),
-          
-          // Recent transactions
-          Text(
-            'Recent Transactions',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          
-          SizedBox(height: 15),
-          
-          FutureBuilder<List<Map<String, dynamic>>>(
-            future: _mpesaService.getRecentTransactions(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF26D07C)),
-                  ),
-                );
-              }
-              
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return Center(
-                  child: Text(
-                    'No recent transactions',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                );
-              }
-              
-              return Column(
-                children: snapshot.data!.map((transaction) {
-                  return _buildTransactionItem(
-                    type: transaction['type'],
-                    amount: transaction['amount'],
-                    description: transaction['description'],
-                    date: transaction['timestamp'],
-                    recipient: transaction['recipient'],
-                  );
-                }).toList(),
-              );
-            },
-          ),
-          
-          SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildPhoneInput() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Phone Number',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade800,
-          ),
-        ),
-        SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: TextField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(
-              hintText: 'Enter phone number',
-              hintStyle: TextStyle(color: Colors.grey.shade400),
-              prefixIcon: Icon(Icons.phone, color: Color(0xFF26D07C)),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildAmountInput({required String hint}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Amount',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade800,
-          ),
-        ),
-        SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: TextField(
-            controller: _amountController,
-            keyboardType: TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey.shade400),
-              prefixIcon: Icon(Icons.payments, color: Color(0xFF26D07C)),
-              prefixText: 'KES ',
-              prefixStyle: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.w500,
-              ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildReferenceInput({required String hint}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Reference',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade800,
-          ),
-        ),
-        SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: TextField(
-            controller: _referenceController,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey.shade400),
-              prefixIcon: Icon(Icons.description, color: Color(0xFF26D07C)),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildActionButton({
-    required String text,
-    required bool isProcessing,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      height: 55,
-      child: ElevatedButton(
-        onPressed: isProcessing ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Color(0xFF26D07C),
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.grey.shade300,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-        ),
-        child: isProcessing
-            ? SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Text(
-                text,
+              const Text(
+                'M-Pesa',
                 style: TextStyle(
-                  fontSize: 16,
+                  color: Colors.white,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-      ),
-    );
-  }
-  
-  Widget _buildStatusMessage() {
-    return Container(
-      margin: EdgeInsets.only(top: 20),
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: _isSuccess ? Colors.green.shade50 : Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            _isSuccess ? Icons.check_circle : Icons.error,
-            color: _isSuccess ? Colors.green : Colors.red,
-          ),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _statusMessage!,
-              style: TextStyle(
-                color: _isSuccess ? Colors.green.shade800 : Colors.red.shade800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildQuickPayOptions() {
-    return Container(
-      padding: EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Quick Pay',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildQuickPayItem(
-                icon: Icons.shopping_bag,
-                label: 'Buy Goods',
-                onTap: () {},
-              ),
-              _buildQuickPayItem(
-                icon: Icons.receipt_long,
-                label: 'Pay Bill',
-                onTap: () {},
-              ),
-              _buildQuickPayItem(
-                icon: Icons.lightbulb_outline,
-                label: 'KPLC',
-                onTap: () {},
-              ),
-              _buildQuickPayItem(
-                icon: Icons.water_drop_outlined,
-                label: 'Water',
-                onTap: () {},
+              IconButton(
+                icon: const Icon(Icons.info_outline, color: Colors.white),
+                onPressed: () {
+                  _showInfoDialog();
+                },
               ),
             ],
           ),
@@ -895,209 +380,168 @@ class _MpesaScreenState extends State<MpesaScreen> with SingleTickerProviderStat
     );
   }
   
-  Widget _buildQuickPayItem({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Color(0xFF26D07C).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: Color(0xFF26D07C),
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildContactSearch() {
-    return Container(
-      padding: EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Search input
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'Search contacts',
-              hintStyle: TextStyle(color: Colors.grey.shade400),
-              prefixIcon: Icon(Icons.search, color: Colors.grey),
-              filled: true,
-              fillColor: Colors.grey.shade100,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(15),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: EdgeInsets.symmetric(vertical: 0),
-            ),
-          ),
-          
-          SizedBox(height: 15),
-          
-          // Contact list
-          ListView(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            children: [
-              _buildContactItem('John Doe', '0712345678'),
-              _buildContactItem('Jane Smith', '0723456789'),
-              _buildContactItem('David Kimani', '0734567890'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildContactItem(String name, String phone) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _phoneController.text = phone;
-          _showContactSearch = false;
-        });
-      },
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 10),
-        child: Row(
+  void _showInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('M-Pesa Integration'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Color(0xFF26D07C).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  name.substring(0, 1).toUpperCase(),
-                  style: TextStyle(
-                    color: Color(0xFF26D07C),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+            Text('This is a DailyDime M-Pesa integration using the Safaricom Daraja API.'),
+            SizedBox(height: 12),
+            Text('Features:'),
+            SizedBox(height: 8),
+            Text('• STK Push for mobile payments'),
+            Text('• Real-time transaction tracking'),
+            Text('• Smart budget awareness'),
+            SizedBox(height: 12),
+            Text('Currently running in sandbox mode with test credentials.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              const Color(0xFF00D13A),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Loading M-Pesa services...',
+            style: TextStyle(
+              color: Color(0xFF00A884),
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildBodyContent() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              _buildPromoBanner(),
+              const SizedBox(height: 20),
+              _buildQuickActions(),
+              const SizedBox(height: 20),
+              _buildPaymentForm(),
+              const SizedBox(height: 20),
+              if (_isProcessingPayment) _buildPaymentStatus(),
+              const SizedBox(height: 30),
+              _buildEmptyTransactionState(),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildPromoBanner() {
+    return SizedBox(
+      height: 180,
+      child: PageView.builder(
+        itemCount: _bannerImages.length,
+        controller: PageController(initialPage: _currentBannerIndex),
+        onPageChanged: (index) {
+          setState(() {
+            _currentBannerIndex = index;
+          });
+        },
+        itemBuilder: (context, index) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
                 ),
+              ],
+              image: DecorationImage(
+                image: AssetImage(_bannerImages[index]),
+                fit: BoxFit.cover,
               ),
             ),
-            SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                // Gradient overlay
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.7),
+                      ],
+                    ),
                   ),
                 ),
-                Text(
-                  phone,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
+                
+                // Banner content
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        _getBannerTitle(index),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _getBannerDescription(index),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildFrequentContacts() {
-    final contacts = [
-      {'name': 'John', 'phone': '0712345678'},
-      {'name': 'Jane', 'phone': '0723456789'},
-      {'name': 'David', 'phone': '0734567890'},
-      {'name': 'Mary', 'phone': '0745678901'},
-    ];
-    
-    return Container(
-      height: 100,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: contacts.length,
-        itemBuilder: (context, index) {
-          final contact = contacts[index];
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _phoneController.text = contact['phone']!;
-              });
-            },
-            child: Container(
-              width: 75,
-              margin: EdgeInsets.only(right: 15),
-              child: Column(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Color(0xFF26D07C).withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        contact['name']!.substring(0, 1).toUpperCase(),
-                        style: TextStyle(
-                          color: Color(0xFF26D07C),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    contact['name']!,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    contact['phone']!,
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 11,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
             ),
           );
         },
@@ -1105,55 +549,136 @@ class _MpesaScreenState extends State<MpesaScreen> with SingleTickerProviderStat
     );
   }
   
-  Widget _buildServiceCard({
+  String _getBannerTitle(int index) {
+    switch (index) {
+      case 0:
+        return 'Send Money Instantly';
+      case 1:
+        return 'Budget-Aware Payments';
+      case 2:
+        return 'Track Your Spending';
+      case 3:
+        return 'Secure Transactions';
+      case 4:
+        return 'Save While You Spend';
+      default:
+        return 'DailyDime M-Pesa';
+    }
+  }
+  
+  String _getBannerDescription(int index) {
+    switch (index) {
+      case 0:
+        return 'Quick and easy M-Pesa transfers with DailyDime';
+      case 1:
+        return 'Smart alerts when payments affect your budget';
+      case 2:
+        return 'Real-time transaction monitoring and history';
+      case 3:
+        return 'Industry-standard security for all payments';
+      case 4:
+        return 'Automatic savings recommendations after each transaction';
+      default:
+        return 'The smart way to manage your finances';
+    }
+  }
+  
+  Widget _buildQuickActions() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 12),
+            child: Text(
+              'Quick Actions',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildQuickActionItem(
+                icon: Icons.send,
+                title: 'Send Money',
+                onTap: () {
+                  // Focus on the phone field
+                  _phoneFocusNode.requestFocus();
+                },
+              ),
+              _buildQuickActionItem(
+                icon: Icons.payment,
+                title: 'Pay Bill',
+                onTap: () => _showFeatureComingSoon('Pay Bill'),
+              ),
+              _buildQuickActionItem(
+                icon: Icons.phone_android,
+                title: 'Buy Airtime',
+                onTap: () => _showFeatureComingSoon('Buy Airtime'),
+              ),
+              _buildQuickActionItem(
+                icon: Icons.account_balance_wallet,
+                title: 'Request',
+                onTap: () => _showFeatureComingSoon('Request Money'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildQuickActionItem({
     required IconData icon,
     required String title,
-    required String description,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
-        padding: EdgeInsets.all(15),
+        width: 75,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40,
-              height: 40,
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
+                color: const Color(0xFF00D13A).withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color),
+              child: Icon(
+                icon,
+                color: const Color(0xFF00D13A),
+                size: 24,
+              ),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text(
               title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
-            ),
-            SizedBox(height: 3),
-            Text(
-              description,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 11,
-              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -1161,93 +686,378 @@ class _MpesaScreenState extends State<MpesaScreen> with SingleTickerProviderStat
     );
   }
   
-  Widget _buildTransactionItem({
-    required String type,
-    required double amount,
-    required String description,
-    required String date,
-    required String recipient,
-  }) {
-    final bool isOutgoing = type == MpesaHandlingService.SEND || type == MpesaHandlingService.PAY;
-    final DateTime transactionDate = DateTime.parse(date);
-    final String formattedDate = '${transactionDate.day}/${transactionDate.month}/${transactionDate.year} ${transactionDate.hour}:${transactionDate.minute.toString().padLeft(2, '0')}';
+  void _showFeatureComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature feature coming soon!'),
+        backgroundColor: const Color(0xFF00A884),
+      ),
+    );
+  }
+  
+  Widget _buildPaymentForm() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Send Money via M-Pesa',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _phoneController,
+                focusNode: _phoneFocusNode,
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  hintText: '254XXXXXXXXX',
+                  prefixIcon: const Icon(Icons.phone),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  errorText: _phoneError,
+                ),
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a phone number';
+                  }
+                  final formattedNumber = _mpesaService.formatPhoneNumber(value);
+                  if (formattedNumber == null) {
+                    return 'Invalid phone format. Use 254XXXXXXXXX';
+                  }
+                  return null;
+                },
+                onChanged: (value) {
+                  if (_phoneError != null) {
+                    setState(() {
+                      _phoneError = null;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _amountController,
+                focusNode: _amountFocusNode,
+                decoration: InputDecoration(
+                  labelText: 'Amount (KES)',
+                  prefixIcon: const Icon(Icons.attach_money),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  errorText: _amountError,
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter an amount';
+                  }
+                  final amount = double.tryParse(value);
+                  if (amount == null) {
+                    return 'Invalid amount';
+                  }
+                  if (!_mpesaService.validatePaymentAmount(amount)) {
+                    return 'Amount must be between KES 1 and KES 150,000';
+                  }
+                  return null;
+                },
+                onChanged: (value) {
+                  if (_amountError != null) {
+                    setState(() {
+                      _amountError = null;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Quick Amounts',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _quickAmounts
+                      .map((amount) => _buildQuickAmountButton(amount))
+                      .toList(),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isProcessingPayment ? null : _initiatePayment,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00D13A),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                  child: _isProcessingPayment
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text('Processing...'),
+                          ],
+                        )
+                      : const Text('Send Money'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildQuickAmountButton(int amount) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() {
+          _amountController.text = amount.toString();
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF00D13A).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFF00D13A).withOpacity(0.3),
+          ),
+        ),
+        child: Text(
+          'KES $amount',
+          style: const TextStyle(
+            color: Color(0xFF00A884),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildPaymentStatus() {
+    String statusText;
+    Color statusColor;
+    IconData statusIcon;
     
-    IconData icon;
-    if (type == MpesaHandlingService.SEND) {
-      icon = Icons.arrow_upward;
-    } else if (type == MpesaHandlingService.PAY) {
-      icon = Icons.shopping_cart;
-    } else {
-      icon = Icons.arrow_downward;
+    switch (_paymentStatus) {
+      case PaymentStatus.pending:
+        statusText = 'Payment Pending';
+        statusColor = Colors.orange;
+        statusIcon = Icons.hourglass_empty;
+        break;
+      case PaymentStatus.completed:
+        statusText = 'Payment Completed';
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        break;
+      case PaymentStatus.failed:
+        statusText = 'Payment Failed';
+        statusColor = Colors.red;
+        statusIcon = Icons.error;
+        break;
+      case PaymentStatus.cancelled:
+        statusText = 'Payment Cancelled';
+        statusColor = Colors.grey;
+        statusIcon = Icons.cancel;
+        break;
+      default:
+        statusText = 'Checking Payment Status';
+        statusColor = Colors.blue;
+        statusIcon = Icons.sync;
     }
     
-    return Container(
-      margin: EdgeInsets.only(bottom: 10),
-      padding: EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: Offset(0, 2),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: statusColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: statusColor.withOpacity(0.3),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: isOutgoing 
-                  ? Colors.red.withOpacity(0.1) 
-                  : Colors.green.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              color: isOutgoing ? Colors.red : Colors.green,
-              size: 20,
-            ),
-          ),
-          SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        child: Column(
+          children: [
+            Row(
               children: [
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                Icon(
+                  statusIcon,
+                  color: statusColor,
+                  size: 24,
                 ),
-                SizedBox(height: 3),
+                const SizedBox(width: 12),
                 Text(
-                  isOutgoing ? 'To: $recipient' : 'From: $recipient',
+                  statusText,
                   style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                  ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  formattedDate,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: statusColor,
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            LinearProgressIndicator(
+              value: _paymentStatus == PaymentStatus.pending ? null : 1.0,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+            ),
+            const SizedBox(height: 16),
+            if (_paymentStatus == PaymentStatus.pending)
+              const Text(
+                'Please check your phone and enter your M-Pesa PIN when prompted.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            if (_paymentStatus == PaymentStatus.completed)
+              Text(
+                'Payment of KES ${_amountController.text} completed successfully.',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            if (_paymentStatus == PaymentStatus.failed)
+              const Text(
+                'Payment could not be processed. Please try again.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            if (_paymentStatus == PaymentStatus.cancelled)
+              const Text(
+                'Payment was cancelled by the user or timed out.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildEmptyTransactionState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 12),
+            child: Text(
+              'Transaction History',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
           ),
-          Text(
-            '${isOutgoing ? '-' : '+'} KES ${amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isOutgoing ? Colors.red : Colors.green,
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.receipt_long,
+                    size: 60,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No Transactions Yet',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your M-Pesa transaction history will appear here',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // In a future implementation, this would integrate with the
+                      // SMS fetching functionality
+                      _showFeatureComingSoon('Transaction sync');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade100,
+                      foregroundColor: Colors.grey.shade800,
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.sync),
+                    label: const Text('Sync Transactions'),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
