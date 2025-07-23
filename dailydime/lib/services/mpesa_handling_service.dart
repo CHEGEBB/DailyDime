@@ -153,17 +153,12 @@ class MpesaException implements Exception {
 class MpesaHandlingService {
   final http.Client _httpClient;
   
-  // FIXED: Use deployment IDs from your Appwrite console
-  static const String _mpesaAuthDeploymentId = '6880b74080461d6dce57';
-  static const String _mpesaStkPushDeploymentId = '6880bc4b5c7a6cdbb9bc';
-  static const String _mpesaQueryDeploymentId = '6880bd9e3f7dd8e9012c';
-  
-  // FIXED: Use function IDs for URL construction
+  // Function IDs from your Appwrite console
   static const String _mpesaAuthFunctionId = 'mpesa-auth';
   static const String _mpesaStkPushFunctionId = '6880bbaf0000f09b4c55';
   static const String _mpesaQueryFunctionId = '6880bd20000e7035d1b8';
   
-  // Appwrite endpoints - FIXED: Use correct structure
+  // Appwrite endpoints
   late final String _baseUrl;
   late final Map<String, String> _defaultHeaders;
   
@@ -181,15 +176,75 @@ class MpesaHandlingService {
 
   MpesaHandlingService({http.Client? httpClient})
       : _httpClient = httpClient ?? http.Client() {
-    // FIXED: Use the correct Appwrite Cloud domain and structure
     _baseUrl = 'https://cloud.appwrite.io/v1/functions';
     _defaultHeaders = {
       'Content-Type': 'application/json',
-      'X-Appwrite-Project': AppConfig.appwriteProjectId, // FIXED: This was missing
+      'X-Appwrite-Project': AppConfig.appwriteProjectId,
       'X-Appwrite-Key': AppConfig.appwriteApiKey,
     };
     
     debugPrint('MpesaHandlingService initialized with project: ${AppConfig.appwriteProjectId}');
+  }
+
+  /// Helper method to execute Appwrite Cloud Function with proper format
+  Future<http.Response> _executeAppwriteFunction(String functionId, Map<String, dynamic> data) async {
+    final url = '$_baseUrl/$functionId/executions';
+    
+    // FIXED: Properly format the request body for Appwrite Cloud Functions
+    final requestBody = {
+      'body': jsonEncode(data), // The actual payload must be JSON string in 'body' field
+      'async': false, // Set to false for synchronous execution
+    };
+    
+    debugPrint('Executing function: $functionId');
+    debugPrint('Request URL: $url');
+    debugPrint('Request body: ${jsonEncode(requestBody)}');
+    
+    final response = await _httpClient.post(
+      Uri.parse(url),
+      headers: _defaultHeaders,
+      body: jsonEncode(requestBody),
+    );
+    
+    debugPrint('Function execution response status: ${response.statusCode}');
+    debugPrint('Function execution response: ${response.body}');
+    
+    return response;
+  }
+
+  /// Helper method to extract response from Appwrite function execution
+  Map<String, dynamic> _extractFunctionResponse(http.Response response) {
+    final executionData = jsonDecode(response.body);
+    
+    // Check if the execution was successful
+    if (executionData['status'] != 'completed') {
+      throw MpesaException(
+        'Function execution failed: ${executionData['status']}',
+        statusCode: response.statusCode,
+      );
+    }
+    
+    // Check the function's HTTP response status
+    final functionStatusCode = executionData['responseStatusCode'] ?? 200;
+    if (functionStatusCode >= 400) {
+      final errorBody = executionData['responseBody'] ?? 'Unknown error';
+      throw MpesaException(
+        'Function returned error: $errorBody',
+        statusCode: functionStatusCode,
+      );
+    }
+    
+    // Parse the actual response from the function
+    final responseBody = executionData['responseBody'];
+    if (responseBody == null || responseBody.isEmpty) {
+      throw MpesaException('Empty response from function');
+    }
+    
+    try {
+      return jsonDecode(responseBody);
+    } catch (e) {
+      throw MpesaException('Invalid JSON response from function: $responseBody');
+    }
   }
 
   /// Gets a valid access token for M-Pesa API, using cache if available
@@ -201,29 +256,15 @@ class MpesaHandlingService {
         return _cachedToken;
       }
 
-      // Request a new token using deployment ID
       await _respectRateLimit();
       
-      final authUrl = '$_baseUrl/$_mpesaAuthFunctionId/executions';
-      debugPrint('Requesting M-Pesa auth token from: $authUrl');
-      
-      final response = await _executeWithRetry(() => _httpClient.post(
-        Uri.parse(authUrl),
-        headers: _defaultHeaders,
-        body: jsonEncode({}), // Empty body for auth function
-      ));
+      final response = await _executeWithRetry(() => 
+        _executeAppwriteFunction(_mpesaAuthFunctionId, {})
+      );
 
-      final responseData = jsonDecode(response.body);
-      debugPrint('Auth response status: ${response.statusCode}');
-      debugPrint('Auth response: ${response.body}');
+      final responseData = _extractFunctionResponse(response);
+      debugPrint('Auth response data: $responseData');
       
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw MpesaException(
-          'Authentication failed: ${response.body}',
-          statusCode: response.statusCode,
-        );
-      }
-
       // Handle the response structure correctly
       String? accessToken;
       int expiresIn = 3599;
@@ -243,8 +284,7 @@ class MpesaHandlingService {
 
       if (accessToken == null) {
         throw MpesaException(
-          'No access token in response: ${response.body}',
-          statusCode: response.statusCode,
+          'No access token in response: $responseData',
         );
       }
 
@@ -285,27 +325,11 @@ class MpesaHandlingService {
 
       await _respectRateLimit();
       
-      final stkUrl = '$_baseUrl/$_mpesaStkPushFunctionId/executions';
-      debugPrint('Sending STK Push request to: $stkUrl');
-      debugPrint('Request body: ${jsonEncode(formattedRequest.toJson())}');
-      
-      final response = await _executeWithRetry(() => _httpClient.post(
-        Uri.parse(stkUrl),
-        headers: _defaultHeaders,
-        body: jsonEncode(formattedRequest.toJson()),
-      ));
+      final response = await _executeWithRetry(() => 
+        _executeAppwriteFunction(_mpesaStkPushFunctionId, formattedRequest.toJson())
+      );
 
-      debugPrint('STK Push response status: ${response.statusCode}');
-      debugPrint('STK Push response body: ${response.body}');
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw MpesaException(
-          'STK Push failed: ${response.body}',
-          statusCode: response.statusCode,
-        );
-      }
-
-      final responseData = jsonDecode(response.body);
+      final responseData = _extractFunctionResponse(response);
       return MpesaResponse.fromJson(responseData);
     } catch (error) {
       final mpesaError = handleError(error);
@@ -323,27 +347,11 @@ class MpesaHandlingService {
 
       await _respectRateLimit();
       
-      final queryUrl = '$_baseUrl/$_mpesaQueryFunctionId/executions';
-      debugPrint('Querying payment status for: $checkoutRequestID');
-      debugPrint('Query URL: $queryUrl');
-      
-      final response = await _executeWithRetry(() => _httpClient.post(
-        Uri.parse(queryUrl),
-        headers: _defaultHeaders,
-        body: jsonEncode({'checkoutRequestID': checkoutRequestID}),
-      ));
+      final response = await _executeWithRetry(() => 
+        _executeAppwriteFunction(_mpesaQueryFunctionId, {'checkoutRequestID': checkoutRequestID})
+      );
 
-      debugPrint('Query response status: ${response.statusCode}');
-      debugPrint('Query response body: ${response.body}');
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw MpesaException(
-          'Payment query failed: ${response.body}',
-          statusCode: response.statusCode,
-        );
-      }
-
-      final responseData = jsonDecode(response.body);
+      final responseData = _extractFunctionResponse(response);
       return PaymentStatusResponse.fromJson(responseData);
     } catch (error) {
       final mpesaError = handleError(error);

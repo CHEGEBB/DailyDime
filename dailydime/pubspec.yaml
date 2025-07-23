@@ -33,6 +33,7 @@ dependencies:
 
   # Shared Preferences
   shared_preferences: ^2.2.2
+  telephony: ^0.2.0
 
 dev_dependencies:
   flutter_test:
