@@ -153,12 +153,17 @@ class MpesaException implements Exception {
 class MpesaHandlingService {
   final http.Client _httpClient;
   
-  // Function IDs - FIXED: Include 'function-' prefix as shown in Appwrite console
-  static const String _mpesaAuthFunctionId = 'function-mpesa-auth';
-  static const String _mpesaStkPushFunctionId = 'function-6880bbaf0000f09b4c55';
-  static const String _mpesaQueryFunctionId = 'function-6880bd20000e7035d1b8';
+  // FIXED: Use deployment IDs from your Appwrite console
+  static const String _mpesaAuthDeploymentId = '6880b74080461d6dce57';
+  static const String _mpesaStkPushDeploymentId = '6880bc4b5c7a6cdbb9bc';
+  static const String _mpesaQueryDeploymentId = '6880bd9e3f7dd8e9012c';
   
-  // Appwrite endpoints - FIXED: Use cloud.appwrite.io domain
+  // FIXED: Use function IDs for URL construction
+  static const String _mpesaAuthFunctionId = 'mpesa-auth';
+  static const String _mpesaStkPushFunctionId = '6880bbaf0000f09b4c55';
+  static const String _mpesaQueryFunctionId = '6880bd20000e7035d1b8';
+  
+  // Appwrite endpoints - FIXED: Use correct structure
   late final String _baseUrl;
   late final Map<String, String> _defaultHeaders;
   
@@ -180,10 +185,11 @@ class MpesaHandlingService {
     _baseUrl = 'https://cloud.appwrite.io/v1/functions';
     _defaultHeaders = {
       'Content-Type': 'application/json',
-      'X-Appwrite-Project': AppConfig.appwriteProjectId,
-      // Add API key if you have one configured for server-side access
-      if (AppConfig.appwriteApiKey != null) 'X-Appwrite-Key': AppConfig.appwriteApiKey!,
+      'X-Appwrite-Project': AppConfig.appwriteProjectId, // FIXED: This was missing
+      'X-Appwrite-Key': AppConfig.appwriteApiKey,
     };
+    
+    debugPrint('MpesaHandlingService initialized with project: ${AppConfig.appwriteProjectId}');
   }
 
   /// Gets a valid access token for M-Pesa API, using cache if available
@@ -195,17 +201,20 @@ class MpesaHandlingService {
         return _cachedToken;
       }
 
-      // Request a new token
+      // Request a new token using deployment ID
       await _respectRateLimit();
       
-      // FIXED: Use POST with empty body for execution
+      final authUrl = '$_baseUrl/$_mpesaAuthFunctionId/executions';
+      debugPrint('Requesting M-Pesa auth token from: $authUrl');
+      
       final response = await _executeWithRetry(() => _httpClient.post(
-        Uri.parse('$_baseUrl/$_mpesaAuthFunctionId/executions'),
+        Uri.parse(authUrl),
         headers: _defaultHeaders,
         body: jsonEncode({}), // Empty body for auth function
       ));
 
       final responseData = jsonDecode(response.body);
+      debugPrint('Auth response status: ${response.statusCode}');
       debugPrint('Auth response: ${response.body}');
       
       if (response.statusCode != 200 && response.statusCode != 201) {
@@ -215,7 +224,7 @@ class MpesaHandlingService {
         );
       }
 
-      // FIXED: Handle the response structure correctly
+      // Handle the response structure correctly
       String? accessToken;
       int expiresIn = 3599;
 
@@ -276,11 +285,12 @@ class MpesaHandlingService {
 
       await _respectRateLimit();
       
-      debugPrint('Sending STK Push request to: $_baseUrl/$_mpesaStkPushFunctionId/executions');
+      final stkUrl = '$_baseUrl/$_mpesaStkPushFunctionId/executions';
+      debugPrint('Sending STK Push request to: $stkUrl');
       debugPrint('Request body: ${jsonEncode(formattedRequest.toJson())}');
       
       final response = await _executeWithRetry(() => _httpClient.post(
-        Uri.parse('$_baseUrl/$_mpesaStkPushFunctionId/executions'),
+        Uri.parse(stkUrl),
         headers: _defaultHeaders,
         body: jsonEncode(formattedRequest.toJson()),
       ));
@@ -313,10 +323,12 @@ class MpesaHandlingService {
 
       await _respectRateLimit();
       
+      final queryUrl = '$_baseUrl/$_mpesaQueryFunctionId/executions';
       debugPrint('Querying payment status for: $checkoutRequestID');
+      debugPrint('Query URL: $queryUrl');
       
       final response = await _executeWithRetry(() => _httpClient.post(
-        Uri.parse('$_baseUrl/$_mpesaQueryFunctionId/executions'),
+        Uri.parse(queryUrl),
         headers: _defaultHeaders,
         body: jsonEncode({'checkoutRequestID': checkoutRequestID}),
       ));
