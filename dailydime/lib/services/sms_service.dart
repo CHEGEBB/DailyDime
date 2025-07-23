@@ -2,7 +2,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:telephony/telephony.dart';
+import 'package:another_telephony/telephony.dart'; // Changed from telephony to another_telephony
 import 'package:permission_handler/permission_handler.dart';
 import 'package:dailydime/models/transaction.dart';
 import 'package:dailydime/services/storage_service.dart';
@@ -93,12 +93,24 @@ class SmsService {
     List<Transaction> transactions = [];
     
     try {
+      // Improved M-Pesa message filtering
       final messages = await _telephony.getInboxSms(
         columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
         filter: SmsFilter.where(SmsColumn.ADDRESS).equals('MPESA'),
+        sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)], // Sort by newest first
       );
       
-      for (var message in messages) {
+      // Also get messages from M-PESA (sometimes it comes from different sender)
+      final alternateMessages = await _telephony.getInboxSms(
+        columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
+        filter: SmsFilter.where(SmsColumn.ADDRESS).equals('M-PESA'),
+        sortOrder: [OrderBy(SmsColumn.DATE, sort: Sort.DESC)],
+      );
+      
+      // Combine both message lists
+      final allMessages = [...messages, ...alternateMessages];
+      
+      for (var message in allMessages) {
         final transaction = _parseMpesaMessage(message);
         if (transaction != null) {
           transactions.add(transaction);
@@ -106,11 +118,19 @@ class SmsService {
         }
       }
       
-      // Sort by date (newest first)
-      transactions.sort((a, b) => b.date.compareTo(a.date));
+      // Remove duplicates and sort by date (newest first)
+      final uniqueTransactions = <String, Transaction>{};
+      for (var transaction in transactions) {
+        uniqueTransactions[transaction.id] = transaction;
+      }
+      
+      final finalTransactions = uniqueTransactions.values.toList();
+      finalTransactions.sort((a, b) => b.date.compareTo(a.date));
       
       // Save all to local storage
-      await StorageService.instance.saveTransactions(transactions);
+      await StorageService.instance.saveTransactions(finalTransactions);
+      
+      return finalTransactions;
       
     } catch (e) {
       debugPrint('Error loading historical M-Pesa messages: $e');
@@ -124,9 +144,11 @@ class SmsService {
     final body = message.body?.toUpperCase() ?? '';
     
     return address.contains('MPESA') || 
+           address.contains('M-PESA') ||
            body.contains('MPESA') || 
            body.contains('M-PESA') ||
-           body.contains('CONFIRMED');
+           body.contains('CONFIRMED') ||
+           address == '21456'; // Official M-Pesa shortcode
   }
   
   static Transaction? _parseMpesaMessage(SmsMessage message) {
@@ -138,7 +160,8 @@ class SmsService {
         body.contains('Your M-PESA passcode') ||
         body.contains('promotion') ||
         body.contains('airtime') ||
-        body.contains('Dear Customer')) {
+        body.contains('Dear Customer') ||
+        body.contains('You have received') && body.contains('airtime')) {
       return null;
     }
     
@@ -190,7 +213,7 @@ class SmsService {
     final amount = double.tryParse(amountString) ?? 0.0;
     
     // Extract recipient/business name
-    final nameRegex = RegExp(r'sent to (.+?) on');
+    final nameRegex = RegExp(r'sent to (.+?)( on| \.)');
     final nameMatch = nameRegex.firstMatch(body);
     String recipient = nameMatch?.group(1) ?? 'Unknown';
     
@@ -308,14 +331,54 @@ class SmsService {
     // Extract date
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     
-    // Determine category based on business name
+    // Enhanced category detection for Kenyan businesses
     String category = 'Shopping';
-    if (business.toLowerCase().contains('market') || business.toLowerCase().contains('food')) {
+    IconData icon = Icons.business;
+    Color color = Colors.blue.shade700;
+    
+    final businessLower = business.toLowerCase();
+    
+    // Food & Dining
+    if (businessLower.contains('market') || businessLower.contains('food') || 
+        businessLower.contains('restaurant') || businessLower.contains('cafe') ||
+        businessLower.contains('supermarket') || businessLower.contains('naivas') ||
+        businessLower.contains('carrefour') || businessLower.contains('quickmart')) {
       category = 'Food';
-    } else if (business.toLowerCase().contains('school') || business.toLowerCase().contains('college')) {
-      category = 'Education';
-    } else if (business.toLowerCase().contains('kplc') || business.toLowerCase().contains('water')) {
+      icon = Icons.restaurant;
+      color = Colors.green.shade700;
+    }
+    // Transport
+    else if (businessLower.contains('matatu') || businessLower.contains('uber') ||
+             businessLower.contains('bolt') || businessLower.contains('taxi') ||
+             businessLower.contains('transport') || businessLower.contains('bus')) {
+      category = 'Transport';
+      icon = Icons.directions_bus;
+      color = Colors.blue.shade700;
+    }
+    // Utilities
+    else if (businessLower.contains('kplc') || businessLower.contains('water') ||
+             businessLower.contains('electricity') || businessLower.contains('power') ||
+             businessLower.contains('nairobi water') || businessLower.contains('gotv') ||
+             businessLower.contains('dstv') || businessLower.contains('zuku')) {
       category = 'Utilities';
+      icon = Icons.electrical_services;
+      color = Colors.orange.shade700;
+    }
+    // Education
+    else if (businessLower.contains('school') || businessLower.contains('college') ||
+             businessLower.contains('university') || businessLower.contains('academy') ||
+             businessLower.contains('education')) {
+      category = 'Education';
+      icon = Icons.school;
+      color = Colors.purple.shade700;
+    }
+    // Health
+    else if (businessLower.contains('hospital') || businessLower.contains('clinic') ||
+             businessLower.contains('pharmacy') || businessLower.contains('medical') ||
+             businessLower.contains('health') || businessLower.contains('doctor')) {
+      category = 'Health';
+      icon = Icons.local_hospital;
+      color = Colors.red.shade300;
     }
     
     // Create transaction
@@ -326,8 +389,8 @@ class SmsService {
       date: dateTime,
       category: category,
       isExpense: true,
-      icon: Icons.business,
-      color: Colors.blue.shade700,
+      icon: icon,
+      color: color,
       mpesaCode: code,
       isSms: true,
       rawSms: body,
