@@ -9,7 +9,6 @@ import 'package:dailydime/services/transaction_ai_service.dart';
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/models/transaction.dart';
 import 'package:animate_do/animate_do.dart';
-import 'package:skeletons/skeletons.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({Key? key}) : super(key: key);
@@ -1311,18 +1310,82 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   }
 
   Widget _buildAIInsightSkeleton() {
-    return SkeletonParagraph(
-      style: SkeletonParagraphStyle(
-        lines: 3,
-        spacing: 8,
-        lineStyle: SkeletonLineStyle(
-          randomLength: true,
-          height: 16,
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // First line (full width)
+      Container(
+        height: 16,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
           borderRadius: BorderRadius.circular(8),
         ),
       ),
-    );
-  }
+      const SizedBox(height: 8),
+      
+      // Second line (80% width)
+      Container(
+        height: 16,
+        width: MediaQuery.of(context).size.width * 0.8,
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      const SizedBox(height: 8),
+      
+      // Third line (60% width)
+      Container(
+        height: 16,
+        width: MediaQuery.of(context).size.width * 0.6,
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    ],
+  );
+}
+
+// Alternative with shimmer effect (if you want animation)
+Widget _buildAIInsightSkeletonAnimated() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _buildShimmerLine(width: double.infinity),
+      const SizedBox(height: 8),
+      _buildShimmerLine(width: MediaQuery.of(context).size.width * 0.8),
+      const SizedBox(height: 8),
+      _buildShimmerLine(width: MediaQuery.of(context).size.width * 0.6),
+    ],
+  );
+}
+
+Widget _buildShimmerLine({required double width}) {
+  return TweenAnimationBuilder<double>(
+    duration: const Duration(milliseconds: 1200),
+    tween: Tween(begin: 0.0, end: 1.0),
+    builder: (context, value, child) {
+      return Container(
+        height: 16,
+        width: width,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          gradient: LinearGradient(
+            begin: Alignment(-1.0 + 2.0 * value, 0.0),
+            end: Alignment(-1.0 + 2.0 * value + 0.5, 0.0),
+            colors: [
+              Colors.grey[300]!,
+              Colors.grey[100]!,
+              Colors.grey[300]!,
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
 
   void _showDeleteConfirmation(dynamic transaction) {
     showDialog(
