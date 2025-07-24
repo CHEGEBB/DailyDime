@@ -32,7 +32,7 @@ dependencies:
   # Shared Preferences
   shared_preferences: ^2.2.2
   another_telephony: ^0.2.0+1
-  workmanager: ^0.5.1
+  workmanager: ^ 0.8.0
   
   # Notifications - Compatible version
   flutter_local_notifications: ^17.2.4
