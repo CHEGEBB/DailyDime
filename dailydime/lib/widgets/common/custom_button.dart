@@ -30,7 +30,7 @@ class CustomButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: theme.colorScheme.primary),
-          minimumSize: Size(width, 52),
+          minimumSize: Size(width, 45),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
