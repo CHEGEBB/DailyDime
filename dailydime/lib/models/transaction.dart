@@ -55,6 +55,9 @@ class Transaction {
   @HiveField(15)
   final double? balance;
   
+  @HiveField(16)
+  final String? description;
+  
   Transaction({
     required this.id,
     required this.title,
@@ -72,6 +75,7 @@ class Transaction {
     this.agent,
     this.business,
     this.balance,
+    this.description,
   });
   
   // Create a copy with modified fields
@@ -92,6 +96,7 @@ class Transaction {
     String? agent,
     String? business,
     double? balance,
+    String? description,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -110,6 +115,7 @@ class Transaction {
       agent: agent ?? this.agent,
       business: business ?? this.business,
       balance: balance ?? this.balance,
+      description: description ?? this.description,
     );
   }
   
@@ -133,6 +139,7 @@ class Transaction {
       'agent': agent,
       'business': business,
       'balance': balance,
+      'description': description,
     };
   }
   
@@ -158,6 +165,58 @@ class Transaction {
       agent: json['agent'],
       business: json['business'],
       balance: json['balance'],
+      description: json['description'],
+    );
+  }
+  
+  @override
+  String toString() {
+    return 'Transaction(id: $id, title: $title, amount: $amount, date: $date, category: $category, isExpense: $isExpense, description: $description)';
+  }
+  
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Transaction &&
+        other.id == id &&
+        other.title == title &&
+        other.amount == amount &&
+        other.date == date &&
+        other.category == category &&
+        other.isExpense == isExpense &&
+        other.icon == icon &&
+        other.color == color &&
+        other.mpesaCode == mpesaCode &&
+        other.isSms == isSms &&
+        other.rawSms == rawSms &&
+        other.sender == sender &&
+        other.recipient == recipient &&
+        other.agent == agent &&
+        other.business == business &&
+        other.balance == balance &&
+        other.description == description;
+  }
+  
+  @override
+  int get hashCode {
+    return Object.hash(
+      id,
+      title,
+      amount,
+      date,
+      category,
+      isExpense,
+      icon,
+      color,
+      mpesaCode,
+      isSms,
+      rawSms,
+      sender,
+      recipient,
+      agent,
+      business,
+      balance,
+      description,
     );
   }
 }

@@ -1,6 +1,7 @@
 // lib/widgets/cards/transaction_card.dart
-
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:dailydime/config/app_config.dart';
 
 class TransactionCard extends StatelessWidget {
   final String title;
@@ -10,6 +11,9 @@ class TransactionCard extends StatelessWidget {
   final bool isExpense;
   final IconData icon;
   final Color color;
+  final bool isSms;
+  final VoidCallback onTap;
+  final String? status;
 
   const TransactionCard({
     Key? key,
@@ -19,33 +23,50 @@ class TransactionCard extends StatelessWidget {
     required this.date,
     required this.isExpense,
     required this.icon,
-    required this.color, required bool isSms, required void Function() onTap,
+    required this.color,
+    this.isSms = false,
+    required this.onTap,
+    this.status,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    // Format date
-    final formattedDate = '${date.day}/${date.month}/${date.year} · ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    final currencyFormat = NumberFormat.currency(
+      symbol: AppConfig.currencySymbol + ' ',
+      decimalDigits: 2,
+    );
+
+    // Status color
+    Color statusColor = Colors.transparent;
+    if (status != null) {
+      if (status!.toLowerCase() == 'successful') {
+        statusColor = Colors.green;
+      } else if (status!.toLowerCase() == 'warning') {
+        statusColor = Colors.orange;
+      } else if (status!.toLowerCase() == 'error') {
+        statusColor = Colors.red;
+      }
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
-            // Category icon
+            // Transaction icon
             Container(
-              padding: const EdgeInsets.all(10),
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
-                size: 24,
                 color: color,
+                size: 24,
               ),
             ),
             const SizedBox(width: 16),
@@ -58,50 +79,47 @@ class TransactionCard extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          category,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: color,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        formattedDate,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    '${DateFormat('hh:mm a').format(date)} · $category',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ],
               ),
             ),
-            // Amount
-            Text(
-              '${isExpense ? '-' : '+'} KES ${amount.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isExpense ? theme.colorScheme.error : theme.colorScheme.primary,
-              ),
+            // Amount and status
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  isExpense
+                      ? '-${currencyFormat.format(amount)}'
+                      : '+${currencyFormat.format(amount)}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isExpense ? Colors.red.shade700 : const Color(0xFF26D07C),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (status != null)
+                  Text(
+                    status!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: statusColor,
+                    ),
+                  ),
+              ],
             ),
           ],
         ),

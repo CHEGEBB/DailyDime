@@ -186,6 +186,54 @@ class TransactionProvider with ChangeNotifier {
     }
   }
   
+  // Update an existing transaction
+  Future<void> updateTransaction(Transaction updatedTransaction) async {
+    try {
+      // Find the existing transaction
+      final existingIndex = _transactions.indexWhere((t) => t.id == updatedTransaction.id);
+      if (existingIndex == -1) {
+        debugPrint('Transaction not found for update: ${updatedTransaction.id}');
+        return;
+      }
+      
+      final existingTransaction = _transactions[existingIndex];
+      
+      // Update in storage services
+      await _storageService.saveTransaction(updatedTransaction);
+      await _appwriteService.syncTransaction(updatedTransaction);
+      
+      // Calculate balance adjustment
+      // Reverse the effect of the old transaction
+      if (existingTransaction.isExpense) {
+        _currentBalance += existingTransaction.amount;
+      } else {
+        _currentBalance -= existingTransaction.amount;
+      }
+      
+      // Apply the effect of the new transaction
+      if (updatedTransaction.isExpense) {
+        _currentBalance -= updatedTransaction.amount;
+      } else {
+        _currentBalance += updatedTransaction.amount;
+      }
+      
+      // Update the transaction in the list
+      _transactions[existingIndex] = updatedTransaction;
+      _transactions.sort((a, b) => b.date.compareTo(a.date));
+      
+      // Apply filters
+      _applyFilters();
+      
+      // Update balance in storage
+      await _storageService.updateBalance(_currentBalance);
+      await _appwriteService.updateBalance(_currentBalance);
+      
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error updating transaction: $e');
+    }
+  }
+  
   // Delete a transaction
   Future<void> deleteTransaction(String id) async {
     try {
@@ -410,6 +458,54 @@ class TransactionProvider with ChangeNotifier {
   void applyFilters() {
     _applyFilters();
     notifyListeners();
+  }
+  
+  // Get a transaction by ID
+  Transaction? getTransactionById(String id) {
+    try {
+      return _transactions.firstWhere((t) => t.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  // Check if a transaction exists
+  bool transactionExists(String id) {
+    return _transactions.any((t) => t.id == id);
+  }
+  
+  // Get transactions count
+  int get transactionsCount => _transactions.length;
+  
+  // Get filtered transactions count
+  int get filteredTransactionsCount => _filteredTransactions.length;
+  
+  // Get total expenses amount
+  double get totalExpenses {
+    return _transactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+  
+  // Get total income amount
+  double get totalIncome {
+    return _transactions
+        .where((t) => !t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+  
+  // Get filtered total expenses amount
+  double get filteredTotalExpenses {
+    return _filteredTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+  
+  // Get filtered total income amount
+  double get filteredTotalIncome {
+    return _filteredTransactions
+        .where((t) => !t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
   }
   
   // Dispose

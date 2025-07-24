@@ -1,619 +1,476 @@
 // lib/services/transaction_ai_service.dart
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:dailydime/models/transaction.dart';
 import 'package:dailydime/config/app_config.dart';
 import 'package:intl/intl.dart';
+import 'dart:math';
 
 class TransactionAIService {
   static final TransactionAIService _instance = TransactionAIService._internal();
   factory TransactionAIService() => _instance;
   TransactionAIService._internal();
-  
-  final String _apiKey = AppConfig.geminiApiKey;
-  final String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/${AppConfig.geminiModel}:generateContent';
-  
-  // Generate spending insights based on recent transactions
+
+  final String _geminiApiKey = AppConfig.geminiApiKey;
+  final String _geminiModel = AppConfig.geminiModel;
+  final String _geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+  Future<Map<String, dynamic>> categorizeTransaction(String description, double amount) async {
+    try {
+      final prompt = '''
+      Analyze this transaction and categorize it based on the description. Return the result as valid JSON with the following structure:
+      {
+        "category": "the best category", 
+        "icon": "a suitable Material icon name",
+        "color": "a suitable color for the category",
+        "isExpense": true/false
+      }
+      
+      Transaction: $description, Amount: ${AppConfig.currencySymbol} $amount
+      
+      Possible categories: Food, Transport, Shopping, Bills, Entertainment, Education, Health, Housing, Income, Salary, Transfer, Withdrawal, Saving, Investment, Other
+      
+      Common Material icon names: restaurant, directions_bus, shopping_bag, receipt, movie, school, local_hospital, home, payments, work, account_balance_wallet, savings, trending_up, category
+      
+      Color options: red, green, blue, orange, purple, teal, pink, amber, indigo, cyan
+      ''';
+      
+      final response = await _callGeminiApi(prompt);
+      
+      if (response == null) {
+        return _getDefaultCategory(description, amount);
+      }
+      
+      // Extract JSON from response
+      final jsonPattern = RegExp(r'{[\s\S]*}');
+      final match = jsonPattern.firstMatch(response);
+      
+      if (match != null) {
+        final jsonStr = match.group(0)!;
+        try {
+          final Map<String, dynamic> result = json.decode(jsonStr);
+          
+          // Convert string icon name to IconData
+          final iconName = result['icon'] as String? ?? 'category';
+          result['icon'] = _getIconFromName(iconName);
+          
+          // Convert string color to Color
+          final colorName = result['color'] as String? ?? 'blue';
+          result['color'] = _getColorFromName(colorName);
+          
+          return {
+            'success': true,
+            'category': result,
+          };
+        } catch (e) {
+          debugPrint('Error parsing AI categorization: $e');
+        }
+      }
+      
+      return _getDefaultCategory(description, amount);
+    } catch (e) {
+      debugPrint('Error calling AI for categorization: $e');
+      return _getDefaultCategory(description, amount);
+    }
+  }
+
   Future<Map<String, dynamic>> generateSpendingInsights(
     List<Transaction> transactions, {
     String timeframe = 'week',
   }) async {
+    if (transactions.isEmpty) {
+      return {'success': false, 'insights': []};
+    }
+
     try {
-      if (transactions.isEmpty) {
-        return {
-          'success': false,
-          'message': 'No transactions available for analysis',
-          'insights': []
-        };
+      // Group transactions by category
+      final Map<String, double> categorySpending = {};
+      double totalIncome = 0;
+      double totalExpense = 0;
+      
+      for (var tx in transactions) {
+        if (tx.isExpense) {
+          categorySpending[tx.category] = (categorySpending[tx.category] ?? 0) + tx.amount;
+          totalExpense += tx.amount;
+        } else {
+          totalIncome += tx.amount;
+        }
       }
       
-      // Filter transactions by timeframe
-      final filteredTransactions = _filterTransactionsByTimeframe(transactions, timeframe);
+      // Sort categories by spending amount
+      final sortedCategories = categorySpending.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
       
-      if (filteredTransactions.isEmpty) {
-        return {
-          'success': false,
-          'message': 'No transactions in the selected timeframe',
-          'insights': []
-        };
+      // Format categories for prompt
+      final topCategories = sortedCategories.take(5).map((e) => 
+        '${e.key}: ${AppConfig.currencySymbol} ${e.value.toStringAsFixed(2)}'
+      ).join('\n');
+      
+      final startDate = transactions.map((tx) => tx.date).reduce(
+        (a, b) => a.isBefore(b) ? a : b
+      );
+      
+      final endDate = transactions.map((tx) => tx.date).reduce(
+        (a, b) => a.isAfter(b) ? a : b
+      );
+      
+      final dateRange = '${DateFormat('MMM d, yyyy').format(startDate)} to ${DateFormat('MMM d, yyyy').format(endDate)}';
+      
+      final prompt = '''
+      Analyze this transaction data and generate 3-5 concise, actionable financial insights. Each insight should be one clear sentence with specific advice.
+
+      Date Range: $dateRange
+      Total Income: ${AppConfig.currencySymbol} ${totalIncome.toStringAsFixed(2)}
+      Total Expenses: ${AppConfig.currencySymbol} ${totalExpense.toStringAsFixed(2)}
+      
+      Top Spending Categories:
+      $topCategories
+      
+      Format your response as a valid JSON array of insights strings, like:
+      ["Insight 1", "Insight 2", "Insight 3"]
+      
+      Focus on:
+      - Spending patterns
+      - Potential savings opportunities
+      - Budget recommendations
+      - Financial habits to improve
+      ''';
+
+      final response = await _callGeminiApi(prompt);
+      
+      if (response == null) {
+        return {'success': false, 'insights': []};
       }
       
-      // Prepare transaction data for AI
-      final transactionData = _prepareTransactionData(filteredTransactions);
+      // Extract JSON array from response
+      final jsonPattern = RegExp(r'\[[\s\S]*\]');
+      final match = jsonPattern.firstMatch(response);
       
-      // Build prompt for the AI
-      final prompt = _buildInsightPrompt(transactionData, timeframe);
-      
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      if (response['success']) {
-        // Parse insights from the response
-        final insights = _parseInsights(response['content']);
-        
-        return {
-          'success': true,
-          'message': 'Successfully generated insights',
-          'insights': insights,
-          'summary': insights.isNotEmpty ? insights[0] : null,
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Failed to generate insights: ${response['error']}',
-          'insights': []
-        };
+      if (match != null) {
+        final jsonStr = match.group(0)!;
+        try {
+          final List<dynamic> insightsList = json.decode(jsonStr);
+          final List<String> insights = insightsList.map((e) => e.toString()).toList();
+          
+          return {'success': true, 'insights': insights};
+        } catch (e) {
+          debugPrint('Error parsing AI insights: $e');
+        }
       }
+      
+      return {'success': false, 'insights': []};
     } catch (e) {
       debugPrint('Error generating spending insights: $e');
-      return {
-        'success': false,
-        'message': 'Error generating insights: $e',
-        'insights': []
-      };
+      return {'success': false, 'insights': []};
     }
   }
-  
-  // Generate an insight for a specific transaction
+
   Future<Map<String, dynamic>> generateTransactionInsight(
     Transaction transaction,
-    List<Transaction> recentTransactions,
+    List<Transaction> allTransactions,
   ) async {
     try {
-      // Build prompt for the AI
-      final prompt = _buildTransactionSpecificPrompt(transaction, recentTransactions);
+      // Find similar transactions
+      final similarTransactions = allTransactions.where((tx) => 
+        tx.id != transaction.id && 
+        tx.category == transaction.category &&
+        tx.isExpense == transaction.isExpense
+      ).toList();
       
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      if (response['success']) {
-        return {
-          'success': true,
-          'message': 'Successfully generated insight',
-          'insight': response['content'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Failed to generate insight: ${response['error']}',
-          'insight': null,
-        };
+      // Calculate average amount for this category
+      double averageAmount = 0;
+      if (similarTransactions.isNotEmpty) {
+        averageAmount = similarTransactions.fold<double>(
+          0, (sum, tx) => sum + tx.amount
+        ) / similarTransactions.length;
       }
+      
+      // Find frequency pattern
+      final frequency = _analyzeTransactionFrequency(
+        transaction,
+        similarTransactions,
+      );
+      
+      final prompt = '''
+      Generate a personalized financial insight for this specific transaction:
+      
+      Transaction: ${transaction.title}
+      Category: ${transaction.category}
+      Amount: ${AppConfig.currencySymbol} ${transaction.amount.toStringAsFixed(2)}
+      Date: ${DateFormat('MMMM d, yyyy').format(transaction.date)}
+      Type: ${transaction.isExpense ? 'Expense' : 'Income'}
+      
+      Additional context:
+      - Average amount for this category: ${AppConfig.currencySymbol} ${averageAmount.toStringAsFixed(2)}
+      - This transaction is ${transaction.amount > averageAmount ? 'above' : 'below'} average
+      - Frequency pattern: $frequency
+      
+      Provide ONE concise paragraph (3-4 sentences) of insight that is:
+      1. Specific to this transaction
+      2. Actionable (gives practical advice)
+      3. Contextual (compares to past behavior)
+      4. Forward-looking (suggests future improvements)
+      
+      Don't include any JSON formatting, just return the plain text insight.
+      ''';
+
+      final response = await _callGeminiApi(prompt);
+      
+      if (response == null || response.isEmpty) {
+        return {'success': false, 'insight': null};
+      }
+      
+      // Clean up the response
+      final cleanedResponse = response
+          .replaceAll('"', '')
+          .replaceAll('```', '')
+          .trim();
+      
+      return {'success': true, 'insight': cleanedResponse};
     } catch (e) {
       debugPrint('Error generating transaction insight: $e');
-      return {
-        'success': false,
-        'message': 'Error generating insight: $e',
-        'insight': null,
-      };
+      return {'success': false, 'insight': null};
     }
   }
-  
-  // Get spending recommendations based on transaction history
-  Future<Map<String, dynamic>> getSpendingRecommendations(
-    List<Transaction> transactions,
-    double monthlyIncome,
-  ) async {
-    try {
-      if (transactions.isEmpty) {
-        return {
-          'success': false,
-          'message': 'No transactions available for analysis',
-          'recommendations': []
-        };
-      }
+
+  String _analyzeTransactionFrequency(
+    Transaction currentTx,
+    List<Transaction> similarTransactions,
+  ) {
+    if (similarTransactions.isEmpty) {
+      return "First time transaction";
+    }
+
+    // Sort by date
+    similarTransactions.sort((a, b) => a.date.compareTo(b.date));
+    
+    // Check if it's a recurring transaction
+    final Map<String, int> dayOfMonthFrequency = {};
+    final Map<int, int> dayOfWeekFrequency = {};
+    
+    for (var tx in similarTransactions) {
+      final dayOfMonth = DateFormat('d').format(tx.date);
+      dayOfMonthFrequency[dayOfMonth] = (dayOfMonthFrequency[dayOfMonth] ?? 0) + 1;
       
-      // Prepare transaction data for AI
-      final transactionData = _prepareTransactionData(transactions);
-      
-      // Build prompt for the AI
-      final prompt = _buildRecommendationPrompt(transactionData, monthlyIncome);
-      
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      if (response['success']) {
-        // Parse recommendations from the response
-        final recommendations = _parseRecommendations(response['content']);
+      final dayOfWeek = tx.date.weekday;
+      dayOfWeekFrequency[dayOfWeek] = (dayOfWeekFrequency[dayOfWeek] ?? 0) + 1;
+    }
+    
+    // Check monthly pattern
+    final maxMonthDay = dayOfMonthFrequency.entries
+        .reduce((a, b) => a.value > b.value ? a : b);
         
-        return {
-          'success': true,
-          'message': 'Successfully generated recommendations',
-          'recommendations': recommendations,
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Failed to generate recommendations: ${response['error']}',
-          'recommendations': []
-        };
-      }
-    } catch (e) {
-      debugPrint('Error generating spending recommendations: $e');
-      return {
-        'success': false,
-        'message': 'Error generating recommendations: $e',
-        'recommendations': []
-      };
+    if (maxMonthDay.value >= 2 && similarTransactions.length >= 3) {
+      return "Recurring monthly transaction (usually on day ${maxMonthDay.key})";
     }
-  }
-  
-  // Detect transaction anomalies (unusual spending patterns)
-  Future<Map<String, dynamic>> detectAnomalies(List<Transaction> transactions) async {
-    try {
-      if (transactions.isEmpty) {
-        return {
-          'success': false,
-          'message': 'No transactions available for analysis',
-          'anomalies': []
-        };
-      }
-      
-      // Prepare transaction data for AI
-      final transactionData = _prepareTransactionData(transactions);
-      
-      // Build prompt for the AI
-      final prompt = _buildAnomalyPrompt(transactionData);
-      
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      if (response['success']) {
-        // Parse anomalies from the response
-        final anomalies = _parseAnomalies(response['content']);
+    
+    // Check weekly pattern
+    final maxWeekDay = dayOfWeekFrequency.entries
+        .reduce((a, b) => a.value > b.value ? a : b);
         
-        return {
-          'success': true,
-          'message': 'Successfully detected anomalies',
-          'anomalies': anomalies,
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Failed to detect anomalies: ${response['error']}',
-          'anomalies': []
-        };
-      }
-    } catch (e) {
-      debugPrint('Error detecting anomalies: $e');
-      return {
-        'success': false,
-        'message': 'Error detecting anomalies: $e',
-        'anomalies': []
-      };
+    if (maxWeekDay.value >= 2 && similarTransactions.length >= 3) {
+      final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      return "Recurring weekly transaction (usually on ${weekdays[maxWeekDay.key - 1]})";
+    }
+    
+    // Check frequency
+    final daysPerTransaction = (currentTx.date.difference(similarTransactions.first.date).inDays) / 
+                               (similarTransactions.length);
+    
+    if (daysPerTransaction <= 7) {
+      return "Very frequent transaction (multiple times per week)";
+    } else if (daysPerTransaction <= 14) {
+      return "Frequent transaction (weekly/biweekly)";
+    } else if (daysPerTransaction <= 35) {
+      return "Regular transaction (monthly)";
+    } else {
+      return "Occasional transaction";
     }
   }
-  
-  // Helper method to call Gemini API
-  Future<Map<String, dynamic>> _callGeminiAPI(String prompt) async {
+
+  Future<String?> _callGeminiApi(String prompt) async {
     try {
-      final url = Uri.parse('$_baseUrl?key=$_apiKey');
+      final url = '$_geminiUrl/$_geminiModel:generateContent?key=$_geminiApiKey';
       
       final payload = {
         'contents': [
           {
-            'role': 'user',
             'parts': [
-              {
-                'text': prompt
-              }
+              {'text': prompt}
             ]
           }
         ],
         'generationConfig': {
-          'temperature': 0.4,
-          'topK': 32,
+          'temperature': 0.2,
+          'topK': 40,
           'topP': 0.95,
           'maxOutputTokens': 1024,
         }
       };
       
       final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(payload),
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(payload),
       );
       
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final content = data['candidates'][0]['content']['parts'][0]['text'];
+        final responseData = json.decode(response.body);
+        final candidates = responseData['candidates'];
         
-        return {
-          'success': true,
-          'content': content,
-        };
-      } else {
-        debugPrint('Gemini API Error: ${response.statusCode} - ${response.body}');
-        return {
-          'success': false,
-          'error': 'API Error: ${response.statusCode}',
-        };
+        if (candidates != null && candidates.isNotEmpty) {
+          final content = candidates[0]['content'];
+          
+          if (content != null && content['parts'] != null && content['parts'].isNotEmpty) {
+            return content['parts'][0]['text'];
+          }
+        }
       }
+      
+      debugPrint('API error: ${response.statusCode} - ${response.body}');
+      return null;
     } catch (e) {
       debugPrint('Error calling Gemini API: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> analyzeSmsTransaction(String smsBody) async {
+    try {
+      final prompt = '''
+      Analyze this SMS message from a mobile money service and extract the transaction details.
+      Return the result as valid JSON with the following structure:
+      {
+        "transactionType": "one of: payment, transfer, deposit, withdrawal, balance, bill",
+        "amount": the transaction amount (as a number),
+        "isExpense": true/false,
+        "category": "best category name",
+        "recipient": "name of recipient (if present)",
+        "sender": "name of sender (if present)",
+        "business": "name of business (if present)",
+        "agent": "name of agent (if present)",
+        "balance": the balance amount (if present, as a number),
+        "transactionId": "the transaction code/ID"
+      }
+      
+      SMS Message:
+      $smsBody
+      
+      Possible categories: Food, Transport, Shopping, Bills, Entertainment, Education, Health, Housing, Income, Salary, Transfer, Withdrawal, Saving, Other
+      ''';
+      
+      final response = await _callGeminiApi(prompt);
+      
+      if (response == null) {
+        return {'success': false, 'transaction': null};
+      }
+      
+      // Extract JSON from response
+      final jsonPattern = RegExp(r'{[\s\S]*}');
+      final match = jsonPattern.firstMatch(response);
+      
+      if (match != null) {
+        final jsonStr = match.group(0)!;
+        try {
+          final Map<String, dynamic> result = json.decode(jsonStr);
+          return {'success': true, 'transaction': result};
+        } catch (e) {
+          debugPrint('Error parsing SMS analysis: $e');
+        }
+      }
+      
+      return {'success': false, 'transaction': null};
+    } catch (e) {
+      debugPrint('Error analyzing SMS transaction: $e');
+      return {'success': false, 'transaction': null};
+    }
+  }
+
+  Map<String, dynamic> _getDefaultCategory(String description, double amount) {
+    // Default categorization logic
+    final desc = description.toLowerCase();
+    
+    if (desc.contains('food') || desc.contains('restaurant') || desc.contains('cafe')) {
       return {
-        'success': false,
-        'error': 'API Call Error: $e',
+        'success': true,
+        'category': {
+          'category': 'Food',
+          'icon': Icons.restaurant,
+          'color': Colors.orange,
+          'isExpense': true
+        }
+      };
+    } else if (desc.contains('uber') || desc.contains('transport') || desc.contains('taxi')) {
+      return {
+        'success': true,
+        'category': {
+          'category': 'Transport',
+          'icon': Icons.directions_bus,
+          'color': Colors.blue,
+          'isExpense': true
+        }
+      };
+    } else if (desc.contains('salary') || desc.contains('income') || desc.contains('payment received')) {
+      return {
+        'success': true,
+        'category': {
+          'category': 'Income',
+          'icon': Icons.payments,
+          'color': Colors.green,
+          'isExpense': false
+        }
+      };
+    } else {
+      return {
+        'success': true,
+        'category': {
+          'category': amount > 0 ? 'Income' : 'Other',
+          'icon': amount > 0 ? Icons.payments : Icons.category,
+          'color': amount > 0 ? Colors.green : Colors.purple,
+          'isExpense': amount < 0
+        }
       };
     }
   }
-  
-  // Helper method to filter transactions by timeframe
-  List<Transaction> _filterTransactionsByTimeframe(
-    List<Transaction> transactions,
-    String timeframe,
-  ) {
-    final now = DateTime.now();
-    DateTime startDate;
-    
-    switch (timeframe.toLowerCase()) {
-      case 'day':
-        startDate = DateTime(now.year, now.month, now.day);
-        break;
-      case 'week':
-        // Start of the current week (Sunday)
-        startDate = now.subtract(Duration(days: now.weekday % 7));
-        startDate = DateTime(startDate.year, startDate.month, startDate.day);
-        break;
-      case 'month':
-        startDate = DateTime(now.year, now.month, 1);
-        break;
-      case '3months':
-        startDate = DateTime(now.year, now.month - 2, 1);
-        break;
-      case '6months':
-        startDate = DateTime(now.year, now.month - 5, 1);
-        break;
-      case 'year':
-        startDate = DateTime(now.year, 1, 1);
-        break;
-      default:
-        startDate = DateTime(now.year, now.month, 1); // Default to current month
-    }
-    
-    return transactions.where((tx) => tx.date.isAfter(startDate)).toList();
-  }
-  
-  // Helper method to prepare transaction data for AI
-  Map<String, dynamic> _prepareTransactionData(List<Transaction> transactions) {
-    // Calculate total income and expenses
-    double totalIncome = 0;
-    double totalExpense = 0;
-    
-    // Group by category
-    Map<String, double> categorySums = {};
-    
-    // Group by day of week
-    Map<String, double> dayOfWeekSums = {};
-    
-    // Time series data
-    Map<String, Map<String, double>> dailyData = {};
-    
-    // Process each transaction
-    for (var tx in transactions) {
-      // Income vs Expense
-      if (tx.isExpense) {
-        totalExpense += tx.amount;
-      } else {
-        totalIncome += tx.amount;
-      }
-      
-      // Category grouping
-      final category = tx.category;
-      if (categorySums.containsKey(category)) {
-        categorySums[category] = categorySums[category]! + tx.amount;
-      } else {
-        categorySums[category] = tx.amount;
-      }
-      
-      // Day of week grouping
-      final dayOfWeek = DateFormat('EEEE').format(tx.date);
-      if (dayOfWeekSums.containsKey(dayOfWeek)) {
-        dayOfWeekSums[dayOfWeek] = dayOfWeekSums[dayOfWeek]! + (tx.isExpense ? tx.amount : 0);
-      } else {
-        dayOfWeekSums[dayOfWeek] = tx.isExpense ? tx.amount : 0;
-      }
-      
-      // Daily data for time series
-      final dateStr = DateFormat('yyyy-MM-dd').format(tx.date);
-      if (!dailyData.containsKey(dateStr)) {
-        dailyData[dateStr] = {'income': 0, 'expense': 0};
-      }
-      
-      if (tx.isExpense) {
-        dailyData[dateStr]!['expense'] = dailyData[dateStr]!['expense']! + tx.amount;
-      } else {
-        dailyData[dateStr]!['income'] = dailyData[dateStr]!['income']! + tx.amount;
-      }
-    }
-    
-    // Sort transactions by date (newest first)
-    transactions.sort((a, b) => b.date.compareTo(a.date));
-    
-    // Get top 20 transactions for analysis
-    final recentTransactions = transactions.take(20).map((tx) => {
-      'title': tx.title,
-      'amount': tx.amount,
-      'category': tx.category,
-      'date': DateFormat('yyyy-MM-dd').format(tx.date),
-      'isExpense': tx.isExpense,
-    }).toList();
-    
-    // Get top expense categories
-    final sortedCategories = categorySums.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    final topCategories = sortedCategories.take(5).map((e) => {
-      'category': e.key,
-      'amount': e.value,
-      'percentage': e.value / (totalExpense > 0 ? totalExpense : 1) * 100,
-    }).toList();
-    
-    return {
-      'totalIncome': totalIncome,
-      'totalExpense': totalExpense,
-      'netSavings': totalIncome - totalExpense,
-      'savingsRate': totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome * 100) : 0,
-      'categories': categorySums,
-      'topCategories': topCategories,
-      'dayOfWeekSums': dayOfWeekSums,
-      'dailyData': dailyData,
-      'recentTransactions': recentTransactions,
-      'transactionCount': transactions.length,
-      'dateRange': {
-        'start': DateFormat('yyyy-MM-dd').format(transactions.last.date),
-        'end': DateFormat('yyyy-MM-dd').format(transactions.first.date),
-      },
-      'currency': AppConfig.primaryCurrency,
+
+  IconData _getIconFromName(String name) {
+    final iconMap = {
+      'restaurant': Icons.restaurant,
+      'directions_bus': Icons.directions_bus,
+      'shopping_bag': Icons.shopping_bag,
+      'receipt': Icons.receipt,
+      'movie': Icons.movie,
+      'school': Icons.school,
+      'local_hospital': Icons.local_hospital,
+      'home': Icons.home,
+      'payments': Icons.payments,
+      'work': Icons.work,
+      'account_balance_wallet': Icons.account_balance_wallet,
+      'savings': Icons.savings,
+      'trending_up': Icons.trending_up,
+      'category': Icons.category,
+      // Add more mappings as needed
     };
+
+    return iconMap[name] ?? Icons.category;
   }
-  
-  // Helper method to build prompt for spending insights
-  String _buildInsightPrompt(Map<String, dynamic> data, String timeframe) {
-    final currency = data['currency'];
-    final totalIncome = data['totalIncome'];
-    final totalExpense = data['totalExpense'];
-    final savingsRate = data['savingsRate'];
-    final topCategories = data['topCategories'];
-    
-    final topCategoriesStr = topCategories.map((cat) => 
-      "${cat['category']}: ${currency} ${cat['amount'].toStringAsFixed(2)} (${cat['percentage'].toStringAsFixed(1)}%)"
-    ).join('\n');
-    
-    return '''
-You are a financial advisor analyzing spending patterns to provide helpful insights.
 
-TRANSACTION DATA SUMMARY:
-- Timeframe: $timeframe
-- Total Income: $currency ${totalIncome.toStringAsFixed(2)}
-- Total Expenses: $currency ${totalExpense.toStringAsFixed(2)}
-- Savings Rate: ${savingsRate.toStringAsFixed(1)}%
-- Number of Transactions: ${data['transactionCount']}
+  Color _getColorFromName(String name) {
+    final colorMap = {
+      'red': Colors.red.shade700,
+      'green': Colors.green.shade700,
+      'blue': Colors.blue.shade700,
+      'orange': Colors.orange.shade700,
+      'purple': Colors.purple.shade700,
+      'teal': Colors.teal.shade700,
+      'pink': Colors.pink.shade700,
+      'amber': Colors.amber.shade700,
+      'indigo': Colors.indigo.shade700,
+      'cyan': Colors.cyan.shade700,
+      // Add more mappings as needed
+    };
 
-TOP EXPENSE CATEGORIES:
-$topCategoriesStr
-
-Based on this information, please provide:
-1. A concise summary of overall spending health (1-2 sentences)
-2. Three specific insights about spending patterns
-3. One actionable tip to improve financial health
-
-Format your response as a JSON array of strings with exactly 5 items:
-1. Overall summary
-2-4. Three specific insights
-5. One actionable tip
-
-Keep each point short and specific (under 100 characters if possible).
-''';
-  }
-  
-  // Helper method to build prompt for transaction-specific insight
-  String _buildTransactionSpecificPrompt(
-    Transaction transaction,
-    List<Transaction> recentTransactions,
-  ) {
-    // Find similar transactions in the same category
-    final similarTransactions = recentTransactions
-        .where((tx) => tx.category == transaction.category && tx.id != transaction.id)
-        .take(5)
-        .toList();
-    
-    // Calculate average amount for this category
-    double categoryAverage = 0;
-    if (similarTransactions.isNotEmpty) {
-      categoryAverage = similarTransactions.fold(0.0, (sum, tx) => sum + tx.amount) / 
-          similarTransactions.length;
-    }
-    
-    // Calculate percentage difference
-    double percentageDifference = 0;
-    if (categoryAverage > 0) {
-      percentageDifference = (transaction.amount - categoryAverage) / categoryAverage * 100;
-    }
-    
-    final currency = AppConfig.primaryCurrency;
-    final formattedDate = DateFormat('EEEE, MMMM d').format(transaction.date);
-    
-    return '''
-You are a financial advisor providing a personalized insight for a specific transaction.
-
-TRANSACTION DETAILS:
-- Description: ${transaction.title}
-- Amount: $currency ${transaction.amount.toStringAsFixed(2)}
-- Category: ${transaction.category}
-- Date: $formattedDate
-- Type: ${transaction.isExpense ? 'Expense' : 'Income'}
-
-CATEGORY CONTEXT:
-- Average amount in this category: $currency ${categoryAverage.toStringAsFixed(2)}
-- This transaction is ${percentageDifference.abs().toStringAsFixed(1)}% ${percentageDifference >= 0 ? 'higher' : 'lower'} than average
-
-Based on this information, provide ONE specific, personalized insight or tip about this transaction. 
-Make it actionable, specific to the transaction type and category, and under 100 characters if possible.
-''';
-  }
-  
-  // Helper method to build prompt for spending recommendations
-  String _buildRecommendationPrompt(Map<String, dynamic> data, double monthlyIncome) {
-    final currency = data['currency'];
-    final totalExpense = data['totalExpense'];
-    final categories = data['categories'];
-    
-    // Format categories
-    final categoriesStr = categories.entries.map((entry) => 
-      "${entry.key}: $currency ${entry.value.toStringAsFixed(2)}"
-    ).join('\n');
-    
-    return '''
-You are a financial advisor providing spending recommendations based on transaction history.
-
-FINANCIAL DATA:
-- Monthly Income: $currency ${monthlyIncome.toStringAsFixed(2)}
-- Total Expenses: $currency ${totalExpense.toStringAsFixed(2)}
-- Expense to Income Ratio: ${monthlyIncome > 0 ? (totalExpense / monthlyIncome * 100).toStringAsFixed(1) : 'N/A'}%
-
-SPENDING BY CATEGORY:
-$categoriesStr
-
-Based on this information, please provide:
-1. Overall assessment of budget health
-2. Three specific recommendations to optimize spending
-3. Suggested budget allocation (% of income) for top 3-5 categories
-
-Format your response as a JSON array with exactly 5 items:
-1. Overall assessment (1-2 sentences)
-2-4. Three specific recommendations (1 sentence each)
-5. Suggested budget allocation in format "Category: X%, Category: Y%, etc."
-
-Keep each point concise and specific.
-''';
-  }
-  
-  // Helper method to build prompt for anomaly detection
-  String _buildAnomalyPrompt(Map<String, dynamic> data) {
-    final recentTransactions = data['recentTransactions'];
-    final currency = data['currency'];
-    
-    // Convert transactions to string format
-    final transactionsStr = recentTransactions.map((tx) =>
-      "${tx['date']} | ${tx['title']} | $currency ${tx['amount'].toStringAsFixed(2)} | ${tx['category']} | ${tx['isExpense'] ? 'Expense' : 'Income'}"
-    ).join('\n');
-    
-    return '''
-You are a financial analyst looking for unusual patterns or anomalies in transaction history.
-
-RECENT TRANSACTIONS:
-$transactionsStr
-
-Please identify any anomalies in these transactions, such as:
-1. Unusually large transactions
-2. Duplicate or potentially fraudulent transactions
-3. Unexpected spending patterns
-4. Transactions in unusual categories
-
-Format your response as a JSON array of anomalies, where each anomaly has:
-- "transaction": Brief description of the anomaly
-- "reason": Why this is unusual
-- "recommendation": Suggested action
-
-If no anomalies are found, return an empty array.
-Limit to at most 3 anomalies.
-''';
-  }
-  
-  // Helper methods to parse API responses
-  
-  List<String> _parseInsights(String content) {
-    try {
-      // Try to parse as JSON first
-      final List<dynamic> insights = jsonDecode(content);
-      return insights.cast<String>();
-    } catch (e) {
-      // If JSON parsing fails, try to extract numbered points
-      final RegExp pointsRegex = RegExp(r'\d+\.\s+(.*?)(?=\d+\.\s+|$)', dotAll: true);
-      final matches = pointsRegex.allMatches(content);
-      
-      if (matches.isNotEmpty) {
-        return matches.map((m) => m.group(1)?.trim() ?? '').toList();
-      } else {
-        // Last resort: split by newlines and filter
-        return content
-            .split('\n')
-            .map((line) => line.trim())
-            .where((line) => line.isNotEmpty)
-            .take(5)
-            .toList();
-      }
-    }
-  }
-  
-  List<Map<String, String>> _parseRecommendations(String content) {
-    try {
-      // Try to parse as JSON first
-      final List<dynamic> recs = jsonDecode(content);
-      return recs.map((item) => item is String ? {'text': item} : Map<String, String>.from(item)).toList();
-    } catch (e) {
-      // If JSON parsing fails, extract text
-      final lines = content
-          .split('\n')
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty && !line.startsWith('```'))
-          .toList();
-      
-      return lines.map((line) => {'text': line}).toList();
-    }
-  }
-  
-  List<Map<String, String>> _parseAnomalies(String content) {
-    try {
-      // Try to parse as JSON array
-      final List<dynamic> anomalies = jsonDecode(content);
-      return anomalies.map((item) => Map<String, String>.from(item)).toList();
-    } catch (e) {
-      // Fallback parsing
-      final matches = RegExp(r'- Transaction:\s*(.*?)\s*- Reason:\s*(.*?)\s*- Recommendation:\s*(.*?)(?=- Transaction:|\Z)', 
-          dotAll: true).allMatches(content);
-      
-      if (matches.isNotEmpty) {
-        return matches.map((m) => {
-          'transaction': m.group(1)?.trim() ?? '',
-          'reason': m.group(2)?.trim() ?? '',
-          'recommendation': m.group(3)?.trim() ?? '',
-        }).toList();
-      } else {
-        // Last resort: just return the content as a single anomaly
-        return [
-          {
-            'transaction': 'Potential anomaly detected',
-            'reason': 'Unusual pattern in recent transactions',
-            'recommendation': content.trim(),
-          }
-        ];
-      }
-    }
+    return colorMap[name] ?? Colors.blue.shade700;
   }
 }
