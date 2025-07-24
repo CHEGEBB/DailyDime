@@ -10,7 +10,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dailydime/services/transaction_ai_service.dart';
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/models/transaction.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 import 'package:dailydime/widgets/cards/insight_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:animate_do/animate_do.dart';
@@ -30,21 +29,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   bool _isCompactHeader = false;
   bool _isLoadingInsights = false;
   List<String> _insights = [];
-  
+
   // Color scheme
   final accentColor = const Color(0xFF26D07C); // Emerald green accent
-  
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _scrollController.addListener(_onScroll);
-    
+
     // Initialize provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<TransactionProvider>(context, listen: false);
       provider.initialize();
-      
+
       // Load AI insights once data is available
       if (!provider.isLoading) {
         _loadInsights(provider.filteredTransactions);
@@ -63,21 +62,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       });
     }
   }
-  
+
   Future<void> _loadInsights(List<dynamic> transactions) async {
     if (transactions.isEmpty) return;
-    
+
     setState(() {
       _isLoadingInsights = true;
     });
-    
+
     try {
       final typedTransactions = transactions.map((tx) => tx as Transaction).toList();
       final result = await TransactionAIService().generateSpendingInsights(
         typedTransactions,
         timeframe: 'week',
       );
-      
+
       if (result['success'] && result['insights'].isNotEmpty) {
         setState(() {
           _insights = List<String>.from(result['insights']);
@@ -104,25 +103,25 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final size = MediaQuery.of(context).size;
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA), // Light background for modern feel
       body: Consumer<TransactionProvider>(
         builder: (context, transactionProvider, child) {
           final isLoading = transactionProvider.isLoading;
-          
+
           if (isLoading) {
             return _buildLoadingState();
           }
-          
+
           final transactions = transactionProvider.filteredTransactions;
           final balance = transactionProvider.currentBalance;
-          
+
           // Refresh insights if needed
           if (_insights.isEmpty && !_isLoadingInsights) {
             _loadInsights(transactions);
           }
-          
+
           return NestedScrollView(
             controller: _scrollController,
             headerSliverBuilder: (context, innerBoxIsScrolled) {
@@ -133,7 +132,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                   pinned: true,
                   backgroundColor: _isCompactHeader ? accentColor : Colors.white,
                   elevation: 0,
-                  title: _isCompactHeader 
+                  title: _isCompactHeader
                       ? Text(
                           'Transactions',
                           style: const TextStyle(
@@ -146,7 +145,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                   actions: [
                     IconButton(
                       icon: Icon(
-                        Icons.search, 
+                        Icons.search,
                         color: _isCompactHeader ? Colors.white : Colors.black87,
                       ),
                       onPressed: () {
@@ -155,7 +154,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                     ),
                     IconButton(
                       icon: Icon(
-                        Icons.filter_list, 
+                        Icons.filter_list,
                         color: _isCompactHeader ? Colors.white : Colors.black87,
                       ),
                       onPressed: () {
@@ -223,51 +222,56 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   }
 
   Widget _buildLoadingState() {
-    return Skeletonizer(
-      enabled: true,
-      child: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              expandedHeight: 310.0,
-              floating: false,
-              pinned: true,
-              backgroundColor: Colors.white,
-              flexibleSpace: FlexibleSpaceBar(
-                background: _buildHeader(accentColor, 0, MediaQuery.of(context).size, []),
-              ),
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(48),
-                child: Container(
-                  color: Colors.white,
-                  child: TabBar(
-                    controller: _tabController,
-                    tabs: const [
-                      Tab(text: 'All'),
-                      Tab(text: 'Income'),
-                      Tab(text: 'Expenses'),
-                    ],
-                  ),
+    return NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) {
+        return [
+          SliverAppBar(
+            expandedHeight: 310.0,
+            floating: false,
+            pinned: true,
+            backgroundColor: Colors.white,
+            flexibleSpace: FlexibleSpaceBar(
+              background: _buildHeader(accentColor, 0, MediaQuery.of(context).size, []),
+            ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(48),
+              child: Container(
+                color: Colors.white,
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: accentColor,
+                  unselectedLabelColor: Colors.black54,
+                  indicatorColor: accentColor,
+                  tabs: const [
+                    Tab(text: 'All'),
+                    Tab(text: 'Income'),
+                    Tab(text: 'Expenses'),
+                  ],
                 ),
               ),
             ),
-          ];
-        },
-        body: ListView.builder(
-          itemCount: 10,
-          itemBuilder: (context, index) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Container(
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+          ),
+        ];
+      },
+      body: ListView.builder(
+        itemCount: 10,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: accentColor,
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -321,14 +325,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       ),
     );
   }
-  
+
   Widget _buildWeeklySpendingSummary(double balance, List<dynamic> transactions, Size size) {
     // Calculate weekly budget and remaining amount
     final weeklyBudget = 40000.0; // This would come from your budget settings
     final weeklySpent = _calculateWeeklySpending(transactions);
     final remaining = weeklyBudget - weeklySpent;
     final percentUsed = (weeklySpent / weeklyBudget * 100).clamp(0, 100).toInt();
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -433,59 +437,64 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       ],
     );
   }
-  
+
   Widget _buildAIInsightCard() {
     if (_isLoadingInsights) {
-      return Skeletonizer(
-        enabled: true,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.lightbulb_outline,
-                  color: Colors.amber,
-                  size: 24,
-                ),
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AI Insight',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Loading your personalized financial insights...',
-                      style: TextStyle(
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
+              child: const Icon(
+                Icons.lightbulb_outline,
+                color: Colors.amber,
+                size: 24,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'AI Insight',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Loading your personalized financial insights...',
+                    style: TextStyle(
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+              ),
+            ),
+          ],
         ),
       );
     }
-    
+
     if (_insights.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -545,11 +554,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         ),
       );
     }
-    
+
     // Display the first insight (main insight)
-    final insight = _insights.isNotEmpty ? _insights[0] : 
+    final insight = _insights.isNotEmpty ? _insights[0] :
       'You spent KES 5,300 on food last week, which is 32% higher than your usual average. Consider meal prepping to reduce expenses.';
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -633,7 +642,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     return RefreshIndicator(
       onRefresh: () async {
         await Provider.of<TransactionProvider>(context, listen: false).refreshTransactions();
-        
+
         // Refresh insights
         final refreshedTransactions = Provider.of<TransactionProvider>(context, listen: false).filteredTransactions;
         _loadInsights(refreshedTransactions);
@@ -645,7 +654,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         itemBuilder: (context, index) {
           final date = sortedDates[index];
           final dateTransactions = groupedTransactions[date]!;
-          
+
           return FadeInUp(
             delay: Duration(milliseconds: index * 50),
             duration: const Duration(milliseconds: 300),
@@ -681,19 +690,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       ),
     );
   }
-  
+
   bool _shouldShowInsightForTransaction(dynamic transaction) {
     // Only show insights for certain transactions to avoid overloading the UI
     if (transaction.amount > 1000) {
       // Show for larger transactions
       return true;
     }
-    
+
     if (transaction.category == 'Food' || transaction.category == 'Transport') {
       // Show for common categories
       return math.Random().nextBool(); // Only show for 50% of these transactions
     }
-    
+
     return false;
   }
 
@@ -701,7 +710,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     final date = DateTime.parse(dateString);
     final now = DateTime.now();
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    
+
     String formattedDate;
     if (date.year == now.year && date.month == now.month && date.day == now.day) {
       formattedDate = 'Today';
@@ -710,7 +719,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     } else {
       formattedDate = DateFormat('MMMM d, yyyy').format(date);
     }
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -743,11 +752,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       ),
     );
   }
-  
+
   String _calculateDayTotal(String dateString) {
     final provider = Provider.of<TransactionProvider>(context, listen: false);
     final transactions = provider.filteredTransactions;
-    
+
     double total = 0;
     for (var tx in transactions) {
       if (DateFormat('yyyy-MM-dd').format(tx.date) == dateString) {
@@ -758,7 +767,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         }
       }
     }
-    
+
     final sign = total >= 0 ? '+' : '';
     return '$sign${currencyFormat.format(total)}';
   }
@@ -944,7 +953,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               _buildDetailItem('Balance After', currencyFormat.format(transaction.balance!)),
             if (transaction.isSms)
               _buildDetailItem('Source', 'SMS Message'),
-            
+
             const SizedBox(height: 24),
             FutureBuilder<Map<String, dynamic>>(
               future: TransactionAIService().generateTransactionInsight(
@@ -971,7 +980,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                     ),
                   );
                 }
-                
+
                 if (snapshot.hasData && snapshot.data!['success']) {
                   final insight = snapshot.data!['insight'];
                   return Container(
@@ -1014,11 +1023,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                     ),
                   );
                 }
-                
+
                 return const SizedBox.shrink();
               },
             ),
-            
+
             const SizedBox(height: 24),
             Row(
               children: [
@@ -1115,7 +1124,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
 
   void _showFilterBottomSheet(BuildContext context) {
     final provider = Provider.of<TransactionProvider>(context, listen: false);
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1235,12 +1244,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 ].map((category) {
                   return FilterChip(
                     label: Text(category),
-                    selected: provider.selectedCategories.contains(category) || 
-                             (category == 'All Categories' && provider.selectedCategories.isEmpty),
+                    selected: provider.selectedCategories.contains(category) ||
+                      (category == 'All Categories' && provider.selectedCategories.isEmpty),
                     selectedColor: accentColor.withOpacity(0.2),
                     labelStyle: TextStyle(
-                      color: provider.selectedCategories.contains(category) || 
-                             (category == 'All Categories' && provider.selectedCategories.isEmpty)
+                      color: provider.selectedCategories.contains(category) ||
+                        (category == 'All Categories' && provider.selectedCategories.isEmpty)
                           ? accentColor
                           : Colors.black87,
                     ),
@@ -1298,11 +1307,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       ),
     );
   }
-  
+
   void _showSearchSheet(BuildContext context) {
     final provider = Provider.of<TransactionProvider>(context, listen: false);
     final TextEditingController searchController = TextEditingController();
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1368,7 +1377,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       ),
     );
   }
-  
+
   Widget _buildRecentSearches() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1427,7 +1436,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       ],
     );
   }
-  
+
   Widget _buildSearchResults(String query, List<dynamic> transactions) {
     // Filter transactions based on search query
     final filteredTransactions = transactions.where((tx) {
@@ -1435,10 +1444,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       final category = tx.category?.toLowerCase() ?? '';
       final amount = tx.amount.toString();
       final q = query.toLowerCase();
-      
+
       return title.contains(q) || category.contains(q) || amount.contains(q);
     }).toList();
-    
+
     if (filteredTransactions.isEmpty) {
       return Center(
         child: Column(
@@ -1469,7 +1478,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         ),
       );
     }
-    
+
     return ListView.builder(
       itemCount: filteredTransactions.length,
       itemBuilder: (context, index) {
@@ -1515,7 +1524,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       },
     );
   }
-  
+
   void _showAllInsights() {
     showModalBottomSheet(
       context: context,
@@ -1553,7 +1562,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const CircularProgressIndicator(),
+                          CircularProgressIndicator(color: accentColor),
                           const SizedBox(height: 16),
                           Text(
                             'Analyzing your transactions...',
@@ -1621,18 +1630,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       ),
     );
   }
-  
+
   // Helper methods
   double _calculateWeeklySpending(List<dynamic> transactions) {
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday % 7));
     startOfWeek.subtract(const Duration(hours: 24)); // Start from Sunday
-    
+
     return transactions
         .where((tx) => tx.isExpense && tx.date.isAfter(startOfWeek))
         .fold(0.0, (sum, tx) => sum + tx.amount);
   }
-  
+
   IconData _getInsightIcon(int index) {
     switch (index) {
       case 0:
@@ -1649,7 +1658,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         return Icons.lightbulb_outline;
     }
   }
-  
+
   Color _getInsightColor(int index) {
     switch (index) {
       case 0:
@@ -1666,7 +1675,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         return Colors.amber.shade700;
     }
   }
-  
+
   IconData _getCategoryIcon(String category) {
     switch (category.toLowerCase()) {
       case 'food & dining':
@@ -1688,7 +1697,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         return Icons.category;
     }
   }
-  
+
   Color _getCategoryColor(String category) {
     switch (category.toLowerCase()) {
       case 'food & dining':
@@ -1713,5 +1722,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
 }
 
 extension on TransactionProvider {
-  void resetFilters() {}
+  void resetFilters() {
+    // Implementation for resetting filters
+    setFilter('All');
+    setTimeframe('This Month');
+    selectedCategories = <String>{};
+  }
 }
