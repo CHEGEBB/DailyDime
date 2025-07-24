@@ -9,6 +9,8 @@ import 'package:dailydime/services/transaction_ai_service.dart';
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/models/transaction.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:shimmer/shimmer.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({Key? key}) : super(key: key);
@@ -21,18 +23,41 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   late TabController _tabController;
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
-  final currencyFormat = NumberFormat.currency(symbol: AppConfig.currencySymbol + ' ', decimalDigits: 2);
+  final currencyFormat = NumberFormat.currency(symbol: AppConfig.currencySymbol, decimalDigits: 2);
   
-  bool _isCompactHeader = false;
+  bool _isScrolled = false;
   bool _isSearchExpanded = false;
   bool _isLoadingInsights = false;
   List<String> _insights = [];
   String _selectedCategory = 'All';
   String _selectedTimeFrame = 'This Week';
   List<String> _searchSuggestions = [];
+  
+  // Filter variables
+  RangeValues _amountRange = const RangeValues(0, 100000);
+  double _maxPossibleAmount = 100000;
+  DateTimeRange? _dateRange;
+  bool _showOnlyRecurring = false;
+
+  // Weekly spending summary data
+  double _weeklyTotal = 0;
+  double _weeklyBudget = 40000; // This should come from your budget provider
+  double _weeklyRemaining = 0;
+  double _weeklyPercentage = 0;
+
+  // Spending breakdown
+  Map<String, double> _categorySpending = {};
+  List<Color> _categoryColors = [];
+
+  // View variables
+  bool _isGridView = false;
+  bool _showAnalytics = true;
 
   // Color scheme
   final primaryColor = const Color(0xFF26D07C); // Emerald green
+  final secondaryColor = const Color(0xFF2D3748); // Dark slate
+  final accentColor = const Color(0xFF3B82F6); // Blue
+  final backgroundColor = const Color(0xFFF9FAFB); // Light gray
 
   @override
   void initState() {
@@ -48,6 +73,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       // Generate AI insights once data is loaded
       if (!provider.isLoading) {
         _loadInsights(provider.filteredTransactions);
+        _calculateWeeklySummary(provider.filteredTransactions);
+        _calculateSpendingBreakdown(provider.filteredTransactions);
       }
     });
 
@@ -85,13 +112,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   }
 
   void _onScroll() {
-    if (_scrollController.offset > 100 && !_isCompactHeader) {
+    if (_scrollController.offset > 10 && !_isScrolled) {
       setState(() {
-        _isCompactHeader = true;
+        _isScrolled = true;
       });
-    } else if (_scrollController.offset <= 100 && _isCompactHeader) {
+    } else if (_scrollController.offset <= 10 && _isScrolled) {
       setState(() {
-        _isCompactHeader = false;
+        _isScrolled = false;
       });
     }
   }
@@ -124,7 +151,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     }
   }
 
-  double _calculateWeeklySpending(List<dynamic> transactions) {
+  void _calculateWeeklySummary(List<dynamic> transactions) {
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final endOfWeek = startOfWeek.add(const Duration(days: 6));
@@ -139,7 +166,69 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       }
     }
     
-    return totalSpent;
+    setState(() {
+      _weeklyTotal = totalSpent;
+      _weeklyRemaining = _weeklyBudget - totalSpent;
+      _weeklyPercentage = (_weeklyTotal / _weeklyBudget) * 100;
+    });
+  }
+
+  void _calculateSpendingBreakdown(List<dynamic> transactions) {
+    final Map<String, double> categoryTotals = {};
+    final Map<String, Color> categoryColorMap = {};
+    final List<Color> predefinedColors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.pink,
+      Colors.teal,
+      Colors.amber,
+      Colors.indigo,
+      Colors.red,
+      Colors.cyan,
+    ];
+    
+    int colorIndex = 0;
+    
+    // Get transactions from last 30 days
+    final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
+    final recentTransactions = transactions.where((tx) => 
+      tx.date.isAfter(thirtyDaysAgo) && tx.isExpense
+    ).toList();
+    
+    for (var tx in recentTransactions) {
+      if (!categoryTotals.containsKey(tx.category)) {
+        categoryTotals[tx.category] = 0;
+        categoryColorMap[tx.category] = predefinedColors[colorIndex % predefinedColors.length];
+        colorIndex++;
+      }
+      categoryTotals[tx.category] = (categoryTotals[tx.category] ?? 0) + tx.amount;
+    }
+    
+    // Sort categories by amount
+    final sortedEntries = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    // Get top 5 categories
+    final topCategories = Map<String, double>.fromEntries(
+      sortedEntries.take(5)
+    );
+    
+    // If there are more categories, add "Other"
+    if (sortedEntries.length > 5) {
+      double otherTotal = 0;
+      for (int i = 5; i < sortedEntries.length; i++) {
+        otherTotal += sortedEntries[i].value;
+      }
+      topCategories['Other'] = otherTotal;
+      categoryColorMap['Other'] = Colors.grey;
+    }
+    
+    setState(() {
+      _categorySpending = topCategories;
+      _categoryColors = topCategories.keys.map((category) => categoryColorMap[category]!).toList();
+    });
   }
 
   @override
@@ -154,106 +243,720 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: backgroundColor,
       body: Consumer<TransactionProvider>(
         builder: (context, transactionProvider, child) {
           final isLoading = transactionProvider.isLoading;
           final transactions = transactionProvider.filteredTransactions;
           final balance = transactionProvider.currentBalance;
 
-          // Refresh insights if needed
-          if (_insights.isEmpty && !_isLoadingInsights && !isLoading && transactions.isNotEmpty) {
-            _loadInsights(transactions);
+          // Refresh data if needed
+          if (!_isLoadingInsights && !isLoading && transactions.isNotEmpty) {
+            if (_insights.isEmpty) {
+              _loadInsights(transactions);
+            }
+            _calculateWeeklySummary(transactions);
+            _calculateSpendingBreakdown(transactions);
           }
 
-          return NestedScrollView(
-            controller: _scrollController,
-            headerSliverBuilder: (context, innerBoxIsScrolled) {
-              return [
-                SliverAppBar(
-                  expandedHeight: 220.0,
-                  floating: false,
-                  pinned: true,
-                  backgroundColor: _isCompactHeader ? primaryColor : Colors.transparent,
-                  elevation: 0,
-                  title: _isCompactHeader
+          return Stack(
+            children: [
+              // Main content
+              CustomScrollView(
+                controller: _scrollController,
+                slivers: [
+                  // App Bar
+                  SliverAppBar(
+                    pinned: true,
+                    floating: true,
+                    snap: false,
+                    elevation: _isScrolled ? 2 : 0,
+                    backgroundColor: _isScrolled ? Colors.white : backgroundColor,
+                    title: _isScrolled 
                       ? Text(
                           'Transactions',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
+                          style: TextStyle(
+                            color: secondaryColor,
+                            fontWeight: FontWeight.bold,
                             fontSize: 20,
-                            color: Colors.white,
                           ),
                         )
                       : null,
-                  actions: [
-                    IconButton(
-                      icon: Icon(
-                        _isSearchExpanded ? Icons.close : Icons.search,
-                        color: _isCompactHeader ? Colors.white : Colors.white,
+                    centerTitle: _isScrolled,
+                    expandedHeight: 0,
+                    actions: [
+                      IconButton(
+                        icon: Icon(
+                          _isSearchExpanded ? Icons.close : Icons.search,
+                          color: secondaryColor,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isSearchExpanded = !_isSearchExpanded;
+                            if (!_isSearchExpanded) {
+                              _searchController.clear();
+                            }
+                          });
+                        },
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _isSearchExpanded = !_isSearchExpanded;
-                          if (!_isSearchExpanded) {
-                            _searchController.clear();
-                          }
-                        });
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.filter_list,
-                        color: _isCompactHeader ? Colors.white : Colors.white,
+                      IconButton(
+                        icon: Icon(
+                          _isGridView ? Icons.view_list : Icons.grid_view,
+                          color: secondaryColor,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isGridView = !_isGridView;
+                          });
+                        },
                       ),
-                      onPressed: () {
-                        _showFilterBottomSheet(context);
-                      },
+                      IconButton(
+                        icon: Icon(
+                          Icons.filter_list,
+                          color: secondaryColor,
+                        ),
+                        onPressed: () {
+                          _showFilterBottomSheet(context);
+                        },
+                      ),
+                    ],
+                  ),
+                  
+                  // Search bar (if expanded)
+                  if (_isSearchExpanded)
+                    SliverToBoxAdapter(
+                      child: _buildSearchBar(),
                     ),
-                  ],
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: _buildHeader(primaryColor, balance, transactions),
+                  
+                  // Main content
+                  SliverToBoxAdapter(
+                    child: !_isSearchExpanded 
+                      ? _buildMainContent(transactions, balance, isLoading)
+                      : _buildSearchResults(),
                   ),
-                  bottom: PreferredSize(
-                    preferredSize: const Size.fromHeight(56),
-                    child: _isSearchExpanded 
-                      ? _buildSearchBar() 
-                      : _buildTabBar(),
-                  ),
+                ],
+              ),
+
+              // Add Transaction FAB
+              Positioned(
+                right: 16,
+                bottom: 16,
+                child: FloatingActionButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddTransactionScreen(),
+                      ),
+                    );
+                  },
+                  backgroundColor: primaryColor,
+                  child: const Icon(Icons.add, color: Colors.white),
                 ),
-              ];
-            },
-            body: _isSearchExpanded 
-              ? _buildSearchResults() 
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildTransactionsList(transactions),
-                    _buildTransactionsList(transactions.where((tx) => !tx.isExpense).toList()),
-                    _buildTransactionsList(transactions.where((tx) => tx.isExpense).toList()),
-                  ],
-                ),
+              ),
+            ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddTransactionScreen(),
+    );
+  }
+
+  Widget _buildMainContent(List<dynamic> transactions, double balance, bool isLoading) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header with balance and actions
+        _buildHeader(balance),
+
+        // Weekly spending summary
+        _buildWeeklySummary(),
+
+        // AI Insights card
+        if (_insights.isNotEmpty)
+          _buildAIInsightsCard(),
+
+        // Spending Breakdown chart
+        if (_showAnalytics && _categorySpending.isNotEmpty)
+          _buildSpendingBreakdown(),
+
+        // Tabs & Transactions List
+        _buildTabBar(),
+        
+        _buildTransactionsSection(transactions, isLoading),
+      ],
+    );
+  }
+
+  Widget _buildHeader(double balance) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Transactions',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  _showAnalytics ? Icons.insights : Icons.insights_outlined,
+                  color: secondaryColor,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _showAnalytics = !_showAnalytics;
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Current Balance',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      currencyFormat.format(balance),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: secondaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                children: [
+                  _buildQuickActionButton(
+                    icon: Icons.add,
+                    label: 'Add',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AddTransactionScreen(),
+                        ),
+                      );
+                    },
+                    color: Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 12),
+                  _buildQuickActionButton(
+                    icon: Icons.remove,
+                    label: 'Spend',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AddTransactionScreen(),
+                        ),
+                      );
+                    },
+                    color: Colors.red.shade700,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
             ),
-          );
-        },
-        backgroundColor: primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeeklySummary() {
+    final startOfWeek = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
+    final endOfWeek = startOfWeek.add(const Duration(days: 6));
+    
+    final dateRange = '${DateFormat('MMM dd').format(startOfWeek)} - ${DateFormat('MMM dd').format(endOfWeek)}';
+    
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            primaryColor,
+            primaryColor.withBlue(primaryColor.blue + 20),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Weekly Spending Summary',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              Text(
+                dateRange,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildWeeklyInfoColumn(
+                'Total Spent',
+                currencyFormat.format(_weeklyTotal),
+              ),
+              _buildWeeklyInfoColumn(
+                'Budget',
+                currencyFormat.format(_weeklyBudget),
+              ),
+              _buildWeeklyInfoColumn(
+                'Remaining',
+                currencyFormat.format(_weeklyRemaining),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_weeklyPercentage.toInt()}% of weekly budget used',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.white70,
+                ),
+              ),
+              Text(
+                '${_weeklyPercentage.toInt()}%',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Stack(
+            children: [
+              Container(
+                height: 8,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Container(
+                height: 8,
+                width: MediaQuery.of(context).size.width * 
+                      (_weeklyPercentage / 100) * 
+                      ((MediaQuery.of(context).size.width - 40) / MediaQuery.of(context).size.width),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeeklyInfoColumn(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Colors.white70,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAIInsightsCard() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.lightbulb_outline,
+                  color: Colors.amber.shade700,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'AI Insight',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _insights.isNotEmpty ? _insights[0] : 'Loading insights...',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF4B5563),
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () {
+                _showAllInsights();
+              },
+              child: Text(
+                'Get More Tips',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: primaryColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpendingBreakdown() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Spending Breakdown',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              Text(
+                'Last 30 Days',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 180,
+            child: Row(
+              children: [
+                // Pie chart
+                Expanded(
+                  flex: 3,
+                  child: PieChart(
+                    PieChartData(
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 40,
+                      sections: _getCategorySections(),
+                      pieTouchData: PieTouchData(
+                        touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                          // Handle touch events if needed
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Legend
+                Expanded(
+                  flex: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: _buildLegendItems(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<PieChartSectionData> _getCategorySections() {
+    final List<PieChartSectionData> sections = [];
+    final totalSpending = _categorySpending.values.fold<double>(0, (sum, value) => sum + value);
+    
+    int i = 0;
+    for (var entry in _categorySpending.entries) {
+      final percentage = (entry.value / totalSpending) * 100;
+      
+      sections.add(
+        PieChartSectionData(
+          color: _categoryColors[i],
+          value: entry.value,
+          title: '${percentage.toStringAsFixed(0)}%',
+          radius: 50,
+          titleStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      );
+      
+      i++;
+    }
+    
+    return sections;
+  }
+
+  List<Widget> _buildLegendItems() {
+    final List<Widget> items = [];
+    int i = 0;
+    
+    for (var entry in _categorySpending.entries) {
+      final totalSpending = _categorySpending.values.fold<double>(0, (sum, value) => sum + value);
+      final percentage = (entry.value / totalSpending) * 100;
+      
+      items.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: _categoryColors[i],
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  entry.key,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF4B5563),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                currencyFormat.format(entry.value),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      
+      i++;
+    }
+    
+    return items;
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: primaryColor,
+        unselectedLabelColor: Colors.grey.shade700,
+        indicatorColor: primaryColor,
+        indicatorWeight: 3,
+        indicatorSize: TabBarIndicatorSize.label,
+        tabs: const [
+          Tab(text: 'All'),
+          Tab(text: 'Income'),
+          Tab(text: 'Expenses'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionsSection(List<dynamic> transactions, bool isLoading) {
+    if (isLoading) {
+      return _buildLoadingSkeleton();
+    }
+    
+    if (transactions.isEmpty) {
+      return _buildEmptyState();
+    }
+    
+    return SizedBox(
+      height: 500, // This is intentionally large to allow the list to scroll within the CustomScrollView
+      child: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildTransactionsList(transactions),
+          _buildTransactionsList(transactions.where((tx) => !tx.isExpense).toList()),
+          _buildTransactionsList(transactions.where((tx) => tx.isExpense).toList()),
+        ],
       ),
     );
   }
 
   Widget _buildSearchBar() {
     return Container(
-      height: 56,
+      height: 60,
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: TextField(
@@ -271,7 +974,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               )
             : null,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
           filled: true,
@@ -330,13 +1033,45 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       );
     }
 
-    return _buildTransactionsList(filteredTransactions);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Search Results',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: secondaryColor,
+                ),
+              ),
+              Text(
+                '${filteredTransactions.length} found',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: MediaQuery.of(context).size.height - 170, // Adjust based on your header size
+          child: _buildTransactionsList(filteredTransactions),
+        ),
+      ],
+    );
   }
 
   Widget _buildSearchSuggestions() {
     // Show recent searches or popular categories
     final categories = [
-      'Food', 'Transport', 'Shopping', 'Bills', 'Entertainment'
+      'Food', 'Transport', 'Shopping', 'Bills', 'Entertainment',
+      'Groceries', 'Health', 'Education', 'Travel', 'Salary'
     ];
     
     return ListView(
@@ -344,7 +1079,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       children: [
         if (_searchSuggestions.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Text(
               'Suggestions',
               style: TextStyle(
@@ -364,10 +1099,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               );
             },
           )),
+          const Divider(),
         ],
         
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Text(
             'Popular Categories',
             style: TextStyle(
@@ -377,12 +1113,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
             ),
           ),
         ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: categories.map((category) => Padding(
-            padding: const EdgeInsets.only(left: 16),
-            child: InkWell(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: categories.map((category) => InkWell(
               onTap: () {
                 _searchController.text = category;
                 _searchController.selection = TextSelection.fromPosition(
@@ -393,165 +1129,55 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 label: Text(category),
                 backgroundColor: Colors.grey.shade100,
                 labelStyle: TextStyle(color: Colors.grey.shade700),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
               ),
+            )).toList(),
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+        const Divider(),
+        
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Text(
+            'Advanced Search',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
             ),
-          )).toList(),
+          ),
+        ),
+        
+        ListTile(
+          leading: Icon(Icons.calendar_today, color: primaryColor),
+          title: const Text('Search by Date'),
+          onTap: () {
+            _showDateRangePicker(context);
+          },
+        ),
+        
+        ListTile(
+          leading: Icon(Icons.monetization_on, color: primaryColor),
+          title: const Text('Search by Amount'),
+          onTap: () {
+            _showAmountFilterDialog();
+          },
+        ),
+        
+        ListTile(
+          leading: Icon(Icons.category, color: primaryColor),
+          title: const Text('Search by Category'),
+          onTap: () {
+            _showCategoryFilterBottomSheet();
+          },
         ),
       ],
     );
   }
 
-  Widget _buildTabBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: TabBar(
-        controller: _tabController,
-        labelColor: primaryColor,
-        unselectedLabelColor: Colors.black54,
-        indicatorColor: primaryColor,
-        indicatorWeight: 3,
-        tabs: const [
-          Tab(text: 'All'),
-          Tab(text: 'Income'),
-          Tab(text: 'Expenses'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(Color primaryColor, double balance, List<dynamic> transactions) {
-    return Container(
-      decoration: BoxDecoration(
-        color: primaryColor,
-        image: DecorationImage(
-          image: const AssetImage('assets/images/pattern.png'),
-          fit: BoxFit.cover,
-          colorFilter: ColorFilter.mode(
-            Colors.black.withOpacity(0.05),
-            BlendMode.dstATop,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Transactions',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Balance',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    currencyFormat.format(balance),
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildActionButton(
-                      Icons.add,
-                      'Add Money',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AddTransactionScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildActionButton(
-                      Icons.send,
-                      'Send Money',
-                      onTap: () {
-                        // Implement send money
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(IconData icon, String label, {required VoidCallback onTap}) {
-    return ElevatedButton(
-      onPressed: onTap,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: primaryColor,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 16),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTransactionsList(List<dynamic> transactions) {
-    if (transactions.isEmpty) {
-      return _buildEmptyState();
-    }
-
     // Group transactions by date
     final Map<String, List<dynamic>> groupedTransactions = {};
     for (var transaction in transactions) {
@@ -566,47 +1192,57 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     final sortedDates = groupedTransactions.keys.toList()
       ..sort((a, b) => b.compareTo(a));
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        await Provider.of<TransactionProvider>(context, listen: false).refreshTransactions();
-        final refreshedTransactions = Provider.of<TransactionProvider>(context, listen: false).filteredTransactions;
-        _loadInsights(refreshedTransactions);
-      },
-      color: primaryColor,
-      child: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 80),
-        itemCount: sortedDates.length,
+    if (_isGridView) {
+      return GridView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.85,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        itemCount: transactions.length,
         itemBuilder: (context, index) {
-          final date = sortedDates[index];
-          final dateTransactions = groupedTransactions[date]!;
-
-          return FadeInUp(
-            delay: Duration(milliseconds: index * 50),
-            duration: const Duration(milliseconds: 300),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDateHeader(date),
-                ListView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  itemCount: dateTransactions.length,
-                  itemBuilder: (context, txIndex) {
-                    final transaction = dateTransactions[txIndex];
-                    return _buildTransactionItem(transaction);
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          );
+          final transaction = transactions[index];
+          return _buildTransactionGridItem(transaction);
         },
-      ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 120),
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      itemCount: sortedDates.length,
+      itemBuilder: (context, index) {
+        final date = sortedDates[index];
+        final dateTransactions = groupedTransactions[date]!;
+
+        return FadeInUp(
+          delay: Duration(milliseconds: index * 30),
+          duration: const Duration(milliseconds: 200),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDateHeader(date),
+              ListView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemCount: dateTransactions.length,
+                itemBuilder: (context, txIndex) {
+                  final transaction = dateTransactions[txIndex];
+                  return _buildTransactionItem(transaction);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildTransactionItem(dynamic transaction) {
-    // FIXED: Safe access to status property with null check
+    // Safe access to status property with null check
     String status = '';
     Color statusColor = Colors.transparent;
     
@@ -629,8 +1265,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
 
     return InkWell(
       onTap: () => _showTransactionDetails(transaction),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Row(
           children: [
             // Transaction icon
@@ -655,10 +1303,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 children: [
                   Text(
                     transaction.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: secondaryColor,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -667,7 +1315,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                   Text(
                     '${DateFormat('hh:mm a').format(transaction.date)} · ${transaction.category}',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: Colors.grey.shade600,
                     ),
                   ),
@@ -685,19 +1333,129 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: transaction.isExpense ? Colors.red.shade700 : primaryColor,
+                    color: transaction.isExpense ? Colors.red.shade700 : Colors.green.shade700,
                   ),
                 ),
                 const SizedBox(height: 4),
                 if (status.isNotEmpty)
-                  Text(
-                    status,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: statusColor,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      status,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: statusColor,
+                      ),
                     ),
                   ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionGridItem(dynamic transaction) {
+    return InkWell(
+      onTap: () => _showTransactionDetails(transaction),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: transaction.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    transaction.icon,
+                    color: transaction.color,
+                    size: 18,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: transaction.isExpense 
+                      ? Colors.red.shade50 
+                      : Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    transaction.isExpense ? 'Expense' : 'Income',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: transaction.isExpense 
+                        ? Colors.red.shade700 
+                        : Colors.green.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              transaction.title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: secondaryColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              transaction.category,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Spacer(),
+            Text(
+              DateFormat('MMM d, yyyy').format(transaction.date),
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              transaction.isExpense
+                  ? '-${currencyFormat.format(transaction.amount)}'
+                  : '+${currencyFormat.format(transaction.amount)}',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: transaction.isExpense ? Colors.red.shade700 : Colors.green.shade700,
+              ),
             ),
           ],
         ),
@@ -719,75 +1477,93 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       formattedDate = DateFormat('EEEE, MMMM d').format(date);
     }
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
       child: Text(
         formattedDate,
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: Colors.grey.shade700,
+          color: secondaryColor,
         ),
       ),
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/images/empty_transactions.png',
-              height: 150,
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'No transactions yet',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+    return SizedBox(
+      height: 400,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/empty_transactions.png',
+                height: 150,
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Start by adding a transaction or wait for SMS messages to be detected',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AddTransactionScreen(),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 24),
+              const Text(
+                'No transactions yet',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
                 ),
               ),
-              child: const Text(
-                'Add Transaction',
+              const SizedBox(height: 12),
+              Text(
+                'Start by adding a transaction or wait for SMS messages to be detected',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddTransactionScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Add First Transaction'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingSkeleton() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Column(
+        children: List.generate(
+          6,
+          (index) => Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -806,182 +1582,238 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Filter Transactions',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+          padding: const EdgeInsets.only(top: 16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            minChildSize: 0.5,
+            maxChildSize: 0.9,
+            expand: false,
+            builder: (_, scrollController) => Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(5),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.black54),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Categories',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: categories.map((category) => ChoiceChip(
-                  label: Text(category),
-                  selected: _selectedCategory == category,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        _selectedCategory = category;
-                      });
-                    }
-                  },
-                  selectedColor: primaryColor.withOpacity(0.2),
-                  labelStyle: TextStyle(
-                    color: _selectedCategory == category ? primaryColor : Colors.black87,
-                    fontWeight: _selectedCategory == category ? FontWeight.w600 : FontWeight.normal,
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filter Transactions',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black54),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
-                )).toList(),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Time Period',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: timeFrames.map((timeFrame) => ChoiceChip(
-                  label: Text(timeFrame),
-                  selected: _selectedTimeFrame == timeFrame,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        _selectedTimeFrame = timeFrame;
-                      });
-                      
-                      if (timeFrame == 'Custom') {
-                        _showDateRangePicker(context);
-                      }
-                    }
-                  },
-                  selectedColor: primaryColor.withOpacity(0.2),
-                  labelStyle: TextStyle(
-                    color: _selectedTimeFrame == timeFrame ? primaryColor : Colors.black87,
-                    fontWeight: _selectedTimeFrame == timeFrame ? FontWeight.w600 : FontWeight.normal,
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(24),
+                    children: [
+                      const Text(
+                        'Categories',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: categories.map((category) => ChoiceChip(
+                          label: Text(category),
+                          selected: _selectedCategory == category,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                _selectedCategory = category;
+                              });
+                            }
+                          },
+                          selectedColor: primaryColor.withOpacity(0.2),
+                          labelStyle: TextStyle(
+                            color: _selectedCategory == category ? primaryColor : Colors.black87,
+                            fontWeight: _selectedCategory == category ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        )).toList(),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Time Period',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: timeFrames.map((timeFrame) => ChoiceChip(
+                          label: Text(timeFrame),
+                          selected: _selectedTimeFrame == timeFrame,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                _selectedTimeFrame = timeFrame;
+                              });
+                              
+                              if (timeFrame == 'Custom') {
+                                _showDateRangePicker(context);
+                              }
+                            }
+                          },
+                          selectedColor: primaryColor.withOpacity(0.2),
+                          labelStyle: TextStyle(
+                            color: _selectedTimeFrame == timeFrame ? primaryColor : Colors.black87,
+                            fontWeight: _selectedTimeFrame == timeFrame ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        )).toList(),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Amount Range',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      RangeSlider(
+                        values: _amountRange,
+                        min: 0,
+                        max: _maxPossibleAmount,
+                        divisions: 100,
+                        labels: RangeLabels(
+                          currencyFormat.format(_amountRange.start),
+                          currencyFormat.format(_amountRange.end),
+                        ),
+                        activeColor: primaryColor,
+                        inactiveColor: Colors.grey.shade200,
+                        onChanged: (RangeValues values) {
+                          setState(() {
+                            _amountRange = values;
+                          });
+                        },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              currencyFormat.format(_amountRange.start),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            Text(
+                              currencyFormat.format(_amountRange.end),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      CheckboxListTile(
+                        title: const Text('Show only recurring transactions'),
+                        value: _showOnlyRecurring,
+                        activeColor: primaryColor,
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        onChanged: (value) {
+                          setState(() {
+                            _showOnlyRecurring = value ?? false;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 32),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedCategory = 'All';
+                                  _selectedTimeFrame = 'This Week';
+                                  _amountRange = const RangeValues(0, 100000);
+                                  _showOnlyRecurring = false;
+                                });
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: primaryColor),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: Text(
+                                'Reset',
+                                style: TextStyle(color: primaryColor),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                // Apply filters
+                                Navigator.pop(context);
+                                // TODO: Apply filters to transaction provider
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text('Apply Filters'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                )).toList(),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Amount Range',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Min',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextField(
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Max',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedCategory = 'All';
-                          _selectedTimeFrame = 'This Week';
-                        });
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: primaryColor),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text(
-                        'Reset',
-                        style: TextStyle(color: primaryColor),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Apply filters
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('Apply'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1007,6 +1839,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               onPrimary: Colors.white,
               onSurface: Colors.black,
             ),
+            dialogBackgroundColor: Colors.white,
           ),
           child: child!,
         );
@@ -1014,314 +1847,621 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     );
     
     if (pickedDateRange != null) {
-      // Apply date range filter
+      setState(() {
+        _dateRange = pickedDateRange;
+        _selectedTimeFrame = '${DateFormat('MMM d').format(pickedDateRange.start)} - ${DateFormat('MMM d').format(pickedDateRange.end)}';
+      });
+      // TODO: Apply date range filter
     }
+  }
+
+  void _showAmountFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Filter by Amount'),
+        content: StatefulBuilder(
+          builder: (context, setState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Select amount range:'),
+              const SizedBox(height: 24),
+              RangeSlider(
+                values: _amountRange,
+                min: 0,
+                max: _maxPossibleAmount,
+                divisions: 100,
+                labels: RangeLabels(
+                  currencyFormat.format(_amountRange.start),
+                  currencyFormat.format(_amountRange.end),
+                ),
+                activeColor: primaryColor,
+                inactiveColor: Colors.grey.shade200,
+                onChanged: (RangeValues values) {
+                  setState(() {
+                    _amountRange = values;
+                  });
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      currencyFormat.format(_amountRange.start),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    Text(
+                      currencyFormat.format(_amountRange.end),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: Apply amount filter
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Apply'),
+          ),
+        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+
+  void _showCategoryFilterBottomSheet() {
+    final categories = [
+      'All', 'Food', 'Transport', 'Shopping', 'Bills', 
+      'Entertainment', 'Education', 'Health', 'Salary',
+      'Housing', 'Groceries', 'Investment', 'Transfer', 'Withdrawal',
+      'Saving', 'Utilities', 'Insurance', 'Gifts', 'Travel', 'Other'
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 16, bottom: 8),
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(5),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Select Category',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: categories.map((category) => RadioListTile<String>(
+                  title: Text(category),
+                  value: category,
+                  groupValue: _selectedCategory,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCategory = value!;
+                    });
+                    Navigator.pop(context);
+                    // TODO: Apply category filter
+                  },
+                  activeColor: primaryColor,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                )).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showTransactionDetails(dynamic transaction) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
+        initialChildSize: 0.8,
         minChildSize: 0.5,
         maxChildSize: 0.95,
         expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
-          controller: scrollController,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Transaction Details',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.black54),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 16, bottom: 8),
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(5),
                 ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          transaction.icon,
-                          color: transaction.color,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              transaction.title,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              transaction.category,
+                            const Text(
+                              'Transaction Details',
                               style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B),
                               ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.black54),
+                              onPressed: () => Navigator.pop(context),
                             ),
                           ],
                         ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            transaction.isExpense
-                                ? '-${currencyFormat.format(transaction.amount)}'
-                                : '+${currencyFormat.format(transaction.amount)}',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: transaction.isExpense ? Colors.red.shade700 : primaryColor,
-                            ),
+                        const SizedBox(height: 24),
+                        
+                        // Transaction Header Card
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: transaction.color.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            DateFormat('dd MMM, yyyy').format(transaction.date),
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Transaction Info',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildDetailItem('Date & Time', DateFormat('MMM d, yyyy • h:mm a').format(transaction.date)),
-                
-                // FIXED: Safe access to optional properties with null checks
-                _buildDetailItemSafe('Transaction ID', () {
-                  try {
-                    return (transaction as dynamic).mpesaCode?.toString();
-                  } catch (e) {
-                    return null;
-                  }
-                }()),
-                
-                _buildDetailItemSafe('From', () {
-                  try {
-                    return (transaction as dynamic).sender?.toString();
-                  } catch (e) {
-                    return null;
-                  }
-                }()),
-                
-                _buildDetailItemSafe('To', () {
-                  try {
-                    return (transaction as dynamic).recipient?.toString();
-                  } catch (e) {
-                    return null;
-                  }
-                }()),
-                
-                _buildDetailItemSafe('Agent', () {
-                  try {
-                    return (transaction as dynamic).agent?.toString();
-                  } catch (e) {
-                    return null;
-                  }
-                }()),
-                
-                _buildDetailItemSafe('Business', () {
-                  try {
-                    return (transaction as dynamic).business?.toString();
-                  } catch (e) {
-                    return null;
-                  }
-                }()),
-                
-                _buildDetailItemSafe('Balance After', () {
-                  try {
-                    final balance = (transaction as dynamic).balance;
-                    return balance != null ? currencyFormat.format(balance) : null;
-                  } catch (e) {
-                    return null;
-                  }
-                }()),
-                
-                _buildDetailItemSafe('Status', () {
-                  try {
-                    return (transaction as dynamic).status?.toString();
-                  } catch (e) {
-                    return 'Successful'; // Default status
-                  }
-                }()),
-                
-                const SizedBox(height: 24),
-                const Text(
-                  'AI Insights',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FutureBuilder<Map<String, dynamic>>(
-                  future: TransactionAIService().generateTransactionInsight(
-                    transaction,
-                    Provider.of<TransactionProvider>(context, listen: false)
-                        .filteredTransactions
-                        .map((tx) => tx as Transaction)
-                        .toList(),
-                  ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return _buildAIInsightSkeleton();
-                    }
-
-                    if (snapshot.hasData && snapshot.data!['success']) {
-                      final insight = snapshot.data!['insight'];
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.lightbulb,
-                                  size: 18,
-                                  color: Colors.amber.shade700,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Smart Analysis',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: Colors.blue.shade700,
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 5,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Icon(
+                                      transaction.icon,
+                                      color: transaction.color,
+                                      size: 24,
+                                    ),
                                   ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          transaction.title,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: secondaryColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            transaction.category,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: transaction.color,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                transaction.isExpense
+                                    ? '-${currencyFormat.format(transaction.amount)}'
+                                    : '+${currencyFormat.format(transaction.amount)}',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: transaction.isExpense ? Colors.red.shade700 : Colors.green.shade700,
                                 ),
-                              ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                DateFormat('EEEE, MMMM d, yyyy • h:mm a').format(transaction.date),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Transaction Info
+                        const Text(
+                          'Transaction Info',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            children: [
+                              _buildDetailItem('Date & Time', DateFormat('MMM d, yyyy • h:mm a').format(transaction.date)),
+                              
+                              // Safe access to optional properties
+                              _buildDetailItemSafe('Transaction ID', () {
+                                try {
+                                  return (transaction as dynamic).mpesaCode?.toString();
+                                } catch (e) {
+                                  return null;
+                                }
+                              }()),
+                              
+                              _buildDetailItemSafe('From', () {
+                                try {
+                                  return (transaction as dynamic).sender?.toString();
+                                } catch (e) {
+                                  return null;
+                                }
+                              }()),
+                              
+                              _buildDetailItemSafe('To', () {
+                                try {
+                                  return (transaction as dynamic).recipient?.toString();
+                                } catch (e) {
+                                  return null;
+                                }
+                              }()),
+                              
+                              _buildDetailItemSafe('Agent', () {
+                                try {
+                                  return (transaction as dynamic).agent?.toString();
+                                } catch (e) {
+                                  return null;
+                                }
+                              }()),
+                              
+                              _buildDetailItemSafe('Business', () {
+                                try {
+                                  return (transaction as dynamic).business?.toString();
+                                } catch (e) {
+                                  return null;
+                                }
+                              }()),
+                              
+                              _buildDetailItemSafe('Balance After', () {
+                                try {
+                                  final balance = (transaction as dynamic).balance;
+                                  return balance != null ? currencyFormat.format(balance) : null;
+                                } catch (e) {
+                                  return null;
+                                }
+                              }()),
+                              
+                              _buildDetailItemSafe('Status', () {
+                                try {
+                                  return (transaction as dynamic).status?.toString();
+                                } catch (e) {
+                                  return 'Successful'; // Default status
+                                }
+                              }()),
+                              
+                              _buildDetailItemSafe('Notes', () {
+                                try {
+                                  return (transaction as dynamic).notes?.toString();
+                                } catch (e) {
+                                  return null;
+                                }
+                              }()),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // AI Insights
+                        const Text(
+                          'AI Insights',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: TransactionAIService().generateTransactionInsight(
+                            transaction,
+                            Provider.of<TransactionProvider>(context, listen: false)
+                                .filteredTransactions
+                                .map((tx) => tx as Transaction)
+                                .toList(),
+                          ),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return _buildAIInsightSkeleton();
+                            }
+
+                            if (snapshot.hasData && snapshot.data!['success']) {
+                              final insight = snapshot.data!['insight'];
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.lightbulb_outline,
+                                          size: 18,
+                                          color: Colors.amber.shade700,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Smart Analysis',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: Colors.blue.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      insight ?? 'No insight available for this transaction.',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Color(0xFF4B5563),
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Text(
+                                'No AI insights available for this transaction.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF4B5563),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Similar Transactions (Optional)
+                        FutureBuilder<List<dynamic>>(
+                          future: Future.value(_findSimilarTransactions(transaction)),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Similar Transactions',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    height: 110,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: snapshot.data!.length > 5 ? 5 : snapshot.data!.length,
+                                      itemBuilder: (context, index) {
+                                        final similarTx = snapshot.data![index];
+                                        return Container(
+                                          width: 160,
+                                          margin: const EdgeInsets.only(right: 12),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(color: Colors.grey.shade200),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    similarTx.icon,
+                                                    color: similarTx.color,
+                                                    size: 16,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      similarTx.title,
+                                                      style: const TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                DateFormat('MMM d, yyyy').format(similarTx.date),
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                similarTx.isExpense
+                                                    ? '-${currencyFormat.format(similarTx.amount)}'
+                                                    : '+${currencyFormat.format(similarTx.amount)}',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: similarTx.isExpense ? Colors.red.shade700 : Colors.green.shade700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                ],
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                        
+                        // Action Buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.edit),
+                                label: const Text('Edit'),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  // Navigate to edit screen
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: primaryColor,
+                                  side: BorderSide(color: primaryColor),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              insight ?? 'No insight available for this transaction.',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.black87,
-                                height: 1.5,
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Delete'),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _showDeleteConfirmation(transaction);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.shade600,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      );
-                    }
-
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'No AI insights available for this transaction.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                
-                const SizedBox(height: 32),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Edit'),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          // Navigate to edit screen
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: primaryColor,
-                          side: BorderSide(color: primaryColor),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Delete'),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _showDeleteConfirmation(transaction);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade600,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1330,7 +2470,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
 
   Widget _buildDetailItem(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1350,7 +2490,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                color: Color(0xFF1E293B),
               ),
             ),
           ),
@@ -1359,7 +2499,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     );
   }
 
-  // ADDED: Safe detail item builder that only shows if value is not null
   Widget _buildDetailItemSafe(String label, String? value) {
     if (value == null || value.isEmpty) {
       return const SizedBox.shrink(); // Don't show anything if value is null/empty
@@ -1368,81 +2507,68 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   }
 
   Widget _buildAIInsightSkeleton() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // First line (full width)
-        Container(
-          height: 16,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(8),
-          ),
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
         ),
-        const SizedBox(height: 8),
-        
-        // Second line (80% width)
-        Container(
-          height: 16,
-          width: MediaQuery.of(context).size.width * 0.8,
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        const SizedBox(height: 8),
-        
-        // Third line (60% width)
-        Container(
-          height: 16,
-          width: MediaQuery.of(context).size.width * 0.6,
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Alternative with shimmer effect (if you want animation)
-  Widget _buildAIInsightSkeletonAnimated() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildShimmerLine(width: double.infinity),
-        const SizedBox(height: 8),
-        _buildShimmerLine(width: MediaQuery.of(context).size.width * 0.8),
-        const SizedBox(height: 8),
-        _buildShimmerLine(width: MediaQuery.of(context).size.width * 0.6),
-      ],
-    );
-  }
-
-  Widget _buildShimmerLine({required double width}) {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 1200),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Container(
-          height: 16,
-          width: width,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            gradient: LinearGradient(
-              begin: Alignment(-1.0 + 2.0 * value, 0.0),
-              end: Alignment(-1.0 + 2.0 * value + 0.5, 0.0),
-              colors: [
-                Colors.grey[300]!,
-                Colors.grey[100]!,
-                Colors.grey[300]!,
-              ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 20,
+              width: 140,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 16),
+            Container(
+              height: 12,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 12,
+              width: MediaQuery.of(context).size.width * 0.7,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 12,
+              width: MediaQuery.of(context).size.width * 0.5,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  List<dynamic> _findSimilarTransactions(dynamic transaction) {
+    final provider = Provider.of<TransactionProvider>(context, listen: false);
+    final allTransactions = provider.filteredTransactions;
+    
+    return allTransactions.where((tx) => 
+      tx.id != transaction.id && 
+      tx.category == transaction.category &&
+      tx.isExpense == transaction.isExpense
+    ).take(5).toList();
   }
 
   void _showDeleteConfirmation(dynamic transaction) {
@@ -1450,7 +2576,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Transaction'),
-        content: Text('Are you sure you want to delete this ${currencyFormat.format(transaction.amount)} transaction?'),
+        content: RichText(
+          text: TextSpan(
+            style: const TextStyle(fontSize: 16, color: Color(0xFF4B5563)),
+            children: [
+              const TextSpan(
+                text: 'Are you sure you want to delete this transaction: ',
+              ),
+              TextSpan(
+                text: transaction.title,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              TextSpan(
+                text: ' (${currencyFormat.format(transaction.amount)})?',
+              ),
+            ],
+          ),
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -1467,6 +2609,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
               Navigator.pop(context);
               Provider.of<TransactionProvider>(context, listen: false)
                   .deleteTransaction(transaction.id);
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Transaction deleted'),
+                  backgroundColor: Colors.red.shade700,
+                  behavior: SnackBarBehavior.floating,
+                  action: SnackBarAction(
+                    label: 'Undo',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      // TODO: Implement undo functionality
+                    },
+                  ),
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
@@ -1488,60 +2645,83 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.8,
-        expand: false,
-        builder: (context, scrollController) => Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'AI Financial Insights',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.8,
+          expand: false,
+          builder: (context, scrollController) => Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 16, bottom: 8),
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(5),
+                ),
               ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                controller: scrollController,
-                itemCount: _insights.length,
+              Padding(
                 padding: const EdgeInsets.all(16),
-                itemBuilder: (context, index) {
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Financial Insights',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
                     ),
-                    child: Padding(
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(color: Colors.grey.shade200),
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollController,
+                  itemCount: _insights.length,
+                  padding: const EdgeInsets.all(16),
+                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    return Container(
                       padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: primaryColor.withOpacity(0.1),
+                              color: Colors.white,
                               shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Icon(
-                              Icons.lightbulb_outline,
-                              color: Colors.amber.shade700,
+                              index % 3 == 0 ? Icons.lightbulb_outline : 
+                              index % 3 == 1 ? Icons.trending_up : Icons.savings_outlined,
+                              color: index % 3 == 0 ? Colors.amber.shade700 : 
+                                   index % 3 == 1 ? Colors.blue.shade700 : Colors.green.shade700,
                               size: 20,
                             ),
                           ),
@@ -1549,20 +2729,46 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                           Expanded(
                             child: Text(
                               _insights[index],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 height: 1.5,
+                                color: Colors.blue.shade900,
                               ),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+              
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // TODO: Navigate to full insights/analytics screen
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'View Full Analytics',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
