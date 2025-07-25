@@ -136,7 +136,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                     controller: _tabController,
                     indicator: BoxDecoration(
                       color: accentColor,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     labelColor: Colors.white,
                     unselectedLabelColor: Colors.grey,
@@ -192,7 +192,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
   }) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(8),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
