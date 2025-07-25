@@ -69,13 +69,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<TransactionProvider>(context, listen: false);
       provider.initialize();
-
-      // Generate AI insights once data is loaded
-      if (!provider.isLoading) {
-        _loadInsights(provider.filteredTransactions);
-        _calculateWeeklySummary(provider.filteredTransactions);
-        _calculateSpendingBreakdown(provider.filteredTransactions);
-      }
     });
 
     // Listen for search input changes
@@ -142,6 +135,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
           _insights = List<String>.from(result['insights']);
           _isLoadingInsights = false;
         });
+      } else {
+        setState(() {
+          _isLoadingInsights = false;
+        });
       }
     } catch (e) {
       debugPrint('Error loading insights: $e');
@@ -170,6 +167,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       _weeklyTotal = totalSpent;
       _weeklyRemaining = _weeklyBudget - totalSpent;
       _weeklyPercentage = (_weeklyTotal / _weeklyBudget) * 100;
+      if (_weeklyPercentage > 100) _weeklyPercentage = 100;
     });
   }
 
@@ -212,7 +210,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     
     // Get top 5 categories
     final topCategories = Map<String, double>.fromEntries(
-      sortedEntries.take(5)
+      sortedEntries.take(sortedEntries.length > 5 ? 5 : sortedEntries.length)
     );
     
     // If there are more categories, add "Other"
@@ -229,6 +227,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       _categorySpending = topCategories;
       _categoryColors = topCategories.keys.map((category) => categoryColorMap[category]!).toList();
     });
+  }
+
+  void _refreshData(List<dynamic> transactions) {
+    if (!_isLoadingInsights && transactions.isNotEmpty) {
+      if (_insights.isEmpty) {
+        _loadInsights(transactions);
+      }
+      _calculateWeeklySummary(transactions);
+      _calculateSpendingBreakdown(transactions);
+    }
   }
 
   @override
@@ -250,13 +258,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
           final transactions = transactionProvider.filteredTransactions;
           final balance = transactionProvider.currentBalance;
 
-          // Refresh data if needed
-          if (!_isLoadingInsights && !isLoading && transactions.isNotEmpty) {
-            if (_insights.isEmpty) {
-              _loadInsights(transactions);
-            }
-            _calculateWeeklySummary(transactions);
-            _calculateSpendingBreakdown(transactions);
+          // Important: Use post-frame callback to update data after build
+          if (!isLoading && transactions.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _refreshData(transactions);
+            });
           }
 
           return Stack(
@@ -392,6 +398,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
       decoration: BoxDecoration(
         color: Colors.white,
+        image: const DecorationImage(
+          image: AssetImage('assets/images/pattern2.png'),
+          fit: BoxFit.cover,
+          opacity: 0.05,
+        ),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
@@ -546,6 +557,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
             primaryColor.withBlue(primaryColor.blue + 20),
           ],
         ),
+        image: const DecorationImage(
+          image: AssetImage('assets/images/pattern2.png'),
+          fit: BoxFit.cover,
+          opacity: 0.1,
+        ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -632,7 +648,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 height: 8,
                 width: MediaQuery.of(context).size.width * 
                       (_weeklyPercentage / 100) * 
-                      ((MediaQuery.of(context).size.width - 40) / MediaQuery.of(context).size.width),
+                      ((MediaQuery.of(context).size.width - 40 - 40) / MediaQuery.of(context).size.width),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(4),
@@ -743,6 +759,113 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     );
   }
 
+  void _showAllInsights() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.9,
+        builder: (_, controller) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 16, bottom: 8),
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.lightbulb_outline,
+                        color: Colors.amber.shade700,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Financial Insights',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  controller: controller,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _insights.length,
+                  itemBuilder: (context, index) => Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _insights[index],
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF4B5563),
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSpendingBreakdown() {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
@@ -782,50 +905,62 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
             ],
           ),
           const SizedBox(height: 20),
-          SizedBox(
-            height: 180,
-            child: Row(
-              children: [
-                // Pie chart
-                Expanded(
-                  flex: 3,
-                  child: PieChart(
-                    PieChartData(
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 40,
-                      sections: _getCategorySections(),
-                      pieTouchData: PieTouchData(
-                        touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                          // Handle touch events if needed
-                        },
+          if (_categorySpending.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text("No spending data available"),
+              ),
+            )
+          else
+            SizedBox(
+              height: 180,
+              child: Row(
+                children: [
+                  // Pie chart
+                  Expanded(
+                    flex: 3,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 40,
+                        sections: _getCategorySections(),
+                        pieTouchData: PieTouchData(
+                          touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                            // Handle touch events if needed
+                          },
+                        ),
                       ),
                     ),
                   ),
-                ),
-                
-                // Legend
-                Expanded(
-                  flex: 4,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: _buildLegendItems(),
+                  
+                  // Legend
+                  Expanded(
+                    flex: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: _buildLegendItems(),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
   List<PieChartSectionData> _getCategorySections() {
+    if (_categorySpending.isEmpty) return [];
+    
     final List<PieChartSectionData> sections = [];
     final totalSpending = _categorySpending.values.fold<double>(0, (sum, value) => sum + value);
+    
+    if (totalSpending <= 0) return [];
     
     int i = 0;
     for (var entry in _categorySpending.entries) {
@@ -833,7 +968,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       
       sections.add(
         PieChartSectionData(
-          color: _categoryColors[i],
+          color: i < _categoryColors.length ? _categoryColors[i] : Colors.grey,
           value: entry.value,
           title: '${percentage.toStringAsFixed(0)}%',
           radius: 50,
@@ -852,11 +987,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   }
 
   List<Widget> _buildLegendItems() {
+    if (_categorySpending.isEmpty) return [];
+    
     final List<Widget> items = [];
     int i = 0;
     
+    final totalSpending = _categorySpending.values.fold<double>(0, (sum, value) => sum + value);
+    
+    if (totalSpending <= 0) return [];
+    
     for (var entry in _categorySpending.entries) {
-      final totalSpending = _categorySpending.values.fold<double>(0, (sum, value) => sum + value);
       final percentage = (entry.value / totalSpending) * 100;
       
       items.add(
@@ -868,7 +1008,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: _categoryColors[i],
+                  color: i < _categoryColors.length ? _categoryColors[i] : Colors.grey,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -1499,9 +1639,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(
-                'assets/images/empty_transactions.png',
-                height: 150,
+              Icon(
+                Icons.receipt_long,
+                size: 100,
+                color: Colors.grey.shade300,
               ),
               const SizedBox(height: 24),
               const Text(
@@ -1567,6 +1708,93 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
         ),
       ),
     );
+  }
+
+  Widget _buildAIInsightSkeleton() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 150,
+              height: 20,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity * 0.7,
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailItemSafe(String label, String? value) {
+    if (value == null || value.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return _buildDetailItem(label, value);
   }
 
   void _showFilterBottomSheet(BuildContext context) {
@@ -2321,448 +2549,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                             );
                           },
                         ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Similar Transactions (Optional)
-                        FutureBuilder<List<dynamic>>(
-                          future: Future.value(_findSimilarTransactions(transaction)),
-                          builder: (context, snapshot) {
-                            if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Similar Transactions',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF1E293B),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  SizedBox(
-                                    height: 110,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: snapshot.data!.length > 5 ? 5 : snapshot.data!.length,
-                                      itemBuilder: (context, index) {
-                                        final similarTx = snapshot.data![index];
-                                        return Container(
-                                          width: 160,
-                                          margin: const EdgeInsets.only(right: 12),
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(16),
-                                            border: Border.all(color: Colors.grey.shade200),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    similarTx.icon,
-                                                    color: similarTx.color,
-                                                    size: 16,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Expanded(
-                                                    child: Text(
-                                                      similarTx.title,
-                                                      style: const TextStyle(
-                                                        fontSize: 13,
-                                                        fontWeight: FontWeight.w500,
-                                                      ),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                DateFormat('MMM d, yyyy').format(similarTx.date),
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey.shade600,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                similarTx.isExpense
-                                                    ? '-${currencyFormat.format(similarTx.amount)}'
-                                                    : '+${currencyFormat.format(similarTx.amount)}',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: similarTx.isExpense ? Colors.red.shade700 : Colors.green.shade700,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                ],
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                        
-                        // Action Buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.edit),
-                                label: const Text('Edit'),
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  // Navigate to edit screen
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: primaryColor,
-                                  side: BorderSide(color: primaryColor),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.delete_outline),
-                                label: const Text('Delete'),
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  _showDeleteConfirmation(transaction);
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red.shade600,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailItemSafe(String label, String? value) {
-    if (value == null || value.isEmpty) {
-      return const SizedBox.shrink(); // Don't show anything if value is null/empty
-    }
-    return _buildDetailItem(label, value);
-  }
-
-  Widget _buildAIInsightSkeleton() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade300,
-      highlightColor: Colors.grey.shade100,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 20,
-              width: 140,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              height: 12,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              height: 12,
-              width: MediaQuery.of(context).size.width * 0.7,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              height: 12,
-              width: MediaQuery.of(context).size.width * 0.5,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<dynamic> _findSimilarTransactions(dynamic transaction) {
-    final provider = Provider.of<TransactionProvider>(context, listen: false);
-    final allTransactions = provider.filteredTransactions;
-    
-    return allTransactions.where((tx) => 
-      tx.id != transaction.id && 
-      tx.category == transaction.category &&
-      tx.isExpense == transaction.isExpense
-    ).take(5).toList();
-  }
-
-  void _showDeleteConfirmation(dynamic transaction) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Transaction'),
-        content: RichText(
-          text: TextSpan(
-            style: const TextStyle(fontSize: 16, color: Color(0xFF4B5563)),
-            children: [
-              const TextSpan(
-                text: 'Are you sure you want to delete this transaction: ',
-              ),
-              TextSpan(
-                text: transaction.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              TextSpan(
-                text: ' (${currencyFormat.format(transaction.amount)})?',
-              ),
-            ],
-          ),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Provider.of<TransactionProvider>(context, listen: false)
-                  .deleteTransaction(transaction.id);
-              
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Transaction deleted'),
-                  backgroundColor: Colors.red.shade700,
-                  behavior: SnackBarBehavior.floating,
-                  action: SnackBarAction(
-                    label: 'Undo',
-                    textColor: Colors.white,
-                    onPressed: () {
-                      // TODO: Implement undo functionality
-                    },
-                  ),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAllInsights() {
-    if (_insights.isEmpty) return;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.4,
-          maxChildSize: 0.8,
-          expand: false,
-          builder: (context, scrollController) => Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 16, bottom: 8),
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Financial Insights',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(color: Colors.grey.shade200),
-              Expanded(
-                child: ListView.separated(
-                  controller: scrollController,
-                  itemCount: _insights.length,
-                  padding: const EdgeInsets.all(16),
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 5,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              index % 3 == 0 ? Icons.lightbulb_outline : 
-                              index % 3 == 1 ? Icons.trending_up : Icons.savings_outlined,
-                              color: index % 3 == 0 ? Colors.amber.shade700 : 
-                                   index % 3 == 1 ? Colors.blue.shade700 : Colors.green.shade700,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              _insights[index],
-                              style: TextStyle(
-                                fontSize: 14,
-                                height: 1.5,
-                                color: Colors.blue.shade900,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // TODO: Navigate to full insights/analytics screen
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'View Full Analytics',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
