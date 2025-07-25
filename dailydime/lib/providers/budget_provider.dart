@@ -6,7 +6,6 @@ import 'package:dailydime/services/appwrite_service.dart';
 import 'package:dailydime/services/storage_service.dart';
 import 'package:dailydime/services/budget_ai_service.dart';
 import 'package:dailydime/services/notification_service.dart';
-import 'package:dailydime/config/app_config.dart';
 
 class BudgetProvider extends ChangeNotifier {
   final List<Budget> _budgets = [];
@@ -19,7 +18,7 @@ class BudgetProvider extends ChangeNotifier {
   final NotificationService _notificationService = NotificationService();
 
   // Getters
-  List<Budget> get budgets => _budgets;
+  List<Budget> get budgets => List.unmodifiable(_budgets);
   bool get isLoading => _isLoading;
   bool get hasError => _hasError;
   String get errorMessage => _errorMessage;
@@ -32,10 +31,10 @@ class BudgetProvider extends ChangeNotifier {
   List<Budget> get yearlyBudgets => _budgets.where((b) => b.period == BudgetPeriod.yearly && b.isActive).toList();
   
   // Budget insights
-  double get totalBudgetAmount => _budgets.fold(0, (sum, b) => sum + (b.isActive ? b.amount : 0));
-  double get totalSpent => _budgets.fold(0, (sum, b) => sum + (b.isActive ? b.spent : 0));
+  double get totalBudgetAmount => _budgets.fold(0.0, (sum, b) => sum + (b.isActive ? b.amount : 0.0));
+  double get totalSpent => _budgets.fold(0.0, (sum, b) => sum + (b.isActive ? b.spent : 0.0));
   double get totalRemaining => totalBudgetAmount - totalSpent;
-  double get overallPercentage => totalBudgetAmount > 0 ? (totalSpent / totalBudgetAmount) : 0;
+  double get overallPercentage => totalBudgetAmount > 0 ? (totalSpent / totalBudgetAmount) : 0.0;
 
   // Category with highest spending
   String get highestSpendingCategory {
@@ -44,7 +43,7 @@ class BudgetProvider extends ChangeNotifier {
     final categorySpending = <String, double>{};
     for (var budget in _budgets) {
       if (budget.isActive) {
-        categorySpending[budget.category] = (categorySpending[budget.category] ?? 0) + budget.spent;
+        categorySpending[budget.category] = (categorySpending[budget.category] ?? 0.0) + budget.spent;
       }
     }
     
@@ -59,9 +58,41 @@ class BudgetProvider extends ChangeNotifier {
   Budget? get mostConsumedBudget {
     if (_budgets.isEmpty) return null;
     
-    return _budgets
-        .where((b) => b.isActive)
-        .reduce((a, b) => a.percentageUsed > b.percentageUsed ? a : b);
+    final activeBudgets = _budgets.where((b) => b.isActive).toList();
+    if (activeBudgets.isEmpty) return null;
+    
+    return activeBudgets.reduce((a, b) => a.percentageUsed > b.percentageUsed ? a : b);
+  }
+
+  // Get budget by ID
+  Budget? getBudgetById(String id) {
+    try {
+      return _budgets.firstWhere((b) => b.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Get budgets by category
+  List<Budget> getBudgetsByCategory(String category) {
+    return _budgets.where((b) => 
+      b.category.toLowerCase() == category.toLowerCase() ||
+      b.tags.any((tag) => tag.toLowerCase() == category.toLowerCase())
+    ).toList();
+  }
+
+  // Get budgets by period
+  List<Budget> getBudgetsByPeriod(BudgetPeriod period) {
+    return _budgets.where((b) => b.period == period && b.isActive).toList();
+  }
+
+  // Check if category exists in any budget
+  bool categoryHasBudget(String category) {
+    return _budgets.any((b) => 
+      b.isActive && 
+      (b.category.toLowerCase() == category.toLowerCase() ||
+       b.tags.any((tag) => tag.toLowerCase() == category.toLowerCase()))
+    );
   }
 
   // Init - Load budgets from storage and Appwrite
@@ -85,6 +116,11 @@ class BudgetProvider extends ChangeNotifier {
     }
   }
 
+  // Refresh budgets
+  Future<void> refresh() async {
+    await initialize();
+  }
+
   // Sync with Appwrite
   Future<void> syncWithAppwrite() async {
     try {
@@ -103,7 +139,11 @@ class BudgetProvider extends ChangeNotifier {
       } else if (_budgets.isNotEmpty) {
         // If no remote budgets but we have local ones, upload them
         for (var budget in _budgets) {
-          await _appwriteService.createBudget(budget);
+          try {
+            await _appwriteService.createBudget(budget);
+          } catch (e) {
+            print('Error uploading budget ${budget.id}: $e');
+          }
         }
       }
     } catch (e) {
@@ -145,6 +185,29 @@ class BudgetProvider extends ChangeNotifier {
   Future<bool> createBudget(Budget budget) async {
     _setLoading(true);
     try {
+      // Validate budget
+      if (budget.amount <= 0) {
+        _setError('Budget amount must be greater than 0');
+        return false;
+      }
+      
+      if (budget.category.trim().isEmpty) {
+        _setError('Budget category cannot be empty');
+        return false;
+      }
+
+      // Check for duplicate budgets in same category and period
+      final existingBudget = _budgets.any((b) => 
+        b.category.toLowerCase() == budget.category.toLowerCase() &&
+        b.period == budget.period &&
+        b.isActive
+      );
+      
+      if (existingBudget) {
+        _setError('A budget for this category and period already exists');
+        return false;
+      }
+      
       // Add to local list
       _budgets.add(budget);
       notifyListeners();
@@ -172,9 +235,22 @@ class BudgetProvider extends ChangeNotifier {
   Future<bool> updateBudget(Budget budget) async {
     _setLoading(true);
     try {
+      // Validate budget
+      if (budget.amount <= 0) {
+        _setError('Budget amount must be greater than 0');
+        return false;
+      }
+      
+      if (budget.category.trim().isEmpty) {
+        _setError('Budget category cannot be empty');
+        return false;
+      }
+
       final index = _budgets.indexWhere((b) => b.id == budget.id);
       if (index >= 0) {
-        _budgets[index] = budget;
+        // Update the budget with current timestamp
+        final updatedBudget = budget.copyWith(updatedAt: DateTime.now());
+        _budgets[index] = updatedBudget;
         notifyListeners();
         
         // Save to local storage
@@ -182,7 +258,7 @@ class BudgetProvider extends ChangeNotifier {
         
         // Update in Appwrite
         try {
-          await _appwriteService.updateBudget(budget);
+          await _appwriteService.updateBudget(updatedBudget);
         } catch (e) {
           print('Error updating budget in Appwrite: $e');
           // Continue even if Appwrite fails
@@ -204,6 +280,12 @@ class BudgetProvider extends ChangeNotifier {
   Future<bool> deleteBudget(String budgetId) async {
     _setLoading(true);
     try {
+      final budgetExists = _budgets.any((b) => b.id == budgetId);
+      if (!budgetExists) {
+        _setError('Budget not found');
+        return false;
+      }
+
       _budgets.removeWhere((b) => b.id == budgetId);
       notifyListeners();
       
@@ -226,71 +308,200 @@ class BudgetProvider extends ChangeNotifier {
     }
   }
 
+  // Toggle budget active status
+  Future<bool> toggleBudgetStatus(String budgetId) async {
+    final budget = getBudgetById(budgetId);
+    if (budget == null) {
+      _setError('Budget not found');
+      return false;
+    }
+
+    final updatedBudget = budget.copyWith(
+      isActive: !budget.isActive,
+      updatedAt: DateTime.now(),
+    );
+    
+    return await updateBudget(updatedBudget);
+  }
+
+  // Reset budget spent amount
+  Future<bool> resetBudgetSpent(String budgetId) async {
+    final budget = getBudgetById(budgetId);
+    if (budget == null) {
+      _setError('Budget not found');
+      return false;
+    }
+
+    final updatedBudget = budget.copyWith(
+      spent: 0.0,
+      updatedAt: DateTime.now(),
+    );
+    
+    return await updateBudget(updatedBudget);
+  }
+
   // Process a new transaction and update related budgets
   Future<void> processTransaction(Transaction transaction) async {
-    if (transaction.isExpense) {
+    if (!transaction.isExpense) return;
+
+    try {
       // Find all budgets that match this transaction's category
       final matchingBudgets = _budgets.where((b) => 
         b.isActive && 
         (b.category.toLowerCase() == transaction.category.toLowerCase() ||
-         b.tags.contains(transaction.category.toLowerCase()))
+         b.tags.any((tag) => tag.toLowerCase() == transaction.category.toLowerCase()))
       ).toList();
       
       if (matchingBudgets.isNotEmpty) {
         for (var budget in matchingBudgets) {
           final newSpent = budget.spent + transaction.amount;
-          await updateBudget(budget.copyWith(spent: newSpent));
+          final updatedBudget = budget.copyWith(
+            spent: newSpent,
+            updatedAt: DateTime.now(),
+          );
+          
+          await updateBudget(updatedBudget);
           
           // Check if this transaction puts the budget over limit
-          if (budget.isOverBudget) {
-            _sendBudgetAlert(budget);
+          if (updatedBudget.isOverBudget) {
+            _sendBudgetAlert(updatedBudget);
+          } else if (updatedBudget.percentageUsed >= 0.8) {
+            // Send warning when 80% of budget is used
+            _sendBudgetWarning(updatedBudget);
           }
         }
       } else {
         // Use AI to suggest a budget category if no match found
-        final suggestedCategory = await _aiService.suggestCategoryForTransaction(transaction);
-        if (suggestedCategory != null) {
-          final matchingBudgetsByAI = _budgets.where((b) => 
-            b.isActive && 
-            (b.category.toLowerCase() == suggestedCategory.toLowerCase() ||
-             b.tags.contains(suggestedCategory.toLowerCase()))
-          ).toList();
-          
-          if (matchingBudgetsByAI.isNotEmpty) {
-            for (var budget in matchingBudgetsByAI) {
-              final newSpent = budget.spent + transaction.amount;
-              await updateBudget(budget.copyWith(spent: newSpent));
-              
-              if (budget.isOverBudget) {
-                _sendBudgetAlert(budget);
+        try {
+          final suggestedCategory = await _aiService.suggestCategoryForTransaction(transaction);
+          if (suggestedCategory != null && suggestedCategory.isNotEmpty) {
+            final matchingBudgetsByAI = _budgets.where((b) => 
+              b.isActive && 
+              (b.category.toLowerCase() == suggestedCategory.toLowerCase() ||
+               b.tags.any((tag) => tag.toLowerCase() == suggestedCategory.toLowerCase()))
+            ).toList();
+            
+            if (matchingBudgetsByAI.isNotEmpty) {
+              for (var budget in matchingBudgetsByAI) {
+                final newSpent = budget.spent + transaction.amount;
+                final updatedBudget = budget.copyWith(
+                  spent: newSpent,
+                  updatedAt: DateTime.now(),
+                );
+                
+                await updateBudget(updatedBudget);
+                
+                if (updatedBudget.isOverBudget) {
+                  _sendBudgetAlert(updatedBudget);
+                } else if (updatedBudget.percentageUsed >= 0.8) {
+                  _sendBudgetWarning(updatedBudget);
+                }
               }
             }
           }
+        } catch (e) {
+          print('Error getting AI category suggestion: $e');
         }
       }
+    } catch (e) {
+      print('Error processing transaction for budgets: $e');
+    }
+  }
+
+  // Process transaction removal (when transaction is deleted)
+  Future<void> processTransactionRemoval(Transaction transaction) async {
+    if (!transaction.isExpense) return;
+
+    try {
+      // Find all budgets that match this transaction's category
+      final matchingBudgets = _budgets.where((b) => 
+        b.isActive && 
+        (b.category.toLowerCase() == transaction.category.toLowerCase() ||
+         b.tags.any((tag) => tag.toLowerCase() == transaction.category.toLowerCase()))
+      ).toList();
+      
+      for (var budget in matchingBudgets) {
+        final newSpent = (budget.spent - transaction.amount).clamp(0.0, double.infinity);
+        final updatedBudget = budget.copyWith(
+          spent: newSpent,
+          updatedAt: DateTime.now(),
+        );
+        
+        await updateBudget(updatedBudget);
+      }
+    } catch (e) {
+      print('Error processing transaction removal for budgets: $e');
     }
   }
 
   // Send budget alerts for overspending
   void _sendBudgetAlert(Budget budget) {
-    _notificationService.showBudgetAlert(
-      budget.category, 
-      budget.spent, 
-      budget.amount
-    );
+    try {
+      _notificationService.showBudgetAlert(
+        budget.category, 
+        budget.spent, 
+        budget.amount
+      );
+    } catch (e) {
+      print('Error sending budget alert: $e');
+    }
+  }
+
+  // Send budget warning when approaching limit
+  void _sendBudgetWarning(Budget budget) {
+    try {
+      _notificationService.showTransactionNotification(
+        'Budget Warning',
+        'You\'ve used ${(budget.percentageUsed * 100).toInt()}% of your ${budget.category} budget'
+      );
+    } catch (e) {
+      print('Error sending budget warning: $e');
+    }
   }
 
   // Get AI-powered budget insights
   Future<List<String>> getBudgetInsights() async {
     try {
-      return await _aiService.generateBudgetInsights(_budgets);
+      final insights = await _aiService.generateBudgetInsights(_budgets);
+      return insights.isNotEmpty ? insights : _getDefaultInsights();
     } catch (e) {
       print('Error getting budget insights: $e');
-      return [
-        'Try reducing spending in ${highestSpendingCategory} to stay on track.',
-        'You\'ve used ${(overallPercentage * 100).toInt()}% of your total budget.'
-      ];
+      return _getDefaultInsights();
     }
+  }
+
+  // Get default insights when AI service fails
+  List<String> _getDefaultInsights() {
+    final insights = <String>[];
+    
+    if (_budgets.isEmpty) {
+      insights.add('Create your first budget to start tracking your expenses!');
+      return insights;
+    }
+
+    // Overall spending insight
+    if (overallPercentage > 1.0) {
+      insights.add('You\'re overspending by ${((overallPercentage - 1) * 100).toInt()}% this period.');
+    } else if (overallPercentage > 0.8) {
+      insights.add('You\'ve used ${(overallPercentage * 100).toInt()}% of your total budget. Be careful!');
+    } else if (overallPercentage > 0.5) {
+      insights.add('You\'re halfway through your budget. You\'re doing well!');
+    } else {
+      insights.add('Great job! You\'re staying within your budget limits.');
+    }
+
+    // Highest spending category insight
+    if (highestSpendingCategory != 'None') {
+      insights.add('Your highest spending category is $highestSpendingCategory.');
+    }
+
+    // Most consumed budget insight
+    final mostConsumed = mostConsumedBudget;
+    if (mostConsumed != null && mostConsumed.percentageUsed > 0.8) {
+      insights.add('Your ${mostConsumed.category} budget is ${(mostConsumed.percentageUsed * 100).toInt()}% used.');
+    }
+
+    return insights;
   }
 
   // Get AI-recommended budgets based on past transactions
@@ -308,13 +519,111 @@ class BudgetProvider extends ChangeNotifier {
     try {
       final dailySummary = await _aiService.generateDailySummary(_budgets);
       
-      _notificationService.showTransactionNotification(
-        'Daily Budget Summary',
-        dailySummary
-      );
+      if (dailySummary.isNotEmpty) {
+        _notificationService.showTransactionNotification(
+          'Daily Budget Summary',
+          dailySummary
+        );
+      }
     } catch (e) {
       print('Error sending daily summary: $e');
     }
+  }
+
+  // Reset all budgets for new period
+  Future<void> resetAllBudgets() async {
+    _setLoading(true);
+    try {
+      final List<Budget> updatedBudgets = [];
+      
+      for (var budget in _budgets) {
+        if (budget.isActive) {
+          final resetBudget = budget.copyWith(
+            spent: 0.0,
+            updatedAt: DateTime.now(),
+          );
+          updatedBudgets.add(resetBudget);
+        } else {
+          updatedBudgets.add(budget);
+        }
+      }
+      
+      _budgets.clear();
+      _budgets.addAll(updatedBudgets);
+      
+      // Save to local storage
+      await _storageService.saveBudgets(_budgets);
+      
+      // Update all in Appwrite
+      for (var budget in updatedBudgets.where((b) => b.spent == 0.0)) {
+        try {
+          await _appwriteService.updateBudget(budget);
+        } catch (e) {
+          print('Error updating budget ${budget.id} in Appwrite: $e');
+        }
+      }
+      
+      notifyListeners();
+      _setLoading(false);
+    } catch (e) {
+      _setError('Failed to reset budgets: $e');
+    }
+  }
+
+  // Clear all budgets (for testing or reset purposes)
+  Future<void> clearAllBudgets() async {
+    _setLoading(true);
+    try {
+      // Delete from Appwrite first
+      for (var budget in _budgets) {
+        try {
+          await _appwriteService.deleteBudget(budget.id);
+        } catch (e) {
+          print('Error deleting budget ${budget.id} from Appwrite: $e');
+        }
+      }
+      
+      _budgets.clear();
+      await _storageService.saveBudgets(_budgets);
+      
+      notifyListeners();
+      _setLoading(false);
+    } catch (e) {
+      _setError('Failed to clear budgets: $e');
+    }
+  }
+
+  // Get spending summary for a specific period
+  Map<String, double> getSpendingSummary([BudgetPeriod? period]) {
+    final budgetsToAnalyze = period != null 
+        ? getBudgetsByPeriod(period)
+        : activeBudgets;
+    
+    final summary = <String, double>{};
+    
+    for (var budget in budgetsToAnalyze) {
+      summary[budget.category] = budget.spent;
+    }
+    
+    return summary;
+  }
+
+  // Get over-budget categories
+  List<Budget> get overBudgetCategories {
+    return _budgets.where((b) => b.isActive && b.isOverBudget).toList();
+  }
+
+  // Get under-budget categories
+  List<Budget> get underBudgetCategories {
+    return _budgets.where((b) => b.isActive && !b.isOverBudget && b.percentageUsed < 1.0).toList();
+  }
+
+  // Check if any budget is over limit
+  bool get hasOverBudgetCategories => overBudgetCategories.isNotEmpty;
+
+  // Get total over-budget amount
+  double get totalOverBudgetAmount {
+    return overBudgetCategories.fold(0.0, (sum, b) => sum + (b.spent - b.amount));
   }
 
   // Utility method to set loading state
@@ -333,5 +642,18 @@ class BudgetProvider extends ChangeNotifier {
     _hasError = true;
     _errorMessage = message;
     notifyListeners();
+  }
+
+  // Clear error state
+  void clearError() {
+    _hasError = false;
+    _errorMessage = '';
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    // Clean up any resources if needed
+    super.dispose();
   }
 }
