@@ -123,7 +123,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.03),
@@ -1827,7 +1827,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                         side: BorderSide(color: accentColor),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),
@@ -1881,7 +1881,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                   side: const BorderSide(color: Colors.red),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
@@ -1927,7 +1927,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -1974,7 +1974,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
             child: const Text('Create Your First Budget'),
