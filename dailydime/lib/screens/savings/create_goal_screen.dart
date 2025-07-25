@@ -98,6 +98,47 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
       });
     }
   }
+
+  // Helper method to convert enum to string
+  String _categoryToString(SavingsGoalCategory category) {
+    switch (category) {
+      case SavingsGoalCategory.travel:
+        return 'travel';
+      case SavingsGoalCategory.education:
+        return 'education';
+      case SavingsGoalCategory.electronics:
+        return 'electronics';
+      case SavingsGoalCategory.vehicle:
+        return 'vehicle';
+      case SavingsGoalCategory.housing:
+        return 'housing';
+      case SavingsGoalCategory.emergency:
+        return 'emergency';
+      case SavingsGoalCategory.retirement:
+        return 'retirement';
+      case SavingsGoalCategory.debt:
+        return 'debt';
+      case SavingsGoalCategory.investment:
+        return 'investment';
+      case SavingsGoalCategory.other:
+      default:
+        return 'other';
+    }
+  }
+
+  // Helper method to convert color to hex string
+  String _colorToString(Color color) {
+    return '#${color.value.toRadixString(16).padLeft(8, '0')}';
+  }
+
+  // Helper method to convert hex string to color
+  Color _colorFromString(String colorString) {
+    try {
+      return Color(int.parse(colorString.substring(1), radix: 16));
+    } catch (e) {
+      return Colors.blue; // Default fallback
+    }
+  }
   
   Future<void> _saveGoal() async {
     if (!_formKey.currentState!.validate()) return;
@@ -106,91 +147,116 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
       _isLoading = true;
     });
     
-    final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
-    
-    final title = _titleController.text.trim();
-    final description = _descriptionController.text.trim();
-    final targetAmount = double.parse(_targetAmountController.text.trim());
-    
-    // Map category to icon
-    String iconAsset;
-    switch (_category) {
-      case SavingsGoalCategory.travel:
-        iconAsset = 'beach_access';
-        break;
-      case SavingsGoalCategory.education:
-        iconAsset = 'school';
-        break;
-      case SavingsGoalCategory.electronics:
-        iconAsset = 'laptop';
-        break;
-      case SavingsGoalCategory.vehicle:
-        iconAsset = 'directions_car';
-        break;
-      case SavingsGoalCategory.housing:
-        iconAsset = 'home';
-        break;
-      case SavingsGoalCategory.emergency:
-        iconAsset = 'health_and_safety';
-        break;
-      case SavingsGoalCategory.retirement:
-        iconAsset = 'account_balance';
-        break;
-      case SavingsGoalCategory.debt:
-        iconAsset = 'money_off';
-        break;
-      case SavingsGoalCategory.investment:
-        iconAsset = 'trending_up';
-        break;
-      case SavingsGoalCategory.other:
-      default:
-        iconAsset = 'savings';
-        break;
-    }
-    
-    bool success;
-    
-    if (_isEditing) {
-      // Update existing goal
-      final updatedGoal = widget.existingGoal!.copyWith(
-        title: title,
-        description: description,
-        targetAmount: targetAmount,
-        targetDate: _targetDate,
-        category: _category,
-        color: _selectedColor,
-        iconAsset: iconAsset,
-      );
+    try {
+      final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
       
-      success = await savingsProvider.updateSavingsGoal(updatedGoal);
-    } else {
-      // Create new goal
-      final newGoal = SavingsGoal(
-        title: title,
-        description: description,
-        targetAmount: targetAmount,
-        targetDate: _targetDate,
-        category: _category,
-        iconAsset: iconAsset,
-        color: _selectedColor, dailyTarget: null, weeklyTarget: null, priority: null,
-      );
+      final title = _titleController.text.trim();
+      final description = _descriptionController.text.trim();
+      final targetAmount = double.parse(_targetAmountController.text.trim());
       
-      success = await savingsProvider.addSavingsGoal(newGoal);
-    }
-    
-    setState(() {
-      _isLoading = false;
-    });
-    
-    if (success) {
-      if (mounted) {
-        Navigator.pop(context);
+      // Map category to icon
+      String iconAsset;
+      switch (_category) {
+        case SavingsGoalCategory.travel:
+          iconAsset = 'beach_access';
+          break;
+        case SavingsGoalCategory.education:
+          iconAsset = 'school';
+          break;
+        case SavingsGoalCategory.electronics:
+          iconAsset = 'laptop';
+          break;
+        case SavingsGoalCategory.vehicle:
+          iconAsset = 'directions_car';
+          break;
+        case SavingsGoalCategory.housing:
+          iconAsset = 'home';
+          break;
+        case SavingsGoalCategory.emergency:
+          iconAsset = 'health_and_safety';
+          break;
+        case SavingsGoalCategory.retirement:
+          iconAsset = 'account_balance';
+          break;
+        case SavingsGoalCategory.debt:
+          iconAsset = 'money_off';
+          break;
+        case SavingsGoalCategory.investment:
+          iconAsset = 'trending_up';
+          break;
+        case SavingsGoalCategory.other:
+        default:
+          iconAsset = 'savings';
+          break;
       }
-    } else {
+      
+      bool success;
+      
+      if (_isEditing) {
+        // Update existing goal
+        final updatedGoal = widget.existingGoal!.copyWith(
+          title: title,
+          description: description,
+          targetAmount: targetAmount,
+          targetDate: _targetDate,
+          category: _category,
+          color: _selectedColor,
+          iconAsset: iconAsset,
+        );
+        
+        success = await savingsProvider.updateSavingsGoal(updatedGoal);
+      } else {
+        // Create new goal - convert enum and color to serializable formats
+        final goalData = {
+          'title': title,
+          'description': description,
+          'targetAmount': targetAmount,
+          'targetDate': _targetDate.toIso8601String(),
+          'category': _categoryToString(_category),
+          'iconAsset': iconAsset,
+          'color': _colorToString(_selectedColor),
+          'currentAmount': 0.0,
+          'isCompleted': false,
+          'createdAt': DateTime.now().toIso8601String(),
+          'updatedAt': DateTime.now().toIso8601String(),
+        };
+        
+        success = await savingsProvider.addSavingsGoalFromMap(goalData);
+      }
+      
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (success) {
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Goal ${_isEditing ? 'updated' : 'created'} successfully!'),
+              backgroundColor: const Color(0xFF26D07C),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error ${_isEditing ? 'updating' : 'creating'} goal'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error ${_isEditing ? 'updating' : 'creating'} goal'),
+            content: Text('Error: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );

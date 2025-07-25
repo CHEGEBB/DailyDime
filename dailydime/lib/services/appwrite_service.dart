@@ -354,7 +354,7 @@ class AppwriteService {
       deadline: data['deadline'] != null ? DateTime.parse(data['deadline']) : null,
       status: data['status'] ?? 'active',
       createdAt: data['created_at'] != null ? DateTime.parse(data['created_at']) : null,
-      updatedAt: data['updated_at'] != null ? DateTime.parse(data['updated_at']) : DateTime.now(), targetDate: DateTime.now(), iconAsset: '', color: Colors.grey, // Default color
+      updatedAt: data['updated_at'] != null ? DateTime.parse(data['updated_at']) : DateTime.now(), targetDate: DateTime.now(), iconAsset: '', color: Colors.grey, isRecurring: null, reminderFrequency: null, // Default color
     );
   }
 

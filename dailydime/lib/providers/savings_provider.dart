@@ -865,4 +865,68 @@ void _scheduleChallengeNotifications(Map<String, dynamic> challenge) {
       }
     }
   }
+  // Add a new savings goal from map data
+Future<bool> addSavingsGoalFromMap(Map<String, dynamic> goalData) async {
+  _isLoading = true;
+  _error = '';
+  notifyListeners();
+  
+  try {
+    // Create SavingsGoal object from map
+    final goal = SavingsGoal(
+      id: goalData['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      title: goalData['title'] ?? '',
+      description: goalData['description'] ?? '',
+      targetAmount: (goalData['targetAmount'] ?? 0.0).toDouble(),
+      currentAmount: (goalData['currentAmount'] ?? 0.0).toDouble(),
+      targetDate: goalData['targetDate'] != null 
+        ? DateTime.parse(goalData['targetDate'].toString())
+        : DateTime.now().add(Duration(days: 30)),
+      startDate: goalData['startDate'] != null
+        ? DateTime.parse(goalData['startDate'].toString())
+        : DateTime.now(),
+      category: goalData['category'] ?? 'general',
+      priority: goalData['priority'] ?? 'medium',
+      isRecurring: goalData['isRecurring'] ?? false,
+      reminderFrequency: goalData['reminderFrequency'] ?? 'weekly',
+      status: goalData['status'] != null 
+        ? SavingsGoalStatus.values.firstWhere(
+            (e) => e.toString().split('.').last == goalData['status'],
+            orElse: () => SavingsGoalStatus.active,
+          )
+        : SavingsGoalStatus.active,
+      transactions: goalData['transactions'] != null
+        ? (goalData['transactions'] as List).map((t) => SavingsTransaction(
+            amount: (t['amount'] ?? 0.0).toDouble(),
+            date: DateTime.parse(t['date'].toString()),
+            note: t['note'] ?? '',
+          )).toList()
+        : [],
+      createdAt: goalData['createdAt'] != null
+        ? DateTime.parse(goalData['createdAt'].toString())
+        : DateTime.now(),
+      updatedAt: goalData['updatedAt'] != null
+        ? DateTime.parse(goalData['updatedAt'].toString())
+        : DateTime.now(), iconAsset: '', color: Colors.transparent, dailyTarget: null, weeklyTarget: null,
+    );
+    
+    // Save to Appwrite
+    final savedGoal = await _appwriteService.createSavingsGoal(goal);
+    
+    // Add to local list
+    _savingsGoals.add(savedGoal);
+    
+    // Schedule notification
+    _scheduleGoalNotification(savedGoal);
+    
+    _isLoading = false;
+    notifyListeners();
+    return true;
+  } catch (e) {
+    _error = 'Failed to add savings goal from map: $e';
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+}
 }

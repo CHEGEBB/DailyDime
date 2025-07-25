@@ -61,7 +61,7 @@ class SavingsGoal {
     this.recommendedWeeklySaving,
     this.isAutomaticSaving = false,
     this.forecastedCompletion,
-    this.imageUrl, required dailyTarget, required weeklyTarget, required priority, DateTime? deadline, DateTime? createdAt, DateTime? updatedAt,
+    this.imageUrl, required dailyTarget, required weeklyTarget, required priority, DateTime? deadline, DateTime? createdAt, DateTime? updatedAt, required isRecurring, required reminderFrequency,
   }) : 
     id = id ?? const Uuid().v4(),
     startDate = startDate ?? DateTime.now(),
@@ -140,7 +140,7 @@ class SavingsGoal {
           ? List<SavingsTransaction>.from(
               map['transactions'].map((t) => SavingsTransaction.fromMap(t))
             )
-          : [], dailyTarget: null, weeklyTarget: null, priority: null,
+          : [], dailyTarget: null, weeklyTarget: null, priority: null, isRecurring: null, reminderFrequency: null,
     );
   }
 
@@ -191,7 +191,7 @@ class SavingsGoal {
       recommendedWeeklySaving: recommendedWeeklySaving ?? this.recommendedWeeklySaving,
       isAutomaticSaving: isAutomaticSaving ?? this.isAutomaticSaving,
       forecastedCompletion: forecastedCompletion ?? this.forecastedCompletion,
-      imageUrl: imageUrl ?? this.imageUrl, dailyTarget: null, weeklyTarget: null, priority: null,
+      imageUrl: imageUrl ?? this.imageUrl, dailyTarget: null, weeklyTarget: null, priority: null, isRecurring: null, reminderFrequency: null,
     );
   }
 }
