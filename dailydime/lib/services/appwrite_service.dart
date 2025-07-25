@@ -315,13 +315,17 @@ class AppwriteService {
 // Fetch all savings goals
 Future<List<SavingsGoal>> fetchSavingsGoals() async {
   try {
-    await _checkUserSession();
+    Future<void> _checkUserSession() async {
+      if (currentUserId == null) {
+        throw Exception('User is not logged in');
+      }
+    }
     
-    final response = await _db.listDocuments(
+    final response = await databases.listDocuments(
       collectionId: AppConfig.savingsGoalsCollection,
       queries: [
-        Query.equal('userId', _userId),
-      ],
+        Query.equal('userId', currentUserId),
+      ], databaseId: '',
     );
     
     return response.documents.map((doc) {
@@ -340,15 +344,20 @@ Future<List<SavingsGoal>> fetchSavingsGoals() async {
 // Create a new savings goal
 Future<SavingsGoal> createSavingsGoal(SavingsGoal goal) async {
   try {
-    await _checkUserSession();
+    Future<void> _checkUserSession() async {
+      if (currentUserId == null) {
+        throw Exception('User is not logged in');
+      }
+    }
+      await _checkUserSession();
     
     final goalMap = goal.toMap();
-    goalMap['userId'] = _userId;
+    goalMap['userId'] = currentUserId;
     
-    final response = await _db.createDocument(
+    final response = await databases.createDocument(
       collectionId: AppConfig.savingsGoalsCollection,
       documentId: ID.unique(),
-      data: goalMap,
+      data: goalMap, databaseId: '',
     );
     
     return SavingsGoal.fromMap({
@@ -364,15 +373,20 @@ Future<SavingsGoal> createSavingsGoal(SavingsGoal goal) async {
 // Update an existing savings goal
 Future<void> updateSavingsGoal(SavingsGoal goal) async {
   try {
-    await _checkUserSession();
+    Future<void> _checkUserSession() async {
+      if (currentUserId == null) {
+        throw Exception('User is not logged in');
+      }
+    }
+      await _checkUserSession();
     
     final goalMap = goal.toMap();
-    goalMap['userId'] = _userId;
+    goalMap['userId'] = currentUserId;
     
-    await _db.updateDocument(
+    final response = await databases.createDocument(
       collectionId: AppConfig.savingsGoalsCollection,
       documentId: goal.id,
-      data: goalMap,
+      data: goalMap, databaseId: '',
     );
   } catch (e) {
     debugPrint('Error updating savings goal: $e');
@@ -383,11 +397,16 @@ Future<void> updateSavingsGoal(SavingsGoal goal) async {
 // Delete a savings goal
 Future<void> deleteSavingsGoal(String goalId) async {
   try {
-    await _checkUserSession();
+    Future<void> _checkUserSession() async {
+      if (currentUserId == null) {
+        throw Exception('User is not logged in');
+      }
+    }
+      await _checkUserSession();
     
-    await _db.deleteDocument(
+    final response = await databases.createDocument(
       collectionId: AppConfig.savingsGoalsCollection,
-      documentId: goalId,
+      documentId: goalId, databaseId: '', data: {},
     );
   } catch (e) {
     debugPrint('Error deleting savings goal: $e');

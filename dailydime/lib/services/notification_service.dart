@@ -1,3 +1,7 @@
+import 'dart:ui';
+
+import 'package:dailydime/config/app_config.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -165,7 +169,7 @@ class NotificationService {
   }
 
   Future<void> showGoalCompletedNotification(String goalId, String goalTitle) async {
-  await flutterLocalNotificationsPlugin.show(
+  await _flutterLocalNotificationsPlugin.show(
     goalId.hashCode,
     'Goal Completed! 🎉',
     'Congratulations! You\'ve reached your savings goal for "$goalTitle"',
@@ -184,7 +188,7 @@ class NotificationService {
 }
 
 Future<void> showGoalMilestoneNotification(String goalId, String goalTitle, int percentage) async {
-  await flutterLocalNotificationsPlugin.show(
+  await _flutterLocalNotificationsPlugin.show(
     goalId.hashCode + percentage,
     'Milestone Reached! 🏆',
     'You\'ve reached $percentage% of your "$goalTitle" savings goal',
@@ -214,7 +218,7 @@ Future<void> scheduleWeeklyGoalReminder(
     const TimeOfDay(hour: 10, minute: 0),
   );
   
-  await flutterLocalNotificationsPlugin.zonedSchedule(
+  await _flutterLocalNotificationsPlugin.zonedSchedule(
     goalId.hashCode + 1000,
     'Weekly Savings Reminder',
     'You\'ve saved ${((currentAmount / targetAmount) * 100).toInt()}% of your "$goalTitle" goal. Keep going!',
@@ -251,7 +255,7 @@ Future<void> scheduleDailyGoalReminder(
   final daysLeft = targetDate.difference(DateTime.now()).inDays;
   final amountLeft = targetAmount - currentAmount;
   
-  await flutterLocalNotificationsPlugin.zonedSchedule(
+  await _flutterLocalNotificationsPlugin.zonedSchedule(
     goalId.hashCode + 2000,
     'Goal Deadline Approaching',
     'Only $daysLeft days left to save ${AppConfig.formatCurrency(amountLeft.toInt() * 100)} for your "$goalTitle" goal',
@@ -286,7 +290,7 @@ Future<void> scheduleGoalDeadlineReminder(
   
   final amountLeft = targetAmount - currentAmount;
   
-  await flutterLocalNotificationsPlugin.zonedSchedule(
+  await _flutterLocalNotificationsPlugin.zonedSchedule(
     goalId.hashCode + 3000,
     'Goal Deadline Tomorrow',
     'Your "$goalTitle" goal deadline is tomorrow! You still need to save ${AppConfig.formatCurrency(amountLeft.toInt() * 100)}',
@@ -309,14 +313,14 @@ Future<void> scheduleGoalDeadlineReminder(
 }
 
 Future<void> cancelNotificationsForGoal(String goalId) async {
-  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode);
-  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 1000);
-  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 2000);
-  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 3000);
+  await _flutterLocalNotificationsPlugin.cancel(goalId.hashCode);
+  await _flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 1000);
+  await _flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 2000);
+  await _flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 3000);
   // Cancel milestone notifications too
-  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 25);
-  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 50);
-  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 75);
+  await _flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 25);
+  await _flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 50);
+  await _flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 75);
 }
 
 tz.TZDateTime _nextInstanceOfDayTime(int day, TimeOfDay time) {
