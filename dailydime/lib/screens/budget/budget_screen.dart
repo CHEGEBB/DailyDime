@@ -1036,7 +1036,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.analytics,
@@ -1088,7 +1088,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                     height: 100,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(8),
                       color: Colors.white,
                     ),
                   ),
@@ -1101,7 +1101,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -1147,7 +1147,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -1163,7 +1163,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         icon,
@@ -1260,7 +1260,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -1274,7 +1274,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
         background: Container(
           decoration: BoxDecoration(
             color: Colors.red,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
           ),
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 20),
