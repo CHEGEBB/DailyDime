@@ -568,7 +568,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                         // Save goal and navigate back
                         Navigator.pop(context);
                       },
-                      isSmall: false,
+                      isSmall: false, buttonColor: Colors.blue, // Replace with a valid MaterialColor
                     ),
                   ],
                 ),

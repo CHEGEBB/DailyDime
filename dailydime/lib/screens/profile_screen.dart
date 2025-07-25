@@ -684,7 +684,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     text: 'Sign Out',
                     onPressed: () {},
                     isOutlined: true,
-                    icon: Icons.logout,
+                    icon: Icons.logout,buttonColor: Colors.blue,
                   ),
                   
                   const SizedBox(height: 16),

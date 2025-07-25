@@ -2,6 +2,7 @@
 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:dailydime/models/transaction.dart';
+import 'package:dailydime/models/budget.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -13,6 +14,7 @@ class StorageService {
   
   late Box<Transaction> _transactionsBox;
   late Box<double> _balanceBox;
+  late Box _budgetsBox; // Using dynamic box for budgets
   
   bool _isInitialized = false;
   
@@ -35,11 +37,63 @@ class StorageService {
       Hive.registerAdapter(IconDataAdapter());
     }
     
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(BudgetPeriodAdapter());
+    }
+    
     // Open boxes
     _transactionsBox = await Hive.openBox<Transaction>('transactions');
     _balanceBox = await Hive.openBox<double>('balance');
+    _budgetsBox = await Hive.openBox('budgets');
     
     _isInitialized = true;
+  }
+  
+  // BUDGET OPERATIONS
+  
+  // Load budgets from local storage
+  Future<List<Budget>> loadBudgets() async {
+    await _ensureInitialized();
+    
+    final List<Budget> budgets = [];
+    
+    try {
+      final budgetMaps = _budgetsBox.values.toList();
+      
+      for (final budgetData in budgetMaps) {
+        // Convert the dynamic Map to Budget object
+        if (budgetData is Map) {
+          try {
+            final budget = Budget.fromMap(Map<String, dynamic>.from(budgetData));
+            budgets.add(budget);
+          } catch (e) {
+            print('Error parsing budget: $e');
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading budgets: $e');
+    }
+    
+    return budgets;
+  }
+  
+  // Save a list of budgets to local storage
+  Future<void> saveBudgets(List<Budget> budgets) async {
+    await _ensureInitialized();
+    
+    try {
+      // Clear existing budgets
+      await _budgetsBox.clear();
+      
+      // Save each budget as a map
+      for (final budget in budgets) {
+        await _budgetsBox.put(budget.id, budget.toMap());
+      }
+    } catch (e) {
+      print('Error saving budgets: $e');
+      throw Exception('Failed to save budgets: $e');
+    }
   }
   
   // Transaction operations
@@ -59,6 +113,11 @@ class StorageService {
   Future<List<Transaction>> getTransactions() async {
     await _ensureInitialized();
     return _transactionsBox.values.toList();
+  }
+  
+  // Added this method to match the one used in BudgetAIService
+  Future<List<Transaction>> loadTransactions() async {
+    return getTransactions();
   }
   
   Future<List<Transaction>> getTransactionsByCategory(String category) async {
@@ -106,6 +165,7 @@ class StorageService {
   Future<void> close() async {
     await _transactionsBox.close();
     await _balanceBox.close();
+    await _budgetsBox.close();
     _isInitialized = false;
   }
 }
@@ -191,5 +251,21 @@ class IconDataAdapter extends TypeAdapter<IconData> {
     writer.writeInt(obj.codePoint);
     writer.writeString(obj.fontFamily ?? '');
     writer.writeString(obj.fontPackage ?? '');
+  }
+}
+
+// Adding BudgetPeriod adapter for Hive
+class BudgetPeriodAdapter extends TypeAdapter<BudgetPeriod> {
+  @override
+  final int typeId = 3;
+  
+  @override
+  BudgetPeriod read(BinaryReader reader) {
+    return BudgetPeriod.values[reader.readInt()];
+  }
+  
+  @override
+  void write(BinaryWriter writer, BudgetPeriod obj) {
+    writer.writeInt(obj.index);
   }
 }

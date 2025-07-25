@@ -135,7 +135,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
             ),
             const SizedBox(height: 32),
             CustomButton(
-              isSmall: false,
+              isSmall: false,buttonColor: Colors.blue,
               text: 'Grant SMS Permission',
               onPressed: () {
                 // This would request SMS permission
@@ -514,7 +514,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                 children: [
                   Expanded(
                     child: CustomButton(
-                      isSmall: false,
+                      isSmall: false,buttonColor: Colors.blue,
                       text: 'Sync New SMS',
                       onPressed: () {},
                       icon: Icons.sync,
@@ -529,7 +529,7 @@ class _SmsTransactionsScreenState extends State<SmsTransactionsScreen> {
                 children: [
                   Expanded(
                     child: CustomButton(
-                      isSmall: false,
+                      isSmall: false,buttonColor: Colors.blue,
                       text: 'Import Historical SMS',
                       onPressed: () {},
                       isOutlined: true,

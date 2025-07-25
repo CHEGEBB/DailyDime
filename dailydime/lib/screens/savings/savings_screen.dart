@@ -693,7 +693,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
             onPressed: () {},
             isSmall: false,
             isOutlined: true,
-            icon: Icons.add_circle_outline,
+            icon: Icons.add_circle_outline, buttonColor: Colors.blue, // or any other MaterialColor
           ),
         ],
       ),

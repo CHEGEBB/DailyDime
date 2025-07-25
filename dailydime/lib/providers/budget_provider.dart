@@ -5,6 +5,7 @@ import 'package:dailydime/models/transaction.dart';
 import 'package:dailydime/services/appwrite_service.dart';
 import 'package:dailydime/services/storage_service.dart';
 import 'package:dailydime/services/budget_ai_service.dart';
+import 'package:dailydime/services/notification_service.dart';
 import 'package:dailydime/config/app_config.dart';
 
 class BudgetProvider extends ChangeNotifier {
@@ -15,6 +16,7 @@ class BudgetProvider extends ChangeNotifier {
   final BudgetAIService _aiService = BudgetAIService();
   final AppwriteService _appwriteService = AppwriteService();
   final StorageService _storageService = StorageService.instance;
+  final NotificationService _notificationService = NotificationService();
 
   // Getters
   List<Budget> get budgets => _budgets;
@@ -121,7 +123,19 @@ class BudgetProvider extends ChangeNotifier {
     
     // Override with remote budgets if they exist
     for (var budget in remote) {
-      mergedMap[budget.id] = budget;
+      if (mergedMap.containsKey(budget.id)) {
+        // If budget exists in both, use the one with the most recent update
+        final localBudget = mergedMap[budget.id]!;
+        final localUpdated = localBudget.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final remoteUpdated = budget.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        
+        if (remoteUpdated.isAfter(localUpdated)) {
+          mergedMap[budget.id] = budget;
+        }
+      } else {
+        // If budget only exists remotely, add it
+        mergedMap[budget.id] = budget;
+      }
     }
     
     return mergedMap.values.toList();
@@ -259,8 +273,7 @@ class BudgetProvider extends ChangeNotifier {
 
   // Send budget alerts for overspending
   void _sendBudgetAlert(Budget budget) {
-    final NotificationService notificationService = NotificationService();
-    notificationService.showBudgetAlert(
+    _notificationService.showBudgetAlert(
       budget.category, 
       budget.spent, 
       budget.amount
@@ -294,9 +307,8 @@ class BudgetProvider extends ChangeNotifier {
   Future<void> sendDailySummary() async {
     try {
       final dailySummary = await _aiService.generateDailySummary(_budgets);
-      final NotificationService notificationService = NotificationService();
       
-      notificationService.showTransactionNotification(
+      _notificationService.showTransactionNotification(
         'Daily Budget Summary',
         dailySummary
       );

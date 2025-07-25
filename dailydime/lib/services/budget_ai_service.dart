@@ -350,7 +350,7 @@ Return only the summary text, no additional explanations.
             endDate: lastDayOfMonth,
             color: color,
             icon: icon,
-            tags: [category.toLowerCase()],
+            tags: [category.toLowerCase()], name: null,
           ));
         }
       });

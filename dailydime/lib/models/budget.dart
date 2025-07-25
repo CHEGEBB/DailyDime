@@ -18,6 +18,8 @@ class Budget {
   final IconData icon;
   final List<String> tags;
   final bool isActive;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Budget({
     String? id,
@@ -32,9 +34,11 @@ class Budget {
     required this.icon,
     this.tags = const [],
     this.isActive = true,
+    this.createdAt,
+    this.updatedAt, required name,
   }) : id = id ?? const Uuid().v4();
 
-  double get percentageUsed => spent / amount;
+  double get percentageUsed => amount > 0 ? spent / amount : 0;
   
   BudgetStatus get status {
     final percentage = percentageUsed;
@@ -72,6 +76,8 @@ class Budget {
       'icon': icon.codePoint,
       'tags': tags,
       'isActive': isActive,
+      'createdAt': createdAt?.millisecondsSinceEpoch,
+      'updatedAt': updatedAt?.millisecondsSinceEpoch,
     };
   }
 
@@ -90,6 +96,8 @@ class Budget {
       icon: IconData(map['icon'], fontFamily: 'MaterialIcons'),
       tags: List<String>.from(map['tags'] ?? []),
       isActive: map['isActive'] ?? true,
+      createdAt: map['createdAt'] != null ? DateTime.fromMillisecondsSinceEpoch(map['createdAt']) : null,
+      updatedAt: map['updatedAt'] != null ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt']) : null, name: null,
     );
   }
 
@@ -107,6 +115,8 @@ class Budget {
     IconData? icon,
     List<String>? tags,
     bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return Budget(
       id: id ?? this.id,
@@ -121,6 +131,8 @@ class Budget {
       icon: icon ?? this.icon,
       tags: tags ?? this.tags,
       isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt, name: null,
     );
   }
 }
