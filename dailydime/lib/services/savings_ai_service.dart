@@ -121,7 +121,7 @@ class SavingsAIService {
         ]
       ''';
 
-      final response = await _model.generateContent(content: [Content.text(prompt)]);
+      final response = await _model.generateContent([Content.text(prompt)]);
       final textResponse = response.text;
       
       if (textResponse == null) {
@@ -192,7 +192,7 @@ class SavingsAIService {
         Return a JSON array of goal suggestions with these properties.
       ''';
 
-      final response = await _model.generateContent(content: [Content.text(prompt)]);
+      final response = await _model.generateContent([Content.text(prompt)]);
       final textResponse = response.text;
       
       if (textResponse == null) {
