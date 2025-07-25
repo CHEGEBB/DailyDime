@@ -61,7 +61,7 @@ class SavingsGoal {
     this.recommendedWeeklySaving,
     this.isAutomaticSaving = false,
     this.forecastedCompletion,
-    this.imageUrl,
+    this.imageUrl, required dailyTarget, required weeklyTarget, required priority, DateTime? deadline, DateTime? createdAt, DateTime? updatedAt,
   }) : 
     id = id ?? const Uuid().v4(),
     startDate = startDate ?? DateTime.now(),
@@ -140,9 +140,19 @@ class SavingsGoal {
           ? List<SavingsTransaction>.from(
               map['transactions'].map((t) => SavingsTransaction.fromMap(t))
             )
-          : [],
+          : [], dailyTarget: null, weeklyTarget: null, priority: null,
     );
   }
+
+  get dailyTarget => null;
+
+  get weeklyTarget => null;
+
+  get priority => null;
+
+  get deadline => null;
+
+  get createdAt => null;
   
   SavingsGoal copyWith({
     String? title,
@@ -181,7 +191,7 @@ class SavingsGoal {
       recommendedWeeklySaving: recommendedWeeklySaving ?? this.recommendedWeeklySaving,
       isAutomaticSaving: isAutomaticSaving ?? this.isAutomaticSaving,
       forecastedCompletion: forecastedCompletion ?? this.forecastedCompletion,
-      imageUrl: imageUrl ?? this.imageUrl,
+      imageUrl: imageUrl ?? this.imageUrl, dailyTarget: null, weeklyTarget: null, priority: null,
     );
   }
 }

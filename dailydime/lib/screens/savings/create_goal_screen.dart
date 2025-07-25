@@ -172,7 +172,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
         targetDate: _targetDate,
         category: _category,
         iconAsset: iconAsset,
-        color: _selectedColor,
+        color: _selectedColor, dailyTarget: null, weeklyTarget: null, priority: null,
       );
       
       success = await savingsProvider.addSavingsGoal(newGoal);

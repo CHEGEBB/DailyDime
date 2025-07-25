@@ -383,7 +383,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
             targetDate: DateTime.now().add(const Duration(days: 90)),
             category: SavingsGoalCategory.other,
             iconAsset: 'savings',
-            color: accentColor,
+            color: accentColor, dailyTarget: null, weeklyTarget: null, priority: null,
           ),
     );
     

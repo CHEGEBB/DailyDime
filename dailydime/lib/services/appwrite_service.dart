@@ -320,6 +320,44 @@ class AppwriteService {
 
   // SAVINGS GOAL METHODS
 
+  // Convert SavingsGoal to Appwrite format
+  Map<String, dynamic> _convertSavingsGoalToAppwrite(SavingsGoal goal) {
+    return {
+      'user_id': currentUserId!, // Use user_id as required by Appwrite schema
+      'title': goal.title,
+      'description': goal.description ?? '',
+      'target_amount': (goal.targetAmount * 100).toInt(), // Store as cents
+      'current_amount': (goal.currentAmount * 100).toInt(), // Store as cents
+      'daily_target': goal.dailyTarget != null ? (goal.dailyTarget! * 100).toInt() : null,
+      'weekly_target': goal.weeklyTarget != null ? (goal.weeklyTarget! * 100).toInt() : null,
+      'priority': goal.priority ?? 'medium',
+      'category': goal.category ?? '',
+      'deadline': goal.deadline?.toIso8601String(),
+      'status': goal.status ?? 'active',
+      'created_at': goal.createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+  }
+
+  // Convert Appwrite data to SavingsGoal
+  SavingsGoal _convertAppwriteToSavingsGoal(Map<String, dynamic> data, String docId) {
+    return SavingsGoal(
+      id: docId,
+      title: data['title'] ?? '',
+      description: data['description'],
+      targetAmount: (data['target_amount'] ?? 0) / 100.0, // Convert from cents
+      currentAmount: (data['current_amount'] ?? 0) / 100.0, // Convert from cents
+      dailyTarget: data['daily_target'] != null ? data['daily_target'] / 100.0 : null,
+      weeklyTarget: data['weekly_target'] != null ? data['weekly_target'] / 100.0 : null,
+      priority: data['priority'] ?? 'medium',
+      category: data['category'],
+      deadline: data['deadline'] != null ? DateTime.parse(data['deadline']) : null,
+      status: data['status'] ?? 'active',
+      createdAt: data['created_at'] != null ? DateTime.parse(data['created_at']) : null,
+      updatedAt: data['updated_at'] != null ? DateTime.parse(data['updated_at']) : DateTime.now(), targetDate: DateTime.now(), iconAsset: '', color: Colors.grey, // Default color
+    );
+  }
+
   // Fetch all savings goals
   Future<List<SavingsGoal>> fetchSavingsGoals() async {
     try {
@@ -329,17 +367,14 @@ class AppwriteService {
         databaseId: AppConfig.databaseId,
         collectionId: AppConfig.savingsGoalsCollection,
         queries: [
-          Query.equal('userId', currentUserId!),
+          Query.equal('user_id', currentUserId!), // Use user_id instead of userId
           Query.orderDesc('\$createdAt'),
         ],
       );
       
       return response.documents.map((doc) {
         final data = doc.data;
-        return SavingsGoal.fromMap({
-          'id': doc.$id,
-          ...data,
-        });
+        return _convertAppwriteToSavingsGoal(data, doc.$id);
       }).toList();
     } catch (e) {
       debugPrint('Error fetching savings goals: $e');
@@ -352,22 +387,16 @@ class AppwriteService {
     try {
       await _checkUserSession();
       
-      final goalMap = goal.toMap();
-      goalMap['userId'] = currentUserId;
-      goalMap['created_at'] = DateTime.now().toIso8601String();
-      goalMap['updated_at'] = DateTime.now().toIso8601String();
+      final goalData = _convertSavingsGoalToAppwrite(goal);
       
       final response = await databases.createDocument(
         databaseId: AppConfig.databaseId,
         collectionId: AppConfig.savingsGoalsCollection,
         documentId: ID.unique(),
-        data: goalMap,
+        data: goalData,
       );
       
-      return SavingsGoal.fromMap({
-        'id': response.$id,
-        ...response.data,
-      });
+      return _convertAppwriteToSavingsGoal(response.data, response.$id);
     } catch (e) {
       debugPrint('Error creating savings goal: $e');
       rethrow;
@@ -379,15 +408,13 @@ class AppwriteService {
     try {
       await _checkUserSession();
       
-      final goalMap = goal.toMap();
-      goalMap['userId'] = currentUserId;
-      goalMap['updated_at'] = DateTime.now().toIso8601String();
+      final goalData = _convertSavingsGoalToAppwrite(goal);
       
       await databases.updateDocument(
         databaseId: AppConfig.databaseId,
         collectionId: AppConfig.savingsGoalsCollection,
         documentId: goal.id,
-        data: goalMap,
+        data: goalData,
       );
     } catch (e) {
       debugPrint('Error updating savings goal: $e');
@@ -407,6 +434,26 @@ class AppwriteService {
       );
     } catch (e) {
       debugPrint('Error deleting savings goal: $e');
+      rethrow;
+    }
+  }
+
+  // Update savings goal progress
+  Future<void> updateSavingsGoalProgress(String goalId, double newAmount) async {
+    try {
+      await _checkUserSession();
+      
+      await databases.updateDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsGoalsCollection,
+        documentId: goalId,
+        data: {
+          'current_amount': (newAmount * 100).toInt(), // Store as cents
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      debugPrint('Error updating savings goal progress: $e');
       rethrow;
     }
   }
@@ -443,7 +490,7 @@ class AppwriteService {
       
       await databases.createDocument(
         databaseId: AppConfig.databaseId,
-        collectionId: AppConfig.savingsChallengesCollection, // Ensure this getter is defined in AppConfig
+        collectionId: AppConfig.savingsChallengesCollection,
         documentId: ID.unique(),
         data: challengeData,
       );
