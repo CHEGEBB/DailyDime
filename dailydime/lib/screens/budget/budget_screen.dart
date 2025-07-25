@@ -1323,7 +1323,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
         },
         child: InkWell(
           onTap: () => _showBudgetDetails(context, budget, accentColor),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -1335,7 +1335,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: budget.color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         budget.icon,
@@ -1605,7 +1605,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
         builder: (context, scrollController) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
           ),
           child: ListView(
             controller: scrollController,
