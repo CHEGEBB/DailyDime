@@ -1,574 +1,441 @@
 // lib/screens/savings/create_goal_screen.dart
 
+import 'package:dailydime/models/savings_model.dart';
+import 'package:dailydime/providers/savings_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:dailydime/widgets/common/custom_button.dart';
-import 'package:intl/intl.dart';
+import 'package:lottie/lottie.dart';
 
 class CreateGoalScreen extends StatefulWidget {
-  const CreateGoalScreen({Key? key}) : super(key: key);
+  final SavingsGoal? existingGoal;
+  
+  const CreateGoalScreen({
+    Key? key, 
+    this.existingGoal,
+  }) : super(key: key);
 
   @override
   State<CreateGoalScreen> createState() => _CreateGoalScreenState();
 }
 
 class _CreateGoalScreenState extends State<CreateGoalScreen> {
-  final _goalNameController = TextEditingController();
-  final _targetAmountController = TextEditingController();
-  DateTime _targetDate = DateTime.now().add(const Duration(days: 180));
-  String _selectedSavingsFrequency = 'Daily';
-  final List<String> _savingsFrequencies = ['Daily', 'Weekly', 'Monthly'];
-  String _selectedIcon = 'laptop';
-  final List<Map<String, dynamic>> _iconOptions = [
-    {'name': 'laptop', 'label': 'Laptop', 'color': Colors.blue},
-    {'name': 'beach_access', 'label': 'Holiday', 'color': Colors.orange},
-    {'name': 'directions_car', 'label': 'Car', 'color': Colors.red},
-    {'name': 'home', 'label': 'Home', 'color': Colors.teal},
-    {'name': 'phone_android', 'label': 'Phone', 'color': Colors.purple},
-    {'name': 'school', 'label': 'Education', 'color': Colors.indigo},
-    {'name': 'health_and_safety', 'label': 'Health', 'color': Colors.pink},
-    {'name': 'shopping_bag', 'label': 'Shopping', 'color': Colors.amber},
-    {'name': 'savings', 'label': 'Custom', 'color': Colors.green},
+  final _formKey = GlobalKey<FormState>();
+  
+  late TextEditingController _titleController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _targetAmountController;
+  DateTime _targetDate = DateTime.now().add(const Duration(days: 90));
+  SavingsGoalCategory _category = SavingsGoalCategory.other;
+  Color _selectedColor = Colors.blue;
+  
+  bool _isEditing = false;
+  bool _isLoading = false;
+  
+  final List<Color> _colorOptions = [
+    Colors.blue,
+    Colors.green,
+    Colors.orange,
+    Colors.purple,
+    Colors.red,
+    Colors.teal,
+    Colors.pink,
+    Colors.amber,
   ];
   
-  final accentColor = const Color(0xFF26D07C); // Emerald green
-  bool _enableAutoSaving = true;
+  @override
+  void initState() {
+    super.initState();
+    
+    _isEditing = widget.existingGoal != null;
+    
+    // Initialize controllers
+    _titleController = TextEditingController(text: widget.existingGoal?.title ?? '');
+    _descriptionController = TextEditingController(text: widget.existingGoal?.description ?? '');
+    _targetAmountController = TextEditingController(
+      text: widget.existingGoal?.targetAmount.toString() ?? '',
+    );
+    
+    // Set initial values if editing
+    if (_isEditing) {
+      _targetDate = widget.existingGoal!.targetDate;
+      _category = widget.existingGoal!.category;
+      _selectedColor = widget.existingGoal!.color;
+    }
+  }
   
   @override
   void dispose() {
-    _goalNameController.dispose();
+    _titleController.dispose();
+    _descriptionController.dispose();
     _targetAmountController.dispose();
     super.dispose();
   }
   
-  IconData _getIconData(String iconName) {
-    switch (iconName) {
-      case 'laptop': return Icons.laptop;
-      case 'beach_access': return Icons.beach_access;
-      case 'directions_car': return Icons.directions_car;
-      case 'home': return Icons.home;
-      case 'phone_android': return Icons.phone_android;
-      case 'school': return Icons.school;
-      case 'health_and_safety': return Icons.health_and_safety;
-      case 'shopping_bag': return Icons.shopping_bag;
-      case 'savings': return Icons.savings;
-      default: return Icons.laptop;
+  void _selectDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _targetDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 3650)), // 10 years
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: const Color(0xFF26D07C),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    
+    if (pickedDate != null) {
+      setState(() {
+        _targetDate = pickedDate;
+      });
     }
   }
-
-  String _getRecommendedSavings() {
-    if (_targetAmountController.text.isEmpty) return '';
+  
+  Future<void> _saveGoal() async {
+    if (!_formKey.currentState!.validate()) return;
     
-    final targetAmount = int.tryParse(_targetAmountController.text) ?? 0;
-    if (targetAmount <= 0) return '';
+    setState(() {
+      _isLoading = true;
+    });
     
-    final daysUntilTarget = _targetDate.difference(DateTime.now()).inDays;
-    if (daysUntilTarget <= 0) return '';
+    final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
     
-    late double recommendedAmount;
-    late String period;
+    final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
+    final targetAmount = double.parse(_targetAmountController.text.trim());
     
-    switch (_selectedSavingsFrequency) {
-      case 'Daily':
-        recommendedAmount = targetAmount / daysUntilTarget;
-        period = 'day';
+    // Map category to icon
+    String iconAsset;
+    switch (_category) {
+      case SavingsGoalCategory.travel:
+        iconAsset = 'beach_access';
         break;
-      case 'Weekly':
-        recommendedAmount = targetAmount / (daysUntilTarget / 7);
-        period = 'week';
+      case SavingsGoalCategory.education:
+        iconAsset = 'school';
         break;
-      case 'Monthly':
-        recommendedAmount = targetAmount / (daysUntilTarget / 30);
-        period = 'month';
+      case SavingsGoalCategory.electronics:
+        iconAsset = 'laptop';
         break;
+      case SavingsGoalCategory.vehicle:
+        iconAsset = 'directions_car';
+        break;
+      case SavingsGoalCategory.housing:
+        iconAsset = 'home';
+        break;
+      case SavingsGoalCategory.emergency:
+        iconAsset = 'health_and_safety';
+        break;
+      case SavingsGoalCategory.retirement:
+        iconAsset = 'account_balance';
+        break;
+      case SavingsGoalCategory.debt:
+        iconAsset = 'money_off';
+        break;
+      case SavingsGoalCategory.investment:
+        iconAsset = 'trending_up';
+        break;
+      case SavingsGoalCategory.other:
       default:
-        recommendedAmount = targetAmount / daysUntilTarget;
-        period = 'day';
+        iconAsset = 'savings';
+        break;
     }
     
-    return 'To reach your goal by ${DateFormat('dd MMM, yyyy').format(_targetDate)}, you need to save approximately KES ${recommendedAmount.toStringAsFixed(0)} per $period.';
+    bool success;
+    
+    if (_isEditing) {
+      // Update existing goal
+      final updatedGoal = widget.existingGoal!.copyWith(
+        title: title,
+        description: description,
+        targetAmount: targetAmount,
+        targetDate: _targetDate,
+        category: _category,
+        color: _selectedColor,
+        iconAsset: iconAsset,
+      );
+      
+      success = await savingsProvider.updateSavingsGoal(updatedGoal);
+    } else {
+      // Create new goal
+      final newGoal = SavingsGoal(
+        title: title,
+        description: description,
+        targetAmount: targetAmount,
+        targetDate: _targetDate,
+        category: _category,
+        iconAsset: iconAsset,
+        color: _selectedColor,
+      );
+      
+      success = await savingsProvider.addSavingsGoal(newGoal);
+    }
+    
+    setState(() {
+      _isLoading = false;
+    });
+    
+    if (success) {
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error ${_isEditing ? 'updating' : 'creating'} goal'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Create Savings Goal'),
+        title: Text(_isEditing ? 'Edit Savings Goal' : 'Create Savings Goal'),
+        backgroundColor: const Color(0xFF26D07C),
+        foregroundColor: Colors.white,
         elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black87,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Colors.grey[700],
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Visual preview of the goal
+            // Header with animation
             Container(
-              height: 200,
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    accentColor,
-                    accentColor.withOpacity(0.8),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: accentColor.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-                image: const DecorationImage(
-                  image: AssetImage('assets/images/pattern5.png'),
-                  fit: BoxFit.cover,
-                  opacity: 0.2,
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              decoration: const BoxDecoration(
+                color: Color(0xFF26D07C),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
                 ),
               ),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _getIconData(_selectedIcon),
-                        color: Colors.white,
-                        size: 40,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _goalNameController.text.isNotEmpty 
-                          ? _goalNameController.text 
-                          : 'New Savings Goal',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _targetAmountController.text.isNotEmpty 
-                          ? 'KES ${_targetAmountController.text}' 
-                          : 'Target Amount',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
+              child: Lottie.asset(
+                'assets/animations/savings_goal.json',
+                height: 150,
+                fit: BoxFit.contain,
               ),
             ),
             
-            // Main content
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Step indicator
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: accentColor,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            'Step 1 of 2',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Goal Details',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                      ],
-                    ),
+                    const SizedBox(height: 16),
                     
-                    const SizedBox(height: 24),
-                    
-                    // Goal Name
-                    _buildFormLabel('What are you saving for?'),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _goalNameController,
+                    // Title
+                    TextFormField(
+                      controller: _titleController,
                       decoration: InputDecoration(
-                        hintText: 'e.g. New Laptop, Holiday Trip',
-                        filled: true,
-                        fillColor: Colors.grey[100],
+                        labelText: 'Goal Title',
+                        hintText: 'e.g. New Laptop, Dream Vacation',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
                         ),
-                        prefixIcon: const Icon(Icons.edit),
+                        filled: true,
+                        fillColor: Colors.white,
+                        prefixIcon: const Icon(Icons.title),
                       ),
-                      onChanged: (value) {
-                        setState(() {});
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a title';
+                        }
+                        return null;
                       },
                     ),
                     
-                    const SizedBox(height: 24),
-                    
-                    // Goal Icon Selection
-                    _buildFormLabel('Choose an icon'),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      height: 100,
-                      child: GridView.builder(
-                        scrollDirection: Axis.horizontal,
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 1,
-                          mainAxisSpacing: 16,
-                          mainAxisExtent: 100,
+                    
+                    // Description
+                    TextFormField(
+                      controller: _descriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Description (Optional)',
+                        hintText: 'Add details about your goal',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        itemCount: _iconOptions.length,
-                        itemBuilder: (context, index) {
-                          final iconOption = _iconOptions[index];
-                          final iconName = iconOption['name'] as String;
-                          final iconLabel = iconOption['label'] as String;
-                          final iconColor = iconOption['color'] as Color;
-                          final isSelected = iconName == _selectedIcon;
-                          
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedIcon = iconName;
-                              });
-                            },
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    color: isSelected 
-                                        ? iconColor 
-                                        : iconColor.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: isSelected
-                                        ? Border.all(color: iconColor, width: 2)
-                                        : null,
-                                  ),
-                                  child: Icon(
-                                    _getIconData(iconName),
-                                    size: 30,
-                                    color: isSelected 
-                                        ? Colors.white 
-                                        : iconColor,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  iconLabel,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: isSelected 
-                                        ? FontWeight.bold 
-                                        : FontWeight.normal,
-                                    color: isSelected 
-                                        ? iconColor 
-                                        : Colors.grey[800],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                        filled: true,
+                        fillColor: Colors.white,
+                        prefixIcon: const Icon(Icons.description),
                       ),
+                      maxLines: 2,
                     ),
                     
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     
                     // Target Amount
-                    _buildFormLabel('How much do you need?'),
-                    const SizedBox(height: 8),
-                    TextField(
+                    TextFormField(
                       controller: _targetAmountController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: <TextInputFormatter>[
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
                       decoration: InputDecoration(
-                        prefixText: 'KES ',
-                        hintText: '0',
-                        filled: true,
-                        fillColor: Colors.grey[100],
+                        labelText: 'Target Amount (KES)',
+                        hintText: 'e.g. 50000',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
                         ),
+                        filled: true,
+                        fillColor: Colors.white,
                         prefixIcon: const Icon(Icons.attach_money),
                       ),
-                      onChanged: (value) {
-                        setState(() {});
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter an amount';
+                        }
+                        try {
+                          final amount = double.parse(value);
+                          if (amount <= 0) {
+                            return 'Amount must be greater than zero';
+                          }
+                        } catch (e) {
+                          return 'Please enter a valid number';
+                        }
+                        return null;
                       },
                     ),
                     
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     
                     // Target Date
-                    _buildFormLabel('When do you need it by?'),
-                    const SizedBox(height: 8),
                     InkWell(
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _targetDate,
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 3650)),
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: ColorScheme.light(
-                                  primary: accentColor,
-                                ),
-                              ),
-                              child: child!,
-                            );
-                          },
-                        );
-                        if (date != null) {
-                          setState(() {
-                            _targetDate = date;
-                          });
-                        }
-                      },
+                      onTap: _selectDate,
                       child: Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                         decoration: BoxDecoration(
-                          color: Colors.grey[100],
                           borderRadius: BorderRadius.circular(12),
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey[300]!),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_today),
+                            const Icon(Icons.calendar_today, color: Colors.grey),
                             const SizedBox(width: 12),
-                            Text(
-                              DateFormat('dd MMM, yyyy').format(_targetDate),
-                              style: const TextStyle(
-                                fontSize: 16,
-                              ),
-                            ),
-                            const Spacer(),
-                            Icon(
-                              Icons.arrow_drop_down,
-                              color: Colors.grey[800],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Savings Frequency
-                    _buildFormLabel('How often do you want to save?'),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.repeat),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                isExpanded: true,
-                                value: _selectedSavingsFrequency,
-                                items: _savingsFrequencies.map((String frequency) {
-                                  return DropdownMenuItem<String>(
-                                    value: frequency,
-                                    child: Text(frequency),
-                                  );
-                                }).toList(),
-                                onChanged: (String? newValue) {
-                                  if (newValue != null) {
-                                    setState(() {
-                                      _selectedSavingsFrequency = newValue;
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Auto-saving option
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: accentColor.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.auto_awesome,
-                              color: accentColor,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
+                            Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Enable AI-powered auto-saving',
+                                Text(
+                                  'Target Date',
                                   style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                Text(
+                                  '${_targetDate.day}/${_targetDate.month}/${_targetDate.year}',
+                                  style: const TextStyle(
                                     fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Our AI will automatically suggest small amounts to save based on your spending patterns',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey[700],
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                          Switch(
-                            value: _enableAutoSaving,
-                            onChanged: (value) {
-                              setState(() {
-                                _enableAutoSaving = value;
-                              });
-                            },
-                            activeColor: accentColor,
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Recommended Amount
-                    if (_targetAmountController.text.isNotEmpty &&
-                        int.tryParse(_targetAmountController.text) != null)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: accentColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: accentColor.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: accentColor.withOpacity(0.2),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.calculate,
-                                    color: accentColor,
-                                    size: 16,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Savings Plan',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: accentColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _getRecommendedSavings(),
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[800],
-                                height: 1.4,
-                              ),
-                            ),
+                            const Spacer(),
+                            const Icon(Icons.arrow_drop_down, color: Colors.grey),
                           ],
                         ),
                       ),
+                    ),
                     
-                    const SizedBox(height: 36),
+                    const SizedBox(height: 16),
                     
-                    // Create Goal Button
+                    // Category
+                    const Text(
+                      'Category',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildCategoryChip(SavingsGoalCategory.travel, 'Travel', Icons.beach_access),
+                        _buildCategoryChip(SavingsGoalCategory.education, 'Education', Icons.school),
+                        _buildCategoryChip(SavingsGoalCategory.electronics, 'Electronics', Icons.laptop),
+                        _buildCategoryChip(SavingsGoalCategory.vehicle, 'Vehicle', Icons.directions_car),
+                        _buildCategoryChip(SavingsGoalCategory.housing, 'Housing', Icons.home),
+                        _buildCategoryChip(SavingsGoalCategory.emergency, 'Emergency', Icons.health_and_safety),
+                        _buildCategoryChip(SavingsGoalCategory.retirement, 'Retirement', Icons.account_balance),
+                        _buildCategoryChip(SavingsGoalCategory.debt, 'Debt', Icons.money_off),
+                        _buildCategoryChip(SavingsGoalCategory.investment, 'Investment', Icons.trending_up),
+                        _buildCategoryChip(SavingsGoalCategory.other, 'Other', Icons.savings),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Color
+                    const Text(
+                      'Color',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _colorOptions.map((color) {
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedColor = color;
+                            });
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: _selectedColor == color ? Colors.white : Colors.transparent,
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                if (_selectedColor == color)
+                                  BoxShadow(
+                                    color: color.withOpacity(0.5),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  ),
+                              ],
+                            ),
+                            child: _selectedColor == color
+                                ? const Icon(Icons.check, color: Colors.white)
+                                : null,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    
+                    const SizedBox(height: 32),
+                    
+                    // Submit Button
                     CustomButton(
-                      text: 'Create Savings Goal',
-                      onPressed: () {
-                        // Save goal and navigate back
-                        Navigator.pop(context);
-                      },
-                      isSmall: false, buttonColor: Colors.blue, // Replace with a valid MaterialColor
+                      text: _isEditing ? 'Update Goal' : 'Create Goal',
+                      onPressed: _isLoading ? null : _saveGoal,
+                      isSmall: false,
+                      isLoading: _isLoading,
+                      buttonColor: const Color(0xFF26D07C),
                     ),
                   ],
                 ),
@@ -580,13 +447,51 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     );
   }
   
-  Widget _buildFormLabel(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: Colors.grey[800],
+  Widget _buildCategoryChip(SavingsGoalCategory category, String label, IconData icon) {
+    final isSelected = _category == category;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _category = category;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF26D07C) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : Colors.grey[300]!,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF26D07C).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : Colors.grey[600],
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey[800],
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
