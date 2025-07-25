@@ -370,7 +370,7 @@ class SavingsProvider with ChangeNotifier {
     };
     
     // Save to Appwrite
-    await _appwriteService.joinSavingsChallenge(userChallenge);
+    await _appwriteService.joinSavingsChallenge(userChallenge as String);
     
     // Add to local user challenges
     _userChallenges.add(userChallenge);

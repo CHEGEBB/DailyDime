@@ -43,6 +43,13 @@ class AppwriteService {
       debugPrint('Appwrite: No user logged in');
     }
   }
+
+  // Helper method to check user session
+  Future<void> _checkUserSession() async {
+    if (currentUserId == null) {
+      throw Exception('User is not logged in');
+    }
+  }
   
   // BUDGET METHODS
   
@@ -311,106 +318,401 @@ class AppwriteService {
     }
   }
 
+  // SAVINGS GOAL METHODS
 
-// Fetch all savings goals
-Future<List<SavingsGoal>> fetchSavingsGoals() async {
-  try {
-    Future<void> _checkUserSession() async {
-      if (currentUserId == null) {
-        throw Exception('User is not logged in');
-      }
+  // Fetch all savings goals
+  Future<List<SavingsGoal>> fetchSavingsGoals() async {
+    try {
+      await _checkUserSession();
+      
+      final response = await databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsGoalsCollection,
+        queries: [
+          Query.equal('userId', currentUserId!),
+          Query.orderDesc('\$createdAt'),
+        ],
+      );
+      
+      return response.documents.map((doc) {
+        final data = doc.data;
+        return SavingsGoal.fromMap({
+          'id': doc.$id,
+          ...data,
+        });
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching savings goals: $e');
+      rethrow;
     }
-    
-    final response = await databases.listDocuments(
-      collectionId: AppConfig.savingsGoalsCollection,
-      queries: [
-        Query.equal('userId', currentUserId),
-      ], databaseId: '',
-    );
-    
-    return response.documents.map((doc) {
-      final data = doc.data;
+  }
+
+  // Create a new savings goal
+  Future<SavingsGoal> createSavingsGoal(SavingsGoal goal) async {
+    try {
+      await _checkUserSession();
+      
+      final goalMap = goal.toMap();
+      goalMap['userId'] = currentUserId;
+      goalMap['created_at'] = DateTime.now().toIso8601String();
+      goalMap['updated_at'] = DateTime.now().toIso8601String();
+      
+      final response = await databases.createDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsGoalsCollection,
+        documentId: ID.unique(),
+        data: goalMap,
+      );
+      
       return SavingsGoal.fromMap({
-        'id': doc.$id,
-        ...data,
+        'id': response.$id,
+        ...response.data,
       });
-    }).toList();
-  } catch (e) {
-    debugPrint('Error fetching savings goals: $e');
-    rethrow;
-  }
-}
-
-// Create a new savings goal
-Future<SavingsGoal> createSavingsGoal(SavingsGoal goal) async {
-  try {
-    Future<void> _checkUserSession() async {
-      if (currentUserId == null) {
-        throw Exception('User is not logged in');
-      }
+    } catch (e) {
+      debugPrint('Error creating savings goal: $e');
+      rethrow;
     }
-      await _checkUserSession();
-    
-    final goalMap = goal.toMap();
-    goalMap['userId'] = currentUserId;
-    
-    final response = await databases.createDocument(
-      collectionId: AppConfig.savingsGoalsCollection,
-      documentId: ID.unique(),
-      data: goalMap, databaseId: '',
-    );
-    
-    return SavingsGoal.fromMap({
-      'id': response.$id,
-      ...response.data,
-    });
-  } catch (e) {
-    debugPrint('Error creating savings goal: $e');
-    rethrow;
   }
-}
 
-// Update an existing savings goal
-Future<void> updateSavingsGoal(SavingsGoal goal) async {
-  try {
-    Future<void> _checkUserSession() async {
-      if (currentUserId == null) {
-        throw Exception('User is not logged in');
-      }
-    }
+  // Update an existing savings goal
+  Future<void> updateSavingsGoal(SavingsGoal goal) async {
+    try {
       await _checkUserSession();
-    
-    final goalMap = goal.toMap();
-    goalMap['userId'] = currentUserId;
-    
-    final response = await databases.createDocument(
-      collectionId: AppConfig.savingsGoalsCollection,
-      documentId: goal.id,
-      data: goalMap, databaseId: '',
-    );
-  } catch (e) {
-    debugPrint('Error updating savings goal: $e');
-    rethrow;
+      
+      final goalMap = goal.toMap();
+      goalMap['userId'] = currentUserId;
+      goalMap['updated_at'] = DateTime.now().toIso8601String();
+      
+      await databases.updateDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsGoalsCollection,
+        documentId: goal.id,
+        data: goalMap,
+      );
+    } catch (e) {
+      debugPrint('Error updating savings goal: $e');
+      rethrow;
+    }
   }
-}
 
-// Delete a savings goal
-Future<void> deleteSavingsGoal(String goalId) async {
-  try {
-    Future<void> _checkUserSession() async {
-      if (currentUserId == null) {
-        throw Exception('User is not logged in');
-      }
-    }
+  // Delete a savings goal
+  Future<void> deleteSavingsGoal(String goalId) async {
+    try {
       await _checkUserSession();
-    
-    final response = await databases.createDocument(
-      collectionId: AppConfig.savingsGoalsCollection,
-      documentId: goalId, databaseId: '', data: {},
-    );
-  } catch (e) {
-    debugPrint('Error deleting savings goal: $e');
-    rethrow;
+      
+      await databases.deleteDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsGoalsCollection,
+        documentId: goalId,
+      );
+    } catch (e) {
+      debugPrint('Error deleting savings goal: $e');
+      rethrow;
+    }
   }
-}
+
+  // SAVINGS CHALLENGE METHODS
+
+  // Create a new savings challenge
+  Future<void> createSavingsChallenge(Map<String, dynamic> challenge) async {
+    try {
+      await _checkUserSession();
+      
+      // Ensure proper data structure
+      final challengeData = Map<String, dynamic>.from(challenge);
+      challengeData['createdBy'] = currentUserId;
+      challengeData['created_at'] = DateTime.now().toIso8601String();
+      challengeData['updated_at'] = DateTime.now().toIso8601String();
+      
+      // Initialize participants list with creator
+      if (!challengeData.containsKey('participants')) {
+        challengeData['participants'] = [currentUserId];
+      } else if (!(challengeData['participants'] as List).contains(currentUserId)) {
+        (challengeData['participants'] as List).add(currentUserId);
+      }
+      
+      // Set default status if not provided
+      if (!challengeData.containsKey('status')) {
+        challengeData['status'] = 'active';
+      }
+      
+      // Initialize progress tracking
+      if (!challengeData.containsKey('progress')) {
+        challengeData['progress'] = <String, dynamic>{};
+      }
+      
+      await databases.createDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection, // Ensure this getter is defined in AppConfig
+        documentId: ID.unique(),
+        data: challengeData,
+      );
+    } catch (e) {
+      debugPrint('Error creating savings challenge: $e');
+      throw Exception('Failed to create savings challenge: $e');
+    }
+  }
+
+  // Join an existing savings challenge
+  Future<void> joinSavingsChallenge(String challengeId) async {
+    try {
+      await _checkUserSession();
+      
+      // First, get the current challenge data
+      final challengeDoc = await databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection,
+        documentId: challengeId,
+      );
+      
+      final challengeData = Map<String, dynamic>.from(challengeDoc.data);
+      
+      // Get current participants list
+      List<dynamic> participants = challengeData['participants'] ?? [];
+      
+      // Add current user if not already a participant
+      if (!participants.contains(currentUserId)) {
+        participants.add(currentUserId);
+        
+        // Initialize user progress
+        Map<String, dynamic> progress = Map<String, dynamic>.from(challengeData['progress'] ?? {});
+        progress[currentUserId!] = {
+          'currentAmount': 0.0,
+          'joinedAt': DateTime.now().toIso8601String(),
+          'lastUpdated': DateTime.now().toIso8601String(),
+        };
+        
+        // Update the challenge document
+        await databases.updateDocument(
+          databaseId: AppConfig.databaseId,
+          collectionId: AppConfig.savingsChallengesCollection,
+          documentId: challengeId,
+          data: {
+            'participants': participants,
+            'progress': progress,
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('Error joining savings challenge: $e');
+      throw Exception('Failed to join savings challenge: $e');
+    }
+  }
+
+  // Leave a savings challenge
+  Future<void> leaveSavingsChallenge(String challengeId) async {
+    try {
+      await _checkUserSession();
+      
+      // Get the current challenge data
+      final challengeDoc = await databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection,
+        documentId: challengeId,
+      );
+      
+      final challengeData = Map<String, dynamic>.from(challengeDoc.data);
+      
+      // Get current participants list
+      List<dynamic> participants = challengeData['participants'] ?? [];
+      
+      // Remove current user from participants
+      participants.remove(currentUserId);
+      
+      // Remove user from progress tracking
+      Map<String, dynamic> progress = Map<String, dynamic>.from(challengeData['progress'] ?? {});
+      progress.remove(currentUserId);
+      
+      // Update the challenge document
+      await databases.updateDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection,
+        documentId: challengeId,
+        data: {
+          'participants': participants,
+          'progress': progress,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      debugPrint('Error leaving savings challenge: $e');
+      throw Exception('Failed to leave savings challenge: $e');
+    }
+  }
+
+  // Update challenge progress for current user
+  Future<void> updateChallengeProgress(String challengeId, double amount, double newProgress) async {
+    try {
+      await _checkUserSession();
+      
+      // Get the current challenge data
+      final challengeDoc = await databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection,
+        documentId: challengeId,
+      );
+      
+      final challengeData = Map<String, dynamic>.from(challengeDoc.data);
+      
+      // Get current progress
+      Map<String, dynamic> progress = Map<String, dynamic>.from(challengeData['progress'] ?? {});
+      
+      // Update user's progress
+      if (!progress.containsKey(currentUserId)) {
+        progress[currentUserId!] = {
+          'currentAmount': amount,
+          'joinedAt': DateTime.now().toIso8601String(),
+          'lastUpdated': DateTime.now().toIso8601String(),
+        };
+      } else {
+        final userProgress = Map<String, dynamic>.from(progress[currentUserId!]);
+        userProgress['currentAmount'] = amount;
+        userProgress['lastUpdated'] = DateTime.now().toIso8601String();
+        progress[currentUserId!] = userProgress;
+      }
+      
+      // Check if challenge is completed
+      final targetAmount = challengeData['targetAmount'] ?? 0.0;
+      final challengeType = challengeData['type'] ?? 'individual';
+      bool isCompleted = false;
+      
+      if (challengeType == 'individual') {
+        // Individual challenge - check if user reached target
+        final userProgress = progress[currentUserId!];
+        isCompleted = (userProgress['currentAmount'] ?? 0.0) >= targetAmount;
+      } else if (challengeType == 'group') {
+        // Group challenge - check if total amount reached
+        double totalAmount = 0.0;
+        progress.values.forEach((userProgress) {
+          totalAmount += (userProgress['currentAmount'] ?? 0.0);
+        });
+        isCompleted = totalAmount >= targetAmount;
+      }
+      
+      // Update challenge data
+      final updateData = {
+        'progress': progress,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      
+      if (isCompleted && challengeData['status'] != 'completed') {
+        updateData['status'] = 'completed';
+        updateData['completedAt'] = DateTime.now().toIso8601String();
+      }
+      
+      await databases.updateDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection,
+        documentId: challengeId,
+        data: updateData,
+      );
+    } catch (e) {
+      debugPrint('Error updating challenge progress: $e');
+      throw Exception('Failed to update challenge progress: $e');
+    }
+  }
+
+  // Fetch challenges where the current user is a participant
+  Future<List<Map<String, dynamic>>> fetchUserChallenges() async {
+    try {
+      await _checkUserSession();
+      
+      final response = await databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection,
+        queries: [
+          Query.contains('participants', [currentUserId!]),
+          Query.orderDesc('\$createdAt'),
+        ],
+      );
+      
+      return response.documents.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['id'] = doc.$id;
+        return data;
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching user challenges: $e');
+      return [];
+    }
+  }
+
+  // Fetch all available challenges (for discovery)
+  Future<List<Map<String, dynamic>>> fetchAvailableChallenges({
+    int limit = 20,
+    String? cursor,
+  }) async {
+    try {
+      final queries = [
+        Query.equal('status', 'active'),
+        Query.orderDesc('\$createdAt'),
+        Query.limit(limit),
+      ];
+      
+      if (cursor != null) {
+        queries.add(Query.cursorAfter(cursor));
+      }
+      
+      final response = await databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection,
+        queries: queries,
+      );
+      
+      return response.documents.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['id'] = doc.$id;
+        return data;
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching available challenges: $e');
+      return [];
+    }
+  }
+
+  // Get a specific challenge by ID
+  Future<Map<String, dynamic>?> getChallengeById(String challengeId) async {
+    try {
+      final response = await databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection,
+        documentId: challengeId,
+      );
+      
+      final data = Map<String, dynamic>.from(response.data);
+      data['id'] = response.$id;
+      return data;
+    } catch (e) {
+      debugPrint('Error fetching challenge: $e');
+      return null;
+    }
+  }
+
+  // Delete a savings challenge (only for creator)
+  Future<void> deleteSavingsChallenge(String challengeId) async {
+    try {
+      await _checkUserSession();
+      
+      // Verify that the current user is the creator
+      final challengeDoc = await databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection,
+        documentId: challengeId,
+      );
+      
+      if (challengeDoc.data['createdBy'] != currentUserId) {
+        throw Exception('Only the challenge creator can delete this challenge');
+      }
+      
+      await databases.deleteDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.savingsChallengesCollection,
+        documentId: challengeId,
+      );
+    } catch (e) {
+      debugPrint('Error deleting savings challenge: $e');
+      throw Exception('Failed to delete savings challenge: $e');
+    }
+  }
 }
