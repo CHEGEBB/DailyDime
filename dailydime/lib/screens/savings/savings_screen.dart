@@ -193,7 +193,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
                 image: const DecorationImage(
-                  image: AssetImage('assets/images/pattern5.png'),
+                  image: AssetImage('assets/images/pattern1.png'),
                   fit: BoxFit.cover,
                   opacity: 0.4,
                 ),
