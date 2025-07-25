@@ -865,7 +865,7 @@ void _scheduleChallengeNotifications(Map<String, dynamic> challenge) {
       }
     }
   }
-  // Replace your addSavingsGoalFromMap method with this:
+  // Replace your addSavingsGoalFromMap method in savings_provider.dart with this fixed version:
 
 Future<bool> addSavingsGoalFromMap(Map<String, dynamic> goalData) async {
   _isLoading = true;
@@ -875,45 +875,7 @@ Future<bool> addSavingsGoalFromMap(Map<String, dynamic> goalData) async {
   try {
     print('Creating goal from map data: $goalData'); // Debug log
     
-    // Helper method to convert string to SavingsGoalCategory enum
-    SavingsGoalCategory _stringToCategory(String categoryString) {
-      switch (categoryString.toLowerCase()) {
-        case 'travel':
-          return SavingsGoalCategory.travel;
-        case 'education':
-          return SavingsGoalCategory.education;
-        case 'electronics':
-          return SavingsGoalCategory.electronics;
-        case 'vehicle':
-          return SavingsGoalCategory.vehicle;
-        case 'housing':
-          return SavingsGoalCategory.housing;
-        case 'emergency':
-          return SavingsGoalCategory.emergency;
-        case 'retirement':
-          return SavingsGoalCategory.retirement;
-        case 'debt':
-          return SavingsGoalCategory.debt;
-        case 'investment':
-          return SavingsGoalCategory.investment;
-        default:
-          return SavingsGoalCategory.other;
-      }
-    }
-    
-    // Helper method to convert hex string to Color
-    Color _stringToColor(String colorString) {
-      try {
-        // Remove the # if present and parse
-        String cleanColorString = colorString.replaceFirst('#', '');
-        return Color(int.parse(cleanColorString, radix: 16));
-      } catch (e) {
-        print('Error parsing color $colorString: $e');
-        return Colors.blue; // Default fallback
-      }
-    }
-    
-    // Create SavingsGoal object from map
+    // Create SavingsGoal object from map - properly convert string types to enums
     final goal = SavingsGoal(
       id: goalData['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
       title: goalData['title'] ?? '',
@@ -921,42 +883,34 @@ Future<bool> addSavingsGoalFromMap(Map<String, dynamic> goalData) async {
       targetAmount: (goalData['targetAmount'] ?? 0.0).toDouble(),
       currentAmount: (goalData['currentAmount'] ?? 0.0).toDouble(),
       targetDate: goalData['targetDate'] != null 
-        ? DateTime.parse(goalData['targetDate'].toString())
+        ? (goalData['targetDate'] is DateTime 
+           ? goalData['targetDate'] 
+           : DateTime.parse(goalData['targetDate'].toString()))
         : DateTime.now().add(Duration(days: 30)),
       startDate: goalData['startDate'] != null
-        ? DateTime.parse(goalData['startDate'].toString())
+        ? (goalData['startDate'] is DateTime 
+           ? goalData['startDate'] 
+           : DateTime.parse(goalData['startDate'].toString()))
         : DateTime.now(),
-      category: goalData['category'] != null 
-        ? _stringToCategory(goalData['category'].toString())
-        : SavingsGoalCategory.other,
-      iconAsset: goalData['iconAsset'] ?? 'savings', // Required field
-      color: goalData['color'] != null 
-        ? _stringToColor(goalData['color'].toString())
-        : Colors.blue, // Required field
+      category: _stringToCategory(goalData['category']?.toString() ?? 'other'), // Use helper method
+      iconAsset: goalData['iconAsset'] ?? 'savings',
+      color: _stringToColor(goalData['color']?.toString() ?? '#ff2196f3'), // Use helper method
       priority: goalData['priority'] ?? 'medium',
       isRecurring: goalData['isRecurring'] ?? false,
       reminderFrequency: goalData['reminderFrequency'] ?? 'weekly',
-      status: goalData['status'] != null 
-        ? SavingsGoalStatus.values.firstWhere(
-            (e) => e.toString().split('.').last == goalData['status'],
-            orElse: () => SavingsGoalStatus.active,
-          )
-        : SavingsGoalStatus.active,
-      transactions: goalData['transactions'] != null
-        ? (goalData['transactions'] as List).map((t) => SavingsTransaction(
-            amount: (t['amount'] ?? 0.0).toDouble(),
-            date: DateTime.parse(t['date'].toString()),
-            note: t['note'] ?? '',
-          )).toList()
-        : [],
-      createdAt: goalData['createdAt'] != null
-        ? DateTime.parse(goalData['createdAt'].toString())
-        : DateTime.now(),
-      updatedAt: goalData['updatedAt'] != null
-        ? DateTime.parse(goalData['updatedAt'].toString())
-        : DateTime.now(),
+      status: _stringToStatus(goalData['status']?.toString() ?? 'active'), // Use helper method
       dailyTarget: goalData['dailyTarget']?.toDouble(),
       weeklyTarget: goalData['weeklyTarget']?.toDouble(),
+      createdAt: goalData['createdAt'] != null
+        ? (goalData['createdAt'] is DateTime 
+           ? goalData['createdAt'] 
+           : DateTime.parse(goalData['createdAt'].toString()))
+        : DateTime.now(),
+      updatedAt: goalData['updatedAt'] != null
+        ? (goalData['updatedAt'] is DateTime 
+           ? goalData['updatedAt'] 
+           : DateTime.parse(goalData['updatedAt'].toString()))
+        : DateTime.now(),
     );
     
     print('Created SavingsGoal object: ${goal.title}'); // Debug log
@@ -982,6 +936,65 @@ Future<bool> addSavingsGoalFromMap(Map<String, dynamic> goalData) async {
     _isLoading = false;
     notifyListeners();
     return false;
+  }
+}
+
+// Make sure these helper methods are also in your savings_provider.dart:
+
+SavingsGoalCategory _stringToCategory(String categoryString) {
+  switch (categoryString.toLowerCase()) {
+    case 'travel':
+      return SavingsGoalCategory.travel;
+    case 'education':
+      return SavingsGoalCategory.education;
+    case 'electronics':
+      return SavingsGoalCategory.electronics;
+    case 'vehicle':
+      return SavingsGoalCategory.vehicle;
+    case 'housing':
+      return SavingsGoalCategory.housing;
+    case 'emergency':
+      return SavingsGoalCategory.emergency;
+    case 'retirement':
+      return SavingsGoalCategory.retirement;
+    case 'debt':
+      return SavingsGoalCategory.debt;
+    case 'investment':
+      return SavingsGoalCategory.investment;
+    default:
+      return SavingsGoalCategory.other;
+  }
+}
+
+SavingsGoalStatus _stringToStatus(String statusString) {
+  switch (statusString.toLowerCase()) {
+    case 'active':
+      return SavingsGoalStatus.active;
+    case 'completed':
+      return SavingsGoalStatus.completed;
+    case 'paused':
+      return SavingsGoalStatus.paused;
+    case 'upcoming':
+      return SavingsGoalStatus.upcoming;
+    default:
+      return SavingsGoalStatus.active;
+  }
+}
+
+Color _stringToColor(String colorString) {
+  try {
+    // Handle both #RRGGBB and #AARRGGBB formats
+    String cleanColorString = colorString.replaceFirst('#', '');
+    
+    // If it's 6 characters, add FF for full opacity
+    if (cleanColorString.length == 6) {
+      cleanColorString = 'FF$cleanColorString';
+    }
+    
+    return Color(int.parse(cleanColorString, radix: 16));
+  } catch (e) {
+    print('Error parsing color $colorString: $e');
+    return Colors.blue; // Default fallback
   }
 }
 }

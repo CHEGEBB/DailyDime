@@ -42,6 +42,15 @@ class SavingsGoal {
   bool isAutomaticSaving;
   double? forecastedCompletion;
   String? imageUrl;
+  
+  // Additional fields to match provider usage
+  final double? dailyTarget;
+  final double? weeklyTarget;
+  final String priority;
+  final bool isRecurring;
+  final String reminderFrequency;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   SavingsGoal({
     String? id,
@@ -61,11 +70,20 @@ class SavingsGoal {
     this.recommendedWeeklySaving,
     this.isAutomaticSaving = false,
     this.forecastedCompletion,
-    this.imageUrl, required dailyTarget, required weeklyTarget, required priority, DateTime? deadline, DateTime? createdAt, DateTime? updatedAt, required isRecurring, required reminderFrequency,
+    this.imageUrl,
+    this.dailyTarget,
+    this.weeklyTarget,
+    this.priority = 'medium',
+    this.isRecurring = false,
+    this.reminderFrequency = 'weekly',
+    DateTime? createdAt,
+    DateTime? updatedAt, DateTime? deadline,
   }) : 
     id = id ?? const Uuid().v4(),
     startDate = startDate ?? DateTime.now(),
-    transactions = transactions ?? [];
+    transactions = transactions ?? [],
+    createdAt = createdAt ?? DateTime.now(),
+    updatedAt = updatedAt ?? DateTime.now();
 
   double get progressPercentage => currentAmount / targetAmount;
   
@@ -94,6 +112,7 @@ class SavingsGoal {
     return (targetAmount - currentAmount) / daysRemaining;
   }
   
+  // Updated toMap method that converts enums to strings for Appwrite compatibility
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -101,10 +120,10 @@ class SavingsGoal {
       'description': description,
       'targetAmount': targetAmount,
       'currentAmount': currentAmount,
-      'startDate': startDate.millisecondsSinceEpoch,
-      'targetDate': targetDate.millisecondsSinceEpoch,
-      'status': status.index,
-      'category': category.index,
+      'startDate': startDate.toIso8601String(),
+      'targetDate': targetDate.toIso8601String(),
+      'status': status.toString().split('.').last, // Convert enum to string
+      'category': category.toString().split('.').last, // Convert enum to string
       'iconAsset': iconAsset,
       'color': color.value,
       'isAiSuggested': isAiSuggested,
@@ -113,46 +132,93 @@ class SavingsGoal {
       'isAutomaticSaving': isAutomaticSaving,
       'forecastedCompletion': forecastedCompletion,
       'imageUrl': imageUrl,
+      'dailyTarget': dailyTarget,
+      'weeklyTarget': weeklyTarget,
+      'priority': priority,
+      'isRecurring': isRecurring,
+      'reminderFrequency': reminderFrequency,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
       'transactions': transactions.map((t) => t.toMap()).toList(),
     };
   }
   
+  // Updated fromMap method that converts strings back to enums
   factory SavingsGoal.fromMap(Map<String, dynamic> map) {
+    // Helper to convert string to SavingsGoalCategory
+    SavingsGoalCategory _stringToCategory(String categoryString) {
+      switch (categoryString.toLowerCase()) {
+        case 'travel':
+          return SavingsGoalCategory.travel;
+        case 'education':
+          return SavingsGoalCategory.education;
+        case 'electronics':
+          return SavingsGoalCategory.electronics;
+        case 'vehicle':
+          return SavingsGoalCategory.vehicle;
+        case 'housing':
+          return SavingsGoalCategory.housing;
+        case 'emergency':
+          return SavingsGoalCategory.emergency;
+        case 'retirement':
+          return SavingsGoalCategory.retirement;
+        case 'debt':
+          return SavingsGoalCategory.debt;
+        case 'investment':
+          return SavingsGoalCategory.investment;
+        default:
+          return SavingsGoalCategory.other;
+      }
+    }
+
+    // Helper to convert string to SavingsGoalStatus
+    SavingsGoalStatus _stringToStatus(String statusString) {
+      switch (statusString.toLowerCase()) {
+        case 'active':
+          return SavingsGoalStatus.active;
+        case 'completed':
+          return SavingsGoalStatus.completed;
+        case 'paused':
+          return SavingsGoalStatus.paused;
+        case 'upcoming':
+          return SavingsGoalStatus.upcoming;
+        default:
+          return SavingsGoalStatus.active;
+      }
+    }
+
     return SavingsGoal(
       id: map['id'],
       title: map['title'],
       description: map['description'] ?? '',
-      targetAmount: map['targetAmount'],
-      currentAmount: map['currentAmount'] ?? 0.0,
-      startDate: DateTime.fromMillisecondsSinceEpoch(map['startDate']),
-      targetDate: DateTime.fromMillisecondsSinceEpoch(map['targetDate']),
-      status: SavingsGoalStatus.values[map['status'] ?? 0],
-      category: SavingsGoalCategory.values[map['category'] ?? 0],
-      iconAsset: map['iconAsset'],
-      color: Color(map['color']),
+      targetAmount: (map['targetAmount'] ?? 0.0).toDouble(),
+      currentAmount: (map['currentAmount'] ?? 0.0).toDouble(),
+      startDate: DateTime.parse(map['startDate']),
+      targetDate: DateTime.parse(map['targetDate']),
+      status: _stringToStatus(map['status'] ?? 'active'),
+      category: _stringToCategory(map['category'] ?? 'other'),
+      iconAsset: map['iconAsset'] ?? 'savings',
+      color: Color(map['color'] ?? Colors.blue.value),
       isAiSuggested: map['isAiSuggested'] ?? false,
       aiSuggestionReason: map['aiSuggestionReason'],
-      recommendedWeeklySaving: map['recommendedWeeklySaving'],
+      recommendedWeeklySaving: map['recommendedWeeklySaving']?.toDouble(),
       isAutomaticSaving: map['isAutomaticSaving'] ?? false,
-      forecastedCompletion: map['forecastedCompletion'],
+      forecastedCompletion: map['forecastedCompletion']?.toDouble(),
       imageUrl: map['imageUrl'],
+      dailyTarget: map['dailyTarget']?.toDouble(),
+      weeklyTarget: map['weeklyTarget']?.toDouble(),
+      priority: map['priority'] ?? 'medium',
+      isRecurring: map['isRecurring'] ?? false,
+      reminderFrequency: map['reminderFrequency'] ?? 'weekly',
+      createdAt: DateTime.parse(map['createdAt']),
+      updatedAt: DateTime.parse(map['updatedAt']),
       transactions: map['transactions'] != null 
           ? List<SavingsTransaction>.from(
               map['transactions'].map((t) => SavingsTransaction.fromMap(t))
             )
-          : [], dailyTarget: null, weeklyTarget: null, priority: null, isRecurring: null, reminderFrequency: null,
+          : [],
     );
   }
-
-  get dailyTarget => null;
-
-  get weeklyTarget => null;
-
-  get priority => null;
-
-  get deadline => null;
-
-  get createdAt => null;
   
   SavingsGoal copyWith({
     String? title,
@@ -172,6 +238,12 @@ class SavingsGoal {
     bool? isAutomaticSaving,
     double? forecastedCompletion,
     String? imageUrl,
+    double? dailyTarget,
+    double? weeklyTarget,
+    String? priority,
+    bool? isRecurring,
+    String? reminderFrequency,
+    DateTime? updatedAt,
   }) {
     return SavingsGoal(
       id: this.id,
@@ -191,7 +263,14 @@ class SavingsGoal {
       recommendedWeeklySaving: recommendedWeeklySaving ?? this.recommendedWeeklySaving,
       isAutomaticSaving: isAutomaticSaving ?? this.isAutomaticSaving,
       forecastedCompletion: forecastedCompletion ?? this.forecastedCompletion,
-      imageUrl: imageUrl ?? this.imageUrl, dailyTarget: null, weeklyTarget: null, priority: null, isRecurring: null, reminderFrequency: null,
+      imageUrl: imageUrl ?? this.imageUrl,
+      dailyTarget: dailyTarget ?? this.dailyTarget,
+      weeklyTarget: weeklyTarget ?? this.weeklyTarget,
+      priority: priority ?? this.priority,
+      isRecurring: isRecurring ?? this.isRecurring,
+      reminderFrequency: reminderFrequency ?? this.reminderFrequency,
+      createdAt: this.createdAt,
+      updatedAt: updatedAt ?? DateTime.now(),
     );
   }
 }
@@ -215,7 +294,7 @@ class SavingsTransaction {
     return {
       'id': id,
       'amount': amount,
-      'date': date.millisecondsSinceEpoch,
+      'date': date.toIso8601String(), // Use ISO string instead of milliseconds
       'note': note,
       'source': source,
     };
@@ -224,8 +303,8 @@ class SavingsTransaction {
   factory SavingsTransaction.fromMap(Map<String, dynamic> map) {
     return SavingsTransaction(
       id: map['id'],
-      amount: map['amount'],
-      date: DateTime.fromMillisecondsSinceEpoch(map['date']),
+      amount: (map['amount'] ?? 0.0).toDouble(),
+      date: DateTime.parse(map['date']),
       note: map['note'] ?? '',
       source: map['source'],
     );

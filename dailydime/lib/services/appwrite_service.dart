@@ -321,23 +321,36 @@ class AppwriteService {
   // SAVINGS GOAL METHODS
 
   // Convert SavingsGoal to Appwrite format
-  Map<String, dynamic> _convertSavingsGoalToAppwrite(SavingsGoal goal) {
-    return {
-      'user_id': currentUserId!, // Use user_id as required by Appwrite schema
-      'title': goal.title,
-      'description': goal.description ?? '',
-      'target_amount': (goal.targetAmount * 100).toInt(), // Store as cents
-      'current_amount': (goal.currentAmount * 100).toInt(), // Store as cents
-      'daily_target': goal.dailyTarget != null ? (goal.dailyTarget! * 100).toInt() : null,
-      'weekly_target': goal.weeklyTarget != null ? (goal.weeklyTarget! * 100).toInt() : null,
-      'priority': goal.priority ?? 'medium',
-      'category': goal.category ?? '',
-      'deadline': goal.deadline?.toIso8601String(),
-      'status': goal.status ?? 'active',
-      'created_at': goal.createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
-    };
-  }
+Map<String, dynamic> _convertSavingsGoalToAppwrite(SavingsGoal goal) {
+  return {
+    'user_id': currentUserId!, // Use user_id as required by Appwrite schema
+    'title': goal.title,
+    'description': goal.description,
+    'target_amount': (goal.targetAmount * 100).toInt(), // Store as cents
+    'current_amount': (goal.currentAmount * 100).toInt(), // Store as cents
+    'daily_target': goal.dailyTarget != null ? (goal.dailyTarget! * 100).toInt() : null,
+    'weekly_target': goal.weeklyTarget != null ? (goal.weeklyTarget! * 100).toInt() : null,
+    'priority': goal.priority, // No null check needed - it's non-nullable
+    'category': goal.category.toString().split('.').last, // Convert enum to string
+    'deadline': goal.targetDate.toIso8601String(), // Use targetDate instead of deadline
+    'status': goal.status.toString().split('.').last, // Convert enum to string
+    'created_at': goal.createdAt.toIso8601String(), // No null check needed - it's non-nullable
+    'updated_at': goal.updatedAt.toIso8601String(), // Use updatedAt instead of DateTime.now()
+    'start_date': goal.startDate.toIso8601String(), // Add missing start_date
+    'icon_asset': goal.iconAsset, // Add missing icon_asset
+    'color': goal.color.value, // Add missing color
+    'is_recurring': goal.isRecurring, // Add missing is_recurring
+    'reminder_frequency': goal.reminderFrequency, // Add missing reminder_frequency
+    'is_ai_suggested': goal.isAiSuggested, // Add missing ai fields
+    'ai_suggestion_reason': goal.aiSuggestionReason,
+    'recommended_weekly_saving': goal.recommendedWeeklySaving != null 
+        ? (goal.recommendedWeeklySaving! * 100).toInt() 
+        : null,
+    'is_automatic_saving': goal.isAutomaticSaving,
+    'forecasted_completion': goal.forecastedCompletion,
+    'image_url': goal.imageUrl,
+  };
+}
 
   // Convert Appwrite data to SavingsGoal
   SavingsGoal _convertAppwriteToSavingsGoal(Map<String, dynamic> data, String docId) {
@@ -354,7 +367,7 @@ class AppwriteService {
       deadline: data['deadline'] != null ? DateTime.parse(data['deadline']) : null,
       status: data['status'] ?? 'active',
       createdAt: data['created_at'] != null ? DateTime.parse(data['created_at']) : null,
-      updatedAt: data['updated_at'] != null ? DateTime.parse(data['updated_at']) : DateTime.now(), targetDate: DateTime.now(), iconAsset: '', color: Colors.grey, isRecurring: null, reminderFrequency: null, // Default color
+      updatedAt: data['updated_at'] != null ? DateTime.parse(data['updated_at']) : DateTime.now(), targetDate: DateTime.now(), iconAsset: '', color: Colors.grey, isRecurring: false, reminderFrequency: 'weekly', // Default color
     );
   }
 
