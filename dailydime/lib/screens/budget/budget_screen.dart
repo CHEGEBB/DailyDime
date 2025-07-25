@@ -935,7 +935,8 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
               ),
             );
           },
-          icon: Icons.add,
+          
+          icon: Icons.add, buttonColor: Colors.blue, // or any other MaterialColor
         ),
         
         const SizedBox(height: 16),
@@ -1106,7 +1107,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
             }
           },
           isOutlined: true,
-          icon: Icons.smart_toy,
+          icon: Icons.smart_toy, buttonColor: Colors.blue, // Replace with a valid MaterialColor
         ),
         
         const SizedBox(height: 24),
@@ -1237,7 +1238,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
               ),
             );
           },
-          icon: Icons.add,
+          icon: Icons.add, buttonColor: Colors.blue, // or any other MaterialColor
         ),
         
         const SizedBox(height: 24),
@@ -1431,7 +1432,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
           isSmall: false,
           text: 'Refresh Insights',
           onPressed: _loadAIInsights,
-          icon: Icons.refresh,
+          icon: Icons.refresh, buttonColor: Colors.blue, // or any other MaterialColor
         ),
         
         const SizedBox(height: 24),

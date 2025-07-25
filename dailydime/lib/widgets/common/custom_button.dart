@@ -18,7 +18,7 @@ class CustomButton extends StatelessWidget {
     this.isOutlined = false,
     this.icon,
     this.width = double.infinity, 
-    required bool isSmall,
+    required bool isSmall, required MaterialColor buttonColor,
   }) : super(key: key);
 
   @override
