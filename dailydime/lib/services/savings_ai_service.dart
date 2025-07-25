@@ -265,7 +265,7 @@ class SavingsAIService {
         6. Weekly savings needed to stay on track
       ''';
 
-      final response = await _model.generateContent(content: [Content.text(prompt)]);
+      final response = await _model.generateContent([Content.text(prompt)]);
       final textResponse = response.text;
       
       if (textResponse == null) {
