@@ -20,7 +20,7 @@ enum SavingsGoalCategory {
   retirement,
   debt,
   investment,
-  other
+  other, vacation
 }
 
 class SavingsGoal {

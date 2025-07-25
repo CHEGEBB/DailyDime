@@ -320,55 +320,187 @@ class AppwriteService {
 
   // SAVINGS GOAL METHODS
 
+  // Helper method to convert SavingsGoalCategory enum to string for Appwrite
+  String _savingsGoalCategoryToString(SavingsGoalCategory category) {
+    switch (category) {
+      case SavingsGoalCategory.emergency:
+        return 'emergency';
+      case SavingsGoalCategory.education:
+        return 'education';
+      case SavingsGoalCategory.retirement:
+        return 'retirement';
+      case SavingsGoalCategory.investment:
+        return 'investment';
+      case SavingsGoalCategory.electronics:
+        return 'electronics';
+      case SavingsGoalCategory.other:
+      default:
+        return 'other';
+    }
+  }
+
+  // Helper method to convert string to SavingsGoalCategory enum
+  SavingsGoalCategory _stringToSavingsGoalCategory(String categoryStr) {
+    switch (categoryStr.toLowerCase()) {
+      case 'emergency':
+        return SavingsGoalCategory.emergency;
+      case 'education':
+        return SavingsGoalCategory.education;
+      case 'retirement':
+        return SavingsGoalCategory.retirement;
+      case 'investment':
+        return SavingsGoalCategory.investment;
+      case 'electronics':
+        return SavingsGoalCategory.electronics;
+      case 'other':
+      default:
+        return SavingsGoalCategory.other;
+    }
+  }
+
+  // Helper method to convert SavingsGoalStatus enum to string for Appwrite
+  String _savingsGoalStatusToString(SavingsGoalStatus status) {
+    switch (status) {
+      case SavingsGoalStatus.active:
+        return 'active';
+      case SavingsGoalStatus.paused:
+        return 'paused';
+      case SavingsGoalStatus.completed:
+        return 'completed';
+      case SavingsGoalStatus.upcoming:
+        return 'upcoming';
+      default:
+        return 'active';
+    }
+  }
+
+  // Helper method to convert string to SavingsGoalStatus enum
+  SavingsGoalStatus _stringToSavingsGoalStatus(String statusStr) {
+    switch (statusStr.toLowerCase()) {
+      case 'active':
+        return SavingsGoalStatus.active;
+      case 'paused':
+        return SavingsGoalStatus.paused;
+      case 'completed':
+        return SavingsGoalStatus.completed;
+      case 'upcoming':
+        return SavingsGoalStatus.upcoming;
+      default:
+        return SavingsGoalStatus.active;
+    }
+  }
+
   // Convert SavingsGoal to Appwrite format
-Map<String, dynamic> _convertSavingsGoalToAppwrite(SavingsGoal goal) {
-  return {
-    'user_id': currentUserId!, // Use user_id as required by Appwrite schema
-    'title': goal.title,
-    'description': goal.description,
-    'target_amount': (goal.targetAmount * 100).toInt(), // Store as cents
-    'current_amount': (goal.currentAmount * 100).toInt(), // Store as cents
-    'daily_target': goal.dailyTarget != null ? (goal.dailyTarget! * 100).toInt() : null,
-    'weekly_target': goal.weeklyTarget != null ? (goal.weeklyTarget! * 100).toInt() : null,
-    'priority': goal.priority, // No null check needed - it's non-nullable
-    'category': goal.category.toString().split('.').last, // Convert enum to string
-    'deadline': goal.targetDate.toIso8601String(), // Use targetDate instead of deadline
-    'status': goal.status.toString().split('.').last, // Convert enum to string
-    'created_at': goal.createdAt.toIso8601String(), // No null check needed - it's non-nullable
-    'updated_at': goal.updatedAt.toIso8601String(), // Use updatedAt instead of DateTime.now()
-    'start_date': goal.startDate.toIso8601String(), // Add missing start_date
-    'icon_asset': goal.iconAsset, // Add missing icon_asset
-    'color': goal.color.value, // Add missing color
-    'is_recurring': goal.isRecurring, // Add missing is_recurring
-    'reminder_frequency': goal.reminderFrequency, // Add missing reminder_frequency
-    'is_ai_suggested': goal.isAiSuggested, // Add missing ai fields
-    'ai_suggestion_reason': goal.aiSuggestionReason,
-    'recommended_weekly_saving': goal.recommendedWeeklySaving != null 
-        ? (goal.recommendedWeeklySaving! * 100).toInt() 
-        : null,
-    'is_automatic_saving': goal.isAutomaticSaving,
-    'forecasted_completion': goal.forecastedCompletion,
-    'image_url': goal.imageUrl,
-  };
-}
+  Map<String, dynamic> _convertSavingsGoalToAppwrite(SavingsGoal goal) {
+    return {
+      'user_id': currentUserId!,
+      'title': goal.title,
+      'description': goal.description ?? '',
+      'target_amount': (goal.targetAmount * 100).toInt(), // Store as cents
+      'current_amount': (goal.currentAmount * 100).toInt(), // Store as cents
+      'daily_target': goal.dailyTarget != null ? (goal.dailyTarget! * 100).toInt() : null,
+      'weekly_target': goal.weeklyTarget != null ? (goal.weeklyTarget! * 100).toInt() : null,
+      'priority': goal.priority,
+      'category': _savingsGoalCategoryToString(goal.category), // Convert enum to string
+      'deadline': goal.targetDate.toIso8601String(),
+      'status': _savingsGoalStatusToString(goal.status), // Convert enum to string
+      'created_at': goal.createdAt.toIso8601String(),
+      'updated_at': goal.updatedAt.toIso8601String(),
+      'start_date': goal.startDate?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'icon_asset': goal.iconAsset,
+      'color': goal.color.value, // Store as integer
+      'is_recurring': goal.isRecurring,
+      'reminder_frequency': goal.reminderFrequency,
+      'is_ai_suggested': goal.isAiSuggested ?? false,
+      'ai_suggestion_reason': goal.aiSuggestionReason,
+      'recommended_weekly_saving': goal.recommendedWeeklySaving != null 
+          ? (goal.recommendedWeeklySaving! * 100).toInt() 
+          : null,
+      'is_automatic_saving': goal.isAutomaticSaving ?? false,
+      'forecasted_completion': goal.forecastedCompletion?.toIso8601String(),
+      'image_url': goal.imageUrl,
+    };
+  }
 
   // Convert Appwrite data to SavingsGoal
   SavingsGoal _convertAppwriteToSavingsGoal(Map<String, dynamic> data, String docId) {
-    return SavingsGoal(
-      id: docId,
-      title: data['title'] ?? '',
-      description: data['description'],
-      targetAmount: (data['target_amount'] ?? 0) / 100.0, // Convert from cents
-      currentAmount: (data['current_amount'] ?? 0) / 100.0, // Convert from cents
-      dailyTarget: data['daily_target'] != null ? data['daily_target'] / 100.0 : null,
-      weeklyTarget: data['weekly_target'] != null ? data['weekly_target'] / 100.0 : null,
-      priority: data['priority'] ?? 'medium',
-      category: data['category'],
-      deadline: data['deadline'] != null ? DateTime.parse(data['deadline']) : null,
-      status: data['status'] ?? 'active',
-      createdAt: data['created_at'] != null ? DateTime.parse(data['created_at']) : null,
-      updatedAt: data['updated_at'] != null ? DateTime.parse(data['updated_at']) : DateTime.now(), targetDate: DateTime.now(), iconAsset: '', color: Colors.grey, isRecurring: false, reminderFrequency: 'weekly', // Default color
-    );
+    try {
+      return SavingsGoal(
+        id: docId,
+        title: data['title'] ?? '',
+        description: data['description'],
+        targetAmount: (data['target_amount'] ?? 0) / 100.0, // Convert from cents
+        currentAmount: (data['current_amount'] ?? 0) / 100.0, // Convert from cents
+        dailyTarget: data['daily_target'] != null ? data['daily_target'] / 100.0 : null,
+        weeklyTarget: data['weekly_target'] != null ? data['weekly_target'] / 100.0 : null,
+        priority: data['priority'] ?? 'medium',
+        category: _stringToSavingsGoalCategory(data['category'] ?? 'other'), // Convert string to enum
+        targetDate: data['deadline'] != null ? DateTime.parse(data['deadline']) : DateTime.now().add(const Duration(days: 30)),
+        status: _stringToSavingsGoalStatus(data['status'] ?? 'active'), // Convert string to enum
+        createdAt: data['created_at'] != null ? DateTime.parse(data['created_at']) : DateTime.now(),
+        updatedAt: data['updated_at'] != null ? DateTime.parse(data['updated_at']) : DateTime.now(),
+        startDate: data['start_date'] != null ? DateTime.parse(data['start_date']) : null,
+        iconAsset: data['icon_asset'] ?? 'savings',
+        color: data['color'] != null ? Color(data['color']) : Colors.blue,
+        isRecurring: data['is_recurring'] ?? false,
+        reminderFrequency: data['reminder_frequency'] ?? 'weekly',
+        isAiSuggested: data['is_ai_suggested'] ?? false,
+        aiSuggestionReason: data['ai_suggestion_reason'],
+        recommendedWeeklySaving: data['recommended_weekly_saving'] != null 
+            ? data['recommended_weekly_saving'] / 100.0 
+            : null,
+        isAutomaticSaving: data['is_automatic_saving'] ?? false,
+        forecastedCompletion: data['forecasted_completion'] != null 
+            ? DateTime.parse(data['forecasted_completion']).millisecondsSinceEpoch.toDouble() 
+            : null,
+        imageUrl: data['image_url'],
+      );
+    } catch (e) {
+      debugPrint('Error converting Appwrite data to SavingsGoal: $e');
+      debugPrint('Data: $data');
+      rethrow;
+    }
+  }
+
+  // Create a new savings goal from map data (for debugging purposes)
+  Future<SavingsGoal> addSavingsGoalFromMap(Map<String, dynamic> goalData) async {
+    try {
+      debugPrint('Creating goal from map data: $goalData');
+      
+      // Create SavingsGoal object from map
+      final goal = SavingsGoal(
+        id: ID.unique(),
+        title: goalData['title'] ?? '',
+        description: goalData['description'],
+        targetAmount: (goalData['targetAmount'] ?? 0.0).toDouble(),
+        currentAmount: (goalData['currentAmount'] ?? 0.0).toDouble(),
+        targetDate: goalData['targetDate'] is String 
+            ? DateTime.parse(goalData['targetDate'])
+            : (goalData['targetDate'] ?? DateTime.now().add(const Duration(days: 30))),
+        category: _stringToSavingsGoalCategory(goalData['category'] ?? 'other'),
+        iconAsset: goalData['iconAsset'] ?? 'savings',
+        color: goalData['color'] is String 
+            ? Color(int.parse(goalData['color'].replaceAll('#', ''), radix: 16))
+            : (goalData['color'] ?? Colors.blue),
+        status: SavingsGoalStatus.active,
+        createdAt: goalData['createdAt'] is String 
+            ? DateTime.parse(goalData['createdAt'])
+            : (goalData['createdAt'] ?? DateTime.now()),
+        updatedAt: goalData['updatedAt'] is String 
+            ? DateTime.parse(goalData['updatedAt'])
+            : (goalData['updatedAt'] ?? DateTime.now()),
+        isRecurring: goalData['isRecurring'] ?? false,
+        reminderFrequency: goalData['reminderFrequency'] ?? 'weekly',
+      );
+      
+      debugPrint('Created SavingsGoal object: ${goal.title}');
+      
+      // Create the goal in Appwrite
+      return await createSavingsGoal(goal);
+    } catch (e) {
+      debugPrint('Error in addSavingsGoalFromMap: $e');
+      rethrow;
+    }
   }
 
   // Fetch all savings goals
@@ -380,7 +512,7 @@ Map<String, dynamic> _convertSavingsGoalToAppwrite(SavingsGoal goal) {
         databaseId: AppConfig.databaseId,
         collectionId: AppConfig.savingsGoalsCollection,
         queries: [
-          Query.equal('user_id', currentUserId!), // Use user_id instead of userId
+          Query.equal('user_id', currentUserId!),
           Query.orderDesc('\$createdAt'),
         ],
       );
@@ -405,7 +537,7 @@ Map<String, dynamic> _convertSavingsGoalToAppwrite(SavingsGoal goal) {
       final response = await databases.createDocument(
         databaseId: AppConfig.databaseId,
         collectionId: AppConfig.savingsGoalsCollection,
-        documentId: ID.unique(),
+        documentId: goal.id.isNotEmpty ? goal.id : ID.unique(),
         data: goalData,
       );
       
@@ -775,4 +907,8 @@ Map<String, dynamic> _convertSavingsGoalToAppwrite(SavingsGoal goal) {
       throw Exception('Failed to delete savings challenge: $e');
     }
   }
+}
+
+extension on double? {
+  toIso8601String() {}
 }
