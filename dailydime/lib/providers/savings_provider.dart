@@ -559,34 +559,47 @@ class SavingsProvider with ChangeNotifier {
   }
   
   // Schedule challenge notifications
-  void _scheduleChallengeNotifications(Map<String, dynamic> challenge) {
-    final challengeId = challenge['id'];
-    final title = challenge['title'];
-    final timeframeDays = challenge['timeframeDays'] as int;
-    
-    // Daily progress reminders
-    _notificationService.scheduleDailyChallengeReminder(
+void _scheduleChallengeNotifications(Map<String, dynamic> challenge) {
+  final challengeId = challenge['id'];
+  final title = challenge['title'];
+  final timeframeDays = challenge['timeframeDays'] as int;
+  final targetAmount = (challenge['targetAmount'] ?? 0.0) as double;
+  final currentAmount = (challenge['currentAmount'] ?? 0.0) as double;
+  
+  // Calculate end date based on timeframe
+  final endDate = DateTime.now().add(Duration(days: timeframeDays));
+  
+  // Daily progress reminders
+  _notificationService.scheduleDailyChallengeReminder(
+    challengeId,
+    title,
+    targetAmount,
+    currentAmount,
+    endDate,
+  );
+  
+  // Weekly progress summary
+  if (timeframeDays > 7) {
+    _notificationService.scheduleWeeklyChallengeReminder(
       challengeId,
       title,
+      targetAmount,
+      currentAmount,
+      endDate,
     );
-    
-    // Weekly progress summary
-    if (timeframeDays > 7) {
-      _notificationService.scheduleWeeklyChallengeReminder(
-        challengeId,
-        title,
-      );
-    }
-    
-    // Final week countdown
-    if (timeframeDays > 7) {
-      _notificationService.scheduleChallengeCountdown(
-        challengeId,
-        title,
-        7, // 7 days before end
-      );
-    }
   }
+  
+  // Final week countdown
+  if (timeframeDays > 7) {
+    _notificationService.scheduleChallengeCountdown(
+      challengeId,
+      title,
+      targetAmount,
+      currentAmount,
+      endDate,
+    );
+  }
+}
   
   // Get AI savings suggestion
   Future<void> getAISavingSuggestion() async {

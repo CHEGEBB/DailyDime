@@ -5,7 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:dailydime/screens/splash_screen.dart';
 import 'package:dailydime/config/theme.dart';
 import 'package:dailydime/providers/transaction_provider.dart';
-import 'package:dailydime/providers/budget_provider.dart'; // Add this import
+import 'package:dailydime/providers/budget_provider.dart'; 
+import 'package:dailydime/providers/savings_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => BudgetProvider(), // Add BudgetProvider here
+        ),
+        ChangeNotifierProvider(
+          create: (context) => SavingsProvider(), // Add SavingsProvider here
         ),
         // Add other providers here if you have them
       ],
