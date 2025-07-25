@@ -8,9 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 class CreateBudgetScreen extends StatefulWidget {
-  final Budget? budget;
+  final Budget? budgetToEdit;
   
-  const CreateBudgetScreen({Key? key, this.budget}) : super(key: key);
+  const CreateBudgetScreen({Key? key, this.budgetToEdit}) : super(key: key);
 
   @override
   State<CreateBudgetScreen> createState() => _CreateBudgetScreenState();
@@ -57,15 +57,15 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
     super.initState();
     
     // Set initial values if editing an existing budget
-    if (widget.budget != null) {
-      _titleController.text = widget.budget!.title;
-      _amountController.text = widget.budget!.amount.toString();
-      _selectedCategory = widget.budget!.category;
-      _selectedPeriod = widget.budget!.period;
-      _startDate = widget.budget!.startDate;
-      _endDate = widget.budget!.endDate;
-      _selectedColor = widget.budget!.color;
-      _selectedIcon = widget.budget!.icon;
+    if (widget.budgetToEdit != null) {
+      _titleController.text = widget.budgetToEdit!.title;
+      _amountController.text = widget.budgetToEdit!.amount.toString();
+      _selectedCategory = widget.budgetToEdit!.category;
+      _selectedPeriod = widget.budgetToEdit!.period;
+      _startDate = widget.budgetToEdit!.startDate;
+      _endDate = widget.budgetToEdit!.endDate;
+      _selectedColor = widget.budgetToEdit!.color;
+      _selectedIcon = widget.budgetToEdit!.icon;
     } else {
       // Default values for new budget
       _selectedColor = _getCategoryColor(_selectedCategory);
@@ -117,7 +117,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: Text(
-          widget.budget == null ? 'Create Budget' : 'Edit Budget',
+          widget.budgetToEdit == null ? 'Create Budget' : 'Edit Budget',
           style: const TextStyle(
             color: Colors.black87,
             fontWeight: FontWeight.bold,
@@ -562,13 +562,14 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
             // Create budget button
             CustomButton(
               isSmall: false,
-              text: widget.budget == null ? 'Create Budget' : 'Update Budget',
+              text: widget.budgetToEdit == null ? 'Create Budget' : 'Update Budget',
               onPressed: _saveBudget,
               isLoading: _isProcessing,
-              icon: widget.budget == null ? Icons.add : Icons.save, buttonColor: Colors.blue,
+              icon: widget.budgetToEdit == null ? Icons.add : Icons.save, 
+              buttonColor: Colors.blue,
             ),
             
-            if (widget.budget != null) ...[
+            if (widget.budgetToEdit != null) ...[
               const SizedBox(height: 16),
               CustomButton(
                 isSmall: false,
@@ -601,7 +602,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
         
         final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
         
-        if (widget.budget == null) {
+        if (widget.budgetToEdit == null) {
           // Create new budget
           final newBudget = Budget(
             title: title,
@@ -612,7 +613,8 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
             endDate: _endDate,
             color: _selectedColor,
             icon: _selectedIcon,
-            tags: [_selectedCategory.toLowerCase()], name: null,
+            tags: [_selectedCategory.toLowerCase()], 
+            name: null,
           );
           
           await budgetProvider.createBudget(newBudget);
@@ -628,7 +630,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
           }
         } else {
           // Update existing budget
-          final updatedBudget = widget.budget!.copyWith(
+          final updatedBudget = widget.budgetToEdit!.copyWith(
             title: title,
             category: _selectedCategory,
             amount: amount,
@@ -692,14 +694,14 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
       ),
     );
     
-    if (confirmed == true && widget.budget != null) {
+    if (confirmed == true && widget.budgetToEdit != null) {
       setState(() {
         _isProcessing = true;
       });
       
       try {
         final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
-        await budgetProvider.deleteBudget(widget.budget!.id);
+        await budgetProvider.deleteBudget(widget.budgetToEdit!.id);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

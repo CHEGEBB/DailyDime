@@ -102,49 +102,66 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
           final highestCategory = budgetProvider.highestSpendingCategory;
           
           return SafeArea(
-            child: NestedScrollView(
-              headerSliverBuilder: (context, innerBoxIsScrolled) {
-                return [
-                  SliverAppBar(
-                    expandedHeight: 340,
-                    floating: true,
-                    pinned: false,
-                    backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    flexibleSpace: FlexibleSpaceBar(
-                      background: _buildBudgetOverviewCard(
-                        isLoading: isLoading,
-                        totalBudget: totalBudget,
-                        totalSpent: totalSpent,
-                        percentageUsed: percentageUsed,
-                        accentColor: accentColor,
-                        highestCategory: highestCategory,
-                      ),
-                    ),
+            child: Column(
+              children: [
+                // Budget Overview Card - Responsive and No Overflow
+                Container(
+                  height: MediaQuery.of(context).size.height * 0.28,
+                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: _buildBudgetOverviewCard(
+                    isLoading: isLoading,
+                    totalBudget: totalBudget,
+                    totalSpent: totalSpent,
+                    percentageUsed: percentageUsed,
+                    accentColor: accentColor,
+                    highestCategory: highestCategory,
                   ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      child: TabBar(
-                        controller: _tabController,
-                        indicatorColor: accentColor,
-                        indicatorWeight: 3,
-                        labelColor: Colors.black87,
-                        unselectedLabelColor: Colors.grey,
-                        tabs: _tabTitles.map((title) => Tab(text: title)).toList(),
+                ),
+                
+                // Tab Bar - No line divider
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
+                    ],
                   ),
-                ];
-              },
-              body: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildOverviewTab(isLoading, budgets, accentColor),
-                  _buildCategoriesTab(isLoading, budgets, accentColor),
-                  _buildInsightsTab(isLoading, accentColor),
-                ],
-              ),
+                  child: TabBar(
+                    controller: _tabController,
+                    indicator: BoxDecoration(
+                      color: accentColor,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    tabs: _tabTitles.map((title) => Tab(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(title),
+                      ),
+                    )).toList(),
+                  ),
+                ),
+                
+                // Tab Content
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildOverviewTab(isLoading, budgets, accentColor),
+                      _buildCategoriesTab(isLoading, budgets, accentColor),
+                      _buildInsightsTab(isLoading, accentColor),
+                    ],
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -158,7 +175,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
             ),
           );
         },
-        backgroundColor: accentColor,
+        backgroundColor: const Color(0xFF26D07C),
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('New Budget', style: TextStyle(color: Colors.white)),
       ),
@@ -174,43 +191,41 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
     required String highestCategory,
   }) {
     return Container(
-      height: 340,
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accentColor,
+            accentColor.withOpacity(0.8),
+            accentColor.withOpacity(0.6),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Stack(
         children: [
-          // Background card with image and gradient
+          // Background pattern
           Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                image: const DecorationImage(
-                  image: AssetImage('assets/images/pattern5.png'),
-                  fit: BoxFit.cover,
-                  opacity: 0.4,
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    accentColor,
-                    accentColor.withOpacity(0.8),
-                    accentColor.withOpacity(0.6),
-                  ],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: accentColor.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
+            child: Opacity(
+              opacity: 0.1,
+              child: Image.asset(
+                'assets/images/pattern5.png',
+                fit: BoxFit.cover,
               ),
             ),
           ),
           
           // Content
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -218,97 +233,70 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Budget Overview',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _selectedTimeframe,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              PopupMenuButton<String>(
-                                icon: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 18),
-                                offset: const Offset(0, 30),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                onSelected: (String value) {
-                                  setState(() {
-                                    _selectedTimeframe = value;
-                                  });
-                                },
-                                itemBuilder: (BuildContext context) {
-                                  return _timeframes.map((String timeframe) {
-                                    return PopupMenuItem<String>(
-                                      value: timeframe,
-                                      child: Text(timeframe),
-                                    );
-                                  }).toList();
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    const Text(
+                      'Budget Overview',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                    IconButton(
-                      onPressed: () {
-                        _loadAIInsights();
-                      },
-                      icon: const Icon(Icons.refresh, color: Colors.white),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _selectedTimeframe,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                            ),
+                          ),
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 18),
+                            offset: const Offset(0, 30),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            onSelected: (String value) {
+                              setState(() {
+                                _selectedTimeframe = value;
+                              });
+                            },
+                            itemBuilder: (BuildContext context) {
+                              return _timeframes.map((String timeframe) {
+                                return PopupMenuItem<String>(
+                                  value: timeframe,
+                                  child: Text(timeframe),
+                                );
+                              }).toList();
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
                 
-                const SizedBox(height: 20),
+                const Spacer(),
                 
-                // Spending amount row
+                // Spending amount
                 if (isLoading)
                   Shimmer.fromColors(
                     baseColor: Colors.white.withOpacity(0.5),
                     highlightColor: Colors.white.withOpacity(0.9),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 32,
-                          width: 150,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 14,
-                          width: 180,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6),
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                    child: Container(
+                      height: 32,
+                      width: 150,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                      ),
                     ),
                   )
                 else
@@ -318,7 +306,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                       Text(
                         'KES ${totalSpent.toInt()}',
                         style: const TextStyle(
-                          fontSize: 32,
+                          fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -337,15 +325,15 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                     ],
                   ),
                 
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 
-                // Modern progress indicator
+                // Progress bar
                 if (isLoading)
                   Shimmer.fromColors(
                     baseColor: Colors.white.withOpacity(0.5),
                     highlightColor: Colors.white.withOpacity(0.9),
                     child: Container(
-                      height: 12,
+                      height: 10,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
@@ -354,158 +342,124 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                     ),
                   )
                 else
-                  Container(
-                    height: 12,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Stack(
-                      children: [
-                        FractionallySizedBox(
-                          widthFactor: percentageUsed > 1.0 ? 1.0 : percentageUsed,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: percentageUsed > 0.9
-                                    ? [Colors.red.shade300, Colors.red.shade500]
-                                    : [Colors.white, Colors.white.withOpacity(0.8)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
+                  Column(
+                    children: [
+                      Container(
+                        height: 10,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: MediaQuery.of(context).size.width * 
+                                  (percentageUsed > 1.0 ? 0.85 : percentageUsed * 0.85),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: percentageUsed > 0.9
+                                      ? [Colors.red.shade300, Colors.red.shade500]
+                                      : [Colors.white, Colors.white.withOpacity(0.8)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                              ],
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${(percentageUsed * 100).toInt()}% used',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                
-                const SizedBox(height: 8),
-                
-                if (isLoading)
-                  Shimmer.fromColors(
-                    baseColor: Colors.white.withOpacity(0.5),
-                    highlightColor: Colors.white.withOpacity(0.9),
-                    child: Container(
-                      height: 12,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        color: Colors.white,
-                      ),
-                    ),
-                  )
-                else
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${(percentageUsed * 100).toInt()}% of total budget used',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                      Text(
-                        'KES ${(totalBudget - totalSpent).toInt()} left',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                          Text(
+                            'KES ${(totalBudget - totalSpent).toInt()} left',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 
-                const Spacer(),
+                const SizedBox(height: 16),
                 
-                // Budget metrics row
-                if (isLoading)
-                  Shimmer.fromColors(
-                    baseColor: Colors.white.withOpacity(0.5),
-                    highlightColor: Colors.white.withOpacity(0.9),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(
-                        3,
-                        (index) => Column(
+                // Budget metrics
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildMetricColumn(
+                      'KES ${totalBudget > 0 ? ((totalBudget - totalSpent) / 30).toInt() : 0}/day',
+                      'Personal',
+                      Icons.person_outline,
+                      Colors.white,
+                    ),
+                    Container(
+                      height: 30,
+                      width: MediaQuery.of(context).size.width * 0.5,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              height: 32,
-                              width: 32,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                              ),
+                            Icon(
+                              percentageUsed > 0.9 ? Icons.warning : Icons.check_circle_outline,
+                              color: Colors.white,
+                              size: 18,
                             ),
-                            const SizedBox(height: 8),
-                            Container(
-                              height: 10,
-                              width: 60,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(4),
+                            const SizedBox(width: 8),
+                            Text(
+                              percentageUsed > 0.9 
+                                  ? 'Budget warning!' 
+                                  : 'On Track',
+                              style: const TextStyle(
                                 color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              height: 10,
-                              width: 80,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(4),
-                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                  )
-                else
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildBudgetMetric(
-                        'Daily Budget',
-                        totalBudget > 0 
-                            ? 'KES ${((totalBudget - totalSpent) / 30).toInt()}/day'
-                            : 'Not set',
-                        Icons.calendar_today,
-                      ),
-                      _buildBudgetMetric(
-                        'Most Spent On',
-                        highestCategory,
-                        Icons.category,
-                      ),
-                      _buildBudgetMetric(
-                        'Budget Status',
-                        percentageUsed > 0.9 
-                            ? 'Warning'
-                            : percentageUsed > 0.7
-                                ? 'Caution'
-                                : 'On Track',
-                        percentageUsed > 0.9
-                            ? Icons.warning
-                            : percentageUsed > 0.7
-                                ? Icons.trending_flat
-                                : Icons.trending_up,
-                      ),
-                    ],
-                  ),
+                  ],
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+  
+  Widget _buildMetricColumn(String value, String label, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
   
@@ -898,14 +852,11 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
         else
           Column(
             children: budgets.take(3).map((budget) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: _buildBudgetListItem(budget),
-              );
+              return _buildBudgetListItem(context, budget, accentColor);
             }).toList(),
           ),
         
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         
         if (budgets.length > 3)
           TextButton(
@@ -920,197 +871,6 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
               ),
             ),
           ),
-        
-        const SizedBox(height: 16),
-        
-        // Action buttons
-        CustomButton(
-          isSmall: false,
-          text: 'Create New Budget',
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const CreateBudgetScreen(),
-              ),
-            );
-          },
-          
-          icon: Icons.add, buttonColor: Colors.blue, // or any other MaterialColor
-        ),
-        
-        const SizedBox(height: 16),
-        
-        CustomButton(
-          isSmall: false,
-          text: 'Get AI Budget Recommendations',
-          onPressed: () async {
-            final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
-            final recommendations = await budgetProvider.getRecommendedBudgets();
-            
-            if (recommendations.isNotEmpty) {
-              // Show bottom sheet with recommendations
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => DraggableScrollableSheet(
-                  initialChildSize: 0.7,
-                  maxChildSize: 0.9,
-                  minChildSize: 0.5,
-                  builder: (context, scrollController) => Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'AI Budget Recommendations',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: const Icon(Icons.close),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Based on your spending patterns',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Expanded(
-                          child: ListView.builder(
-                            controller: scrollController,
-                            itemCount: recommendations.length,
-                            itemBuilder: (context, index) {
-                              final budget = recommendations[index];
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: budget.color.withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Icon(
-                                              budget.icon,
-                                              color: budget.color,
-                                              size: 20,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  budget.title,
-                                                  style: const TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  '${_getPeriodText(budget.period)} • KES ${budget.amount.toInt()}',
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.grey.shade600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: OutlinedButton(
-                                              onPressed: () => Navigator.pop(context),
-                                              style: OutlinedButton.styleFrom(
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                              ),
-                                              child: const Text('Skip'),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: ElevatedButton(
-                                              onPressed: () {
-                                                budgetProvider.createBudget(budget);
-                                                Navigator.pop(context);
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('${budget.title} budget created'),
-                                                    backgroundColor: accentColor,
-                                                  ),
-                                                );
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: accentColor,
-                                                foregroundColor: Colors.white,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                              ),
-                                              child: const Text('Add Budget'),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Not enough spending data to make recommendations'),
-                ),
-              );
-            }
-          },
-          isOutlined: true,
-          icon: Icons.smart_toy, buttonColor: Colors.blue, // Replace with a valid MaterialColor
-        ),
-        
-        const SizedBox(height: 24),
       ],
     );
   }
@@ -1156,92 +916,98 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
       children: [
         // Monthly budgets section
         if (monthlyBudgets.isNotEmpty) ...[
-          const Text(
-            'Monthly Budgets',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              'Monthly Budgets',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          ...monthlyBudgets.map((budget) => Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _buildBudgetListItem(budget),
-          )),
+          ...monthlyBudgets.map((budget) => 
+            _buildBudgetListItem(context, budget, accentColor)
+          ),
           const SizedBox(height: 16),
         ],
         
         // Weekly budgets section
         if (weeklyBudgets.isNotEmpty) ...[
-          const Text(
-            'Weekly Budgets',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              'Weekly Budgets',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          ...weeklyBudgets.map((budget) => Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _buildBudgetListItem(budget),
-          )),
+          ...weeklyBudgets.map((budget) => 
+            _buildBudgetListItem(context, budget, accentColor)
+          ),
           const SizedBox(height: 16),
         ],
         
         // Daily budgets section
         if (dailyBudgets.isNotEmpty) ...[
-          const Text(
-            'Daily Budgets',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              'Daily Budgets',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          ...dailyBudgets.map((budget) => Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _buildBudgetListItem(budget),
-          )),
+          ...dailyBudgets.map((budget) => 
+            _buildBudgetListItem(context, budget, accentColor)
+          ),
           const SizedBox(height: 16),
         ],
         
         // Yearly budgets section
         if (yearlyBudgets.isNotEmpty) ...[
-          const Text(
-            'Yearly Budgets',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              'Yearly Budgets',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          ...yearlyBudgets.map((budget) => Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _buildBudgetListItem(budget),
-          )),
+          ...yearlyBudgets.map((budget) => 
+            _buildBudgetListItem(context, budget, accentColor)
+          ),
           const SizedBox(height: 16),
         ],
         
         // Create budget button
-        CustomButton(
-          isSmall: false,
-          text: 'Create New Budget',
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const CreateBudgetScreen(),
-              ),
-            );
-          },
-          icon: Icons.add, buttonColor: Colors.blue, // or any other MaterialColor
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: CustomButton(
+            isSmall: false,
+            text: 'Create New Budget',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateBudgetScreen(),
+                ),
+              );
+            },
+            icon: Icons.add,
+            buttonColor: Colors.blue,
+          ),
         ),
-        
-        const SizedBox(height: 24),
       ],
     );
   }
@@ -1251,48 +1017,62 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
       padding: const EdgeInsets.all(16),
       children: [
         // AI Insights header
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              child: const Icon(
-                Icons.analytics,
-                color: Colors.blue,
-                size: 24,
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.analytics,
+                  color: Colors.blue,
+                  size: 24,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Smart Budget Analysis',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Smart Budget Analysis',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'AI-powered insights to help you manage your finances',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                    const SizedBox(height: 4),
+                    Text(
+                      'AI-powered insights to help you manage your finances',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         
         // Insights content
         if (_loadingInsights)
@@ -1358,71 +1138,68 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
           )
         else
           Column(
-            children: [
-              // Advanced insights cards
-              ..._aiInsights.map((insight) {
-                final color = _getInsightColor(insight);
-                final icon = _getInsightIcon(insight);
-                
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
+            children: _aiInsights.map((insight) {
+              final color = _getInsightColor(insight);
+              final icon = _getInsightIcon(insight);
+              
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          icon,
-                          color: color,
-                          size: 24,
-                        ),
+                      child: Icon(
+                        icon,
+                        color: color,
+                        size: 24,
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _getInsightTitle(insight),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _getInsightTitle(insight),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              insight,
-                              style: TextStyle(
-                                fontSize: 14,
-                                height: 1.4,
-                                color: Colors.grey.shade700,
-                              ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            insight,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.4,
+                              color: Colors.grey.shade700,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-              }),
-            ],
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
         
         const SizedBox(height: 24),
@@ -1432,46 +1209,8 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
           isSmall: false,
           text: 'Refresh Insights',
           onPressed: _loadAIInsights,
-          icon: Icons.refresh, buttonColor: Colors.blue, // or any other MaterialColor
-        ),
-        
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-  
-  Widget _buildBudgetMetric(String title, String value, IconData icon) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 16,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: Colors.white70,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          icon: Icons.refresh,
+          buttonColor: Colors.blue,
         ),
       ],
     );
@@ -1508,7 +1247,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
     );
   }
   
-  Widget _buildBudgetListItem(Budget budget) {
+  Widget _buildBudgetListItem(BuildContext context, Budget budget, Color accentColor) {
     final percentageUsed = budget.percentageUsed;
     final isOverBudget = budget.isOverBudget;
     final Color progressColor = isOverBudget 
@@ -1518,7 +1257,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
             : budget.color;
     
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1530,147 +1269,653 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: budget.color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  budget.icon,
-                  color: budget.color,
-                  size: 20,
-                ),
+      child: Dismissible(
+        key: Key(budget.id),
+        background: Container(
+          decoration: BoxDecoration(
+            color: Colors.red,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          child: const Icon(
+            Icons.delete,
+            color: Colors.white,
+          ),
+        ),
+        direction: DismissDirection.endToStart,
+        confirmDismiss: (direction) async {
+          return await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text("Delete Budget"),
+                content: Text("Are you sure you want to delete ${budget.title} budget?"),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text("Cancel"),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+        onDismissed: (direction) {
+          final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+          budgetProvider.deleteBudget(budget.id);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${budget.title} budget deleted'),
+              action: SnackBarAction(
+                label: 'Undo',
+                onPressed: () {
+                  budgetProvider.createBudget(budget);
+                },
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+          );
+        },
+        child: InkWell(
+          onTap: () => _showBudgetDetails(context, budget, accentColor),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      budget.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: budget.color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        budget.icon,
+                        color: budget.color,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _getPeriodText(budget.period),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            budget.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _getPeriodText(budget.period),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    Row(
+                      children: [
+                        if (isOverBudget)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.warning,
+                                  color: Colors.red,
+                                  size: 12,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Over',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.red.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert),
+                          onSelected: (value) {
+                            _handleBudgetAction(context, value, budget);
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Edit Budget'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'reset',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.refresh, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Reset Spent'),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'toggle',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    budget.isActive ? Icons.visibility_off : Icons.visibility,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(budget.isActive ? 'Deactivate' : 'Activate'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, size: 18, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Text('Delete', style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'KES ${budget.spent.toInt()}',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: isOverBudget ? Colors.red : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'of KES ${budget.amount.toInt()}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          isOverBudget 
+                              ? '-KES ${(budget.spent - budget.amount).toInt()}'
+                              : 'KES ${budget.remaining.toInt()} left',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: isOverBudget ? Colors.red : Colors.green.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${(percentageUsed * 100).toInt()}% used',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: progressColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: percentageUsed > 1.0 ? 1.0 : percentageUsed,
+                    backgroundColor: Colors.grey.withOpacity(0.1),
+                    valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                    minHeight: 8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  void _handleBudgetAction(BuildContext context, String action, Budget budget) {
+    final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+    
+    switch (action) {
+      case 'edit':
+        // Navigate to edit screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CreateBudgetScreen(budgetToEdit: budget),
+          ),
+        );
+        break;
+      case 'reset':
+        // Reset spent amount
+        budgetProvider.resetBudgetSpent(budget.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${budget.title} spending reset to 0')),
+        );
+        break;
+      case 'toggle':
+        // Toggle active status
+        budgetProvider.toggleBudgetStatus(budget.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              budget.isActive
+                  ? '${budget.title} budget deactivated'
+                  : '${budget.title} budget activated'
+            ),
+          ),
+        );
+        break;
+      case 'delete':
+        // Show confirmation dialog and delete
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Delete Budget"),
+              content: Text("Are you sure you want to delete ${budget.title} budget?"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("Cancel"),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    budgetProvider.deleteBudget(budget.id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${budget.title} budget deleted'),
+                        action: SnackBarAction(
+                          label: 'Undo',
+                          onPressed: () {
+                            budgetProvider.createBudget(budget);
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            );
+          },
+        );
+        break;
+    }
+  }
+  
+  void _showBudgetDetails(BuildContext context, Budget budget, Color accentColor) {
+    final percentageUsed = budget.percentageUsed;
+    final isOverBudget = budget.isOverBudget;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(24),
+            children: [
+              Center(
+                child: Container(
+                  height: 4,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: budget.color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      budget.icon,
+                      color: budget.color,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          budget.title,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _getPeriodText(budget.period),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: budget.color.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Total Budget',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'KES ${budget.amount.toInt()}',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text(
+                              'Spent So Far',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'KES ${budget.spent.toInt()}',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: isOverBudget ? Colors.red : Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: percentageUsed > 1.0 ? 1.0 : percentageUsed,
+                        backgroundColor: Colors.grey.withOpacity(0.2),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          isOverBudget 
+                              ? Colors.red
+                              : percentageUsed > 0.8 
+                                  ? Colors.orange
+                                  : budget.color,
+                        ),
+                        minHeight: 10,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${(percentageUsed * 100).toInt()}% used',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isOverBudget ? Colors.red : Colors.grey.shade700,
+                          ),
+                        ),
+                        Text(
+                          isOverBudget 
+                              ? 'Overspent by KES ${(budget.spent - budget.amount).toInt()}'
+                              : 'KES ${budget.remaining.toInt()} remaining',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isOverBudget ? Colors.red : Colors.green.shade700,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              if (isOverBudget)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.warning,
-                        color: Colors.red,
-                        size: 12,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Over Budget',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.red.shade700,
+              const SizedBox(height: 24),
+              const Text(
+                'Budget Details',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildDetailRow('Category', budget.category),
+              _buildDetailRow('Period', _getPeriodText(budget.period)),
+              _buildDetailRow('Created', DateFormat('MMM dd, yyyy').format(budget.createdAt ?? DateTime.now())),
+              if (budget.tags.isNotEmpty)
+                _buildDetailRow('Tags', budget.tags.join(', ')),
+              if (budget.notes.isNotEmpty)
+                _buildDetailRow('Notes', budget.notes),
+              const SizedBox(height: 24),
+              const Text(
+                'Actions',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CreateBudgetScreen(budgetToEdit: budget),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Edit Budget'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accentColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'KES ${budget.spent.toInt()}',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isOverBudget ? Colors.red : Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'of KES ${budget.amount.toInt()}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+                        budgetProvider.resetBudgetSpent(budget.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('${budget.title} spending reset to 0')),
+                        );
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reset Spent'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: accentColor,
+                        side: BorderSide(color: accentColor),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    isOverBudget 
-                        ? '-KES ${(budget.spent - budget.amount).toInt()}'
-                        : 'KES ${budget.remaining.toInt()} left',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: isOverBudget ? Colors.red : Colors.green.shade700,
-                    ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+                  
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: const Text("Delete Budget"),
+                        content: Text("Are you sure you want to delete ${budget.title} budget?"),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text("Cancel"),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              budgetProvider.deleteBudget(budget.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${budget.title} budget deleted'),
+                                  action: SnackBarAction(
+                                    label: 'Undo',
+                                    onPressed: () {
+                                      budgetProvider.createBudget(budget);
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+                icon: const Icon(Icons.delete, color: Colors.red),
+                label: const Text('Delete Budget', style: TextStyle(color: Colors.red)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${(percentageUsed * 100).toInt()}% used',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: progressColor,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Stack(
-            children: [
-              Container(
-                height: 8,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
               ),
-              FractionallySizedBox(
-                widthFactor: percentageUsed > 1.0 ? 1.0 : percentageUsed,
-                child: Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: progressColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
-            ],
+            ),
           ),
         ],
       ),

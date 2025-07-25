@@ -17,6 +17,7 @@ class Budget {
   final Color color;
   final IconData icon;
   final List<String> tags;
+  final String notes;
   final bool isActive;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -33,6 +34,7 @@ class Budget {
     required this.color,
     required this.icon,
     this.tags = const [],
+    this.notes = '',
     this.isActive = true,
     this.createdAt,
     this.updatedAt, required name,
@@ -75,6 +77,7 @@ class Budget {
       'color': color.value,
       'icon': icon.codePoint,
       'tags': tags,
+      'notes': notes,
       'isActive': isActive,
       'createdAt': createdAt?.millisecondsSinceEpoch,
       'updatedAt': updatedAt?.millisecondsSinceEpoch,
@@ -95,6 +98,7 @@ class Budget {
       color: Color(map['color']),
       icon: IconData(map['icon'], fontFamily: 'MaterialIcons'),
       tags: List<String>.from(map['tags'] ?? []),
+      notes: map['notes'] ?? '',
       isActive: map['isActive'] ?? true,
       createdAt: map['createdAt'] != null ? DateTime.fromMillisecondsSinceEpoch(map['createdAt']) : null,
       updatedAt: map['updatedAt'] != null ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt']) : null, name: null,
@@ -114,6 +118,7 @@ class Budget {
     Color? color,
     IconData? icon,
     List<String>? tags,
+    String? notes,
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -130,6 +135,7 @@ class Budget {
       color: color ?? this.color,
       icon: icon ?? this.icon,
       tags: tags ?? this.tags,
+      notes: notes ?? this.notes,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt, name: null,
