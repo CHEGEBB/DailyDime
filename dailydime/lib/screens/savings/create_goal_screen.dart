@@ -197,6 +197,10 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
       }
     }
   }
+
+  void _handleSaveGoal() {
+    _saveGoal();
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -432,10 +436,10 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                     // Submit Button
                     CustomButton(
                       text: _isEditing ? 'Update Goal' : 'Create Goal',
-                      onPressed: _isLoading ? null : () async => await _saveGoal(),
+                      onPressed: _isLoading ? () {} : _handleSaveGoal,
                       isSmall: false,
                       isLoading: _isLoading,
-                      buttonColor: Colors.green, // or use a custom MaterialColor
+                      buttonColor: Colors.green,
                     ),
                   ],
                 ),
