@@ -5,6 +5,7 @@ import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/models/transaction.dart';
 import 'package:dailydime/models/budget.dart';
 import 'package:flutter/material.dart';
+import 'package:dailydime/models/savings_goal.dart';
 
 class AppwriteService {
   static final AppwriteService _instance = AppwriteService._internal();
@@ -309,4 +310,88 @@ class AppwriteService {
       debugPrint('Error updating balance: $e');
     }
   }
+
+
+// Fetch all savings goals
+Future<List<SavingsGoal>> fetchSavingsGoals() async {
+  try {
+    await _checkUserSession();
+    
+    final response = await _db.listDocuments(
+      collectionId: AppConfig.savingsGoalsCollection,
+      queries: [
+        Query.equal('userId', _userId),
+      ],
+    );
+    
+    return response.documents.map((doc) {
+      final data = doc.data;
+      return SavingsGoal.fromMap({
+        'id': doc.$id,
+        ...data,
+      });
+    }).toList();
+  } catch (e) {
+    debugPrint('Error fetching savings goals: $e');
+    rethrow;
+  }
+}
+
+// Create a new savings goal
+Future<SavingsGoal> createSavingsGoal(SavingsGoal goal) async {
+  try {
+    await _checkUserSession();
+    
+    final goalMap = goal.toMap();
+    goalMap['userId'] = _userId;
+    
+    final response = await _db.createDocument(
+      collectionId: AppConfig.savingsGoalsCollection,
+      documentId: ID.unique(),
+      data: goalMap,
+    );
+    
+    return SavingsGoal.fromMap({
+      'id': response.$id,
+      ...response.data,
+    });
+  } catch (e) {
+    debugPrint('Error creating savings goal: $e');
+    rethrow;
+  }
+}
+
+// Update an existing savings goal
+Future<void> updateSavingsGoal(SavingsGoal goal) async {
+  try {
+    await _checkUserSession();
+    
+    final goalMap = goal.toMap();
+    goalMap['userId'] = _userId;
+    
+    await _db.updateDocument(
+      collectionId: AppConfig.savingsGoalsCollection,
+      documentId: goal.id,
+      data: goalMap,
+    );
+  } catch (e) {
+    debugPrint('Error updating savings goal: $e');
+    rethrow;
+  }
+}
+
+// Delete a savings goal
+Future<void> deleteSavingsGoal(String goalId) async {
+  try {
+    await _checkUserSession();
+    
+    await _db.deleteDocument(
+      collectionId: AppConfig.savingsGoalsCollection,
+      documentId: goalId,
+    );
+  } catch (e) {
+    debugPrint('Error deleting savings goal: $e');
+    rethrow;
+  }
+}
 }

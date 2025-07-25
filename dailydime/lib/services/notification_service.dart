@@ -163,4 +163,199 @@ class NotificationService {
     }
     return false;
   }
+
+  Future<void> showGoalCompletedNotification(String goalId, String goalTitle) async {
+  await flutterLocalNotificationsPlugin.show(
+    goalId.hashCode,
+    'Goal Completed! 🎉',
+    'Congratulations! You\'ve reached your savings goal for "$goalTitle"',
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'savings_channel',
+        'Savings Goals',
+        channelDescription: 'Notifications for savings goals',
+        importance: Importance.high,
+        priority: Priority.high,
+        color: Color(0xFF26D07C),
+        icon: '@mipmap/ic_launcher',
+      ),
+    ),
+  );
+}
+
+Future<void> showGoalMilestoneNotification(String goalId, String goalTitle, int percentage) async {
+  await flutterLocalNotificationsPlugin.show(
+    goalId.hashCode + percentage,
+    'Milestone Reached! 🏆',
+    'You\'ve reached $percentage% of your "$goalTitle" savings goal',
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'savings_channel',
+        'Savings Goals',
+        channelDescription: 'Notifications for savings goals',
+        importance: Importance.high,
+        priority: Priority.high,
+        color: Color(0xFF26D07C),
+        icon: '@mipmap/ic_launcher',
+      ),
+    ),
+  );
+}
+
+Future<void> scheduleWeeklyGoalReminder(
+  String goalId,
+  String goalTitle,
+  double targetAmount,
+  double currentAmount,
+  DateTime targetDate,
+) async {
+  final tz.TZDateTime scheduledDate = _nextInstanceOfDayTime(
+    DateTime.sunday,
+    const TimeOfDay(hour: 10, minute: 0),
+  );
+  
+  await flutterLocalNotificationsPlugin.zonedSchedule(
+    goalId.hashCode + 1000,
+    'Weekly Savings Reminder',
+    'You\'ve saved ${((currentAmount / targetAmount) * 100).toInt()}% of your "$goalTitle" goal. Keep going!',
+    scheduledDate,
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'savings_channel',
+        'Savings Goals',
+        channelDescription: 'Notifications for savings goals',
+        importance: Importance.high,
+        priority: Priority.high,
+        color: Color(0xFF26D07C),
+        icon: '@mipmap/ic_launcher',
+      ),
+    ),
+    androidAllowWhileIdle: true,
+    uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+    matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+  );
+}
+
+Future<void> scheduleDailyGoalReminder(
+  String goalId,
+  String goalTitle,
+  double targetAmount,
+  double currentAmount,
+  DateTime targetDate,
+) async {
+  final tz.TZDateTime scheduledDate = _nextInstanceOfTime(
+    const TimeOfDay(hour: 19, minute: 0),
+  );
+  
+  final daysLeft = targetDate.difference(DateTime.now()).inDays;
+  final amountLeft = targetAmount - currentAmount;
+  
+  await flutterLocalNotificationsPlugin.zonedSchedule(
+    goalId.hashCode + 2000,
+    'Goal Deadline Approaching',
+    'Only $daysLeft days left to save ${AppConfig.formatCurrency(amountLeft.toInt() * 100)} for your "$goalTitle" goal',
+    scheduledDate,
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'savings_channel',
+        'Savings Goals',
+        channelDescription: 'Notifications for savings goals',
+        importance: Importance.high,
+        priority: Priority.high,
+        color: Color(0xFF26D07C),
+        icon: '@mipmap/ic_launcher',
+      ),
+    ),
+    androidAllowWhileIdle: true,
+    uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+    matchDateTimeComponents: DateTimeComponents.time,
+  );
+}
+
+Future<void> scheduleGoalDeadlineReminder(
+  String goalId,
+  String goalTitle,
+  double targetAmount,
+  double currentAmount,
+) async {
+  final tz.TZDateTime scheduledDate = _nextInstanceOfTime(
+    const TimeOfDay(hour: 9, minute: 0),
+  );
+  
+  final amountLeft = targetAmount - currentAmount;
+  
+  await flutterLocalNotificationsPlugin.zonedSchedule(
+    goalId.hashCode + 3000,
+    'Goal Deadline Tomorrow',
+    'Your "$goalTitle" goal deadline is tomorrow! You still need to save ${AppConfig.formatCurrency(amountLeft.toInt() * 100)}',
+    scheduledDate,
+    const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'savings_channel',
+        'Savings Goals',
+        channelDescription: 'Notifications for savings goals',
+        importance: Importance.high,
+        priority: Priority.high,
+        color: Color(0xFF26D07C),
+        icon: '@mipmap/ic_launcher',
+      ),
+    ),
+    androidAllowWhileIdle: true,
+    uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+  );
+}
+
+Future<void> cancelNotificationsForGoal(String goalId) async {
+  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode);
+  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 1000);
+  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 2000);
+  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 3000);
+  // Cancel milestone notifications too
+  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 25);
+  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 50);
+  await flutterLocalNotificationsPlugin.cancel(goalId.hashCode + 75);
+}
+
+tz.TZDateTime _nextInstanceOfDayTime(int day, TimeOfDay time) {
+  final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+  tz.TZDateTime scheduledDate = tz.TZDateTime(
+    tz.local,
+    now.year,
+    now.month,
+    now.day,
+    time.hour,
+    time.minute,
+  );
+  
+  while (scheduledDate.weekday != day) {
+    scheduledDate = scheduledDate.add(const Duration(days: 1));
+  }
+  
+  if (scheduledDate.isBefore(now)) {
+    scheduledDate = scheduledDate.add(const Duration(days: 7));
+  }
+  
+  return scheduledDate;
+}
+
+tz.TZDateTime _nextInstanceOfTime(TimeOfDay time) {
+  final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+  tz.TZDateTime scheduledDate = tz.TZDateTime(
+    tz.local,
+    now.year,
+    now.month,
+    now.day,
+    time.hour,
+    time.minute,
+  );
+  
+  if (scheduledDate.isBefore(now)) {
+    scheduledDate = scheduledDate.add(const Duration(days: 1));
+  }
+  
+  return scheduledDate;
+}
 }
