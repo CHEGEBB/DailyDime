@@ -41,7 +41,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
 
   // Weekly spending summary data
   double _weeklyTotal = 0;
-  double _weeklyBudget = 40000; // This should come from your budget provider
+  double _weeklyBudget = 5000; // This should come from your budget provider
   double _weeklyRemaining = 0;
   double _weeklyPercentage = 0;
 
