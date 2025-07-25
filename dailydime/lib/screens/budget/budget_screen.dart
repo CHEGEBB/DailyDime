@@ -261,7 +261,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                             icon: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 18),
                             offset: const Offset(0, 30),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             onSelected: (String value) {
                               setState(() {
@@ -336,7 +336,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                       height: 10,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(8),
                         color: Colors.white,
                       ),
                     ),
@@ -349,7 +349,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                         width: double.infinity,
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
@@ -410,7 +410,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                       width: MediaQuery.of(context).size.width * 0.5,
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
                         child: Row(
@@ -472,7 +472,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
