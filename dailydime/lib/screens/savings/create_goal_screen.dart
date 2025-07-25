@@ -1,6 +1,6 @@
 // lib/screens/savings/create_goal_screen.dart
 
-import 'package:dailydime/models/savings_model.dart';
+import 'package:dailydime/models/savings_goal.dart';
 import 'package:dailydime/providers/savings_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
