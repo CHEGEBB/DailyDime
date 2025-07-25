@@ -1628,7 +1628,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: budget.color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       budget.icon,
