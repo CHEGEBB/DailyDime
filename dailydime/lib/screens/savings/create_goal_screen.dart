@@ -432,10 +432,10 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                     // Submit Button
                     CustomButton(
                       text: _isEditing ? 'Update Goal' : 'Create Goal',
-                      onPressed: _isLoading ? null : _saveGoal,
+                      onPressed: _isLoading ? null : () async => await _saveGoal(),
                       isSmall: false,
                       isLoading: _isLoading,
-                      buttonColor: const Color(0xFF26D07C),
+                      buttonColor: Colors.green, // or use a custom MaterialColor
                     ),
                   ],
                 ),

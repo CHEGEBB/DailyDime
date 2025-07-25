@@ -17,6 +17,7 @@ class SavingsProvider with ChangeNotifier {
   
   List<SavingsGoal> _savingsGoals = [];
   List<Map<String, dynamic>> _savingsChallenges = [];
+  List<Map<String, dynamic>> _userChallenges = [];
   bool _isLoading = false;
   String _error = '';
   Map<String, dynamic>? _aiSavingSuggestion;
@@ -29,6 +30,7 @@ class SavingsProvider with ChangeNotifier {
   List<SavingsGoal> get completedGoals => _savingsGoals.where((g) => g.status == SavingsGoalStatus.completed).toList();
   List<SavingsGoal> get upcomingGoals => _savingsGoals.where((g) => g.status == SavingsGoalStatus.upcoming).toList();
   List<Map<String, dynamic>> get savingsChallenges => _savingsChallenges;
+  List<Map<String, dynamic>> get userChallenges => _userChallenges;
   bool get isLoading => _isLoading;
   String get error => _error;
   Map<String, dynamic>? get aiSavingSuggestion => _aiSavingSuggestion;
@@ -250,6 +252,342 @@ class SavingsProvider with ChangeNotifier {
     }
   }
   
+  // Create a new savings challenge
+  Future<bool> createSavingsChallenge({
+    required String title,
+    required String description,
+    String? icon,
+    Color? color,
+    String difficulty = 'medium',
+    int timeframeDays = 30,
+  }) async {
+    _isLoading = true;
+    _error = '';
+    notifyListeners();
+    
+    try {
+      // Create challenge object
+      final challenge = {
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'title': title,
+        'description': description,
+        'icon': icon ?? 'savings',
+        'color': (color ?? Colors.blue).value,
+        'participants': 1, // Creator is first participant
+        'isPopular': false,
+        'isUserCreated': true,
+        'difficulty': difficulty,
+        'timeframeDays': timeframeDays,
+        'createdAt': DateTime.now().toIso8601String(),
+        'createdBy': 'current_user', // You might want to get actual user ID
+        'status': 'active',
+      };
+      
+      // Save to Appwrite
+      await _appwriteService.createSavingsChallenge(challenge);
+      
+      // Add to local challenges list
+      _savingsChallenges.insert(0, challenge);
+      
+      // Automatically join the created challenge
+      await _joinChallengeInternal(challenge);
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Failed to create savings challenge: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+  
+  // Join a savings challenge
+  Future<bool> joinSavingsChallenge(String challengeTitle) async {
+    _isLoading = true;
+    _error = '';
+    notifyListeners();
+    
+    try {
+      // Find the challenge
+      final challenge = _savingsChallenges.firstWhere(
+        (c) => c['title'] == challengeTitle,
+        orElse: () => {},
+      );
+      
+      if (challenge.isEmpty) {
+        _error = 'Challenge not found';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+      
+      // Check if already joined
+      final isAlreadyJoined = _userChallenges.any(
+        (uc) => uc['challengeId'] == challenge['id'] || uc['title'] == challengeTitle,
+      );
+      
+      if (isAlreadyJoined) {
+        _error = 'You have already joined this challenge';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+      
+      await _joinChallengeInternal(challenge);
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Failed to join savings challenge: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+  
+  // Internal method to join a challenge
+  Future<void> _joinChallengeInternal(Map<String, dynamic> challenge) async {
+    // Create user challenge record
+    final userChallenge = {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'challengeId': challenge['id'] ?? challenge['title'].hashCode.toString(),
+      'title': challenge['title'],
+      'description': challenge['description'],
+      'icon': challenge['icon'],
+      'color': challenge['color'],
+      'difficulty': challenge['difficulty'],
+      'timeframeDays': challenge['timeframeDays'],
+      'joinedAt': DateTime.now().toIso8601String(),
+      'status': 'active',
+      'progress': 0.0,
+      'targetAmount': _calculateChallengeTargetAmount(challenge),
+      'currentAmount': 0.0,
+      'daysRemaining': challenge['timeframeDays'],
+      'milestones': _generateChallengeMilestones(challenge),
+    };
+    
+    // Save to Appwrite
+    await _appwriteService.joinSavingsChallenge(userChallenge);
+    
+    // Add to local user challenges
+    _userChallenges.add(userChallenge);
+    
+    // Update participant count in original challenge
+    final challengeIndex = _savingsChallenges.indexWhere(
+      (c) => (c['id'] ?? c['title'].hashCode.toString()) == (challenge['id'] ?? challenge['title'].hashCode.toString()),
+    );
+    if (challengeIndex != -1) {
+      _savingsChallenges[challengeIndex]['participants'] = 
+        (_savingsChallenges[challengeIndex]['participants'] ?? 0) + 1;
+    }
+    
+    // Schedule challenge notifications
+    _scheduleChallengeNotifications(userChallenge);
+    
+    // Show success notification
+    _notificationService.showChallengeJoinedNotification(
+      userChallenge['id'],
+      userChallenge['title'],
+    );
+  }
+  
+  // Calculate target amount for a challenge based on type
+  double _calculateChallengeTargetAmount(Map<String, dynamic> challenge) {
+    final title = challenge['title'].toString().toLowerCase();
+    
+    if (title.contains('52-week')) {
+      return 68900.0; // KES 68,900 for 52-week challenge
+    } else if (title.contains('round-up')) {
+      return mtdSavingsAmount * 2; // Estimate based on current savings
+    } else if (title.contains('1%')) {
+      return (totalSavingsAmount * 0.01 * challenge['timeframeDays']) ?? 10000.0;
+    } else if (title.contains('no-spend')) {
+      return averageDailySavings * challenge['timeframeDays'];
+    } else {
+      // Default calculation based on current savings pattern
+      return averageDailySavings * challenge['timeframeDays'] * 1.5;
+    }
+  }
+  
+  // Generate milestones for a challenge
+  List<Map<String, dynamic>> _generateChallengeMilestones(Map<String, dynamic> challenge) {
+    final targetAmount = _calculateChallengeTargetAmount(challenge);
+    final timeframeDays = challenge['timeframeDays'] as int;
+    
+    return [
+      {
+        'percentage': 0.25,
+        'amount': targetAmount * 0.25,
+        'description': '25% Complete - Great start!',
+        'reached': false,
+      },
+      {
+        'percentage': 0.5,
+        'amount': targetAmount * 0.5,
+        'description': '50% Complete - Halfway there!',
+        'reached': false,
+      },
+      {
+        'percentage': 0.75,
+        'amount': targetAmount * 0.75,
+        'description': '75% Complete - Almost done!',
+        'reached': false,
+      },
+      {
+        'percentage': 1.0,
+        'amount': targetAmount,
+        'description': '100% Complete - Challenge accomplished!',
+        'reached': false,
+      },
+    ];
+  }
+  
+  // Update challenge progress
+  Future<bool> updateChallengeProgress(String challengeId, double amount) async {
+    try {
+      final index = _userChallenges.indexWhere((c) => c['id'] == challengeId);
+      if (index == -1) return false;
+      
+      final challenge = _userChallenges[index];
+      final newAmount = (challenge['currentAmount'] as double) + amount;
+      final targetAmount = challenge['targetAmount'] as double;
+      final newProgress = newAmount / targetAmount;
+      
+      // Update local challenge
+      _userChallenges[index] = {
+        ...challenge,
+        'currentAmount': newAmount,
+        'progress': newProgress.clamp(0.0, 1.0),
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+      
+      // Check for milestone achievements
+      _checkChallengeMilestones(challengeId, newProgress);
+      
+      // Update in Appwrite
+      await _appwriteService.updateChallengeProgress(challengeId, newAmount, newProgress);
+      
+      // Check if challenge is completed
+      if (newProgress >= 1.0) {
+        _userChallenges[index]['status'] = 'completed';
+        _notificationService.showChallengeCompletedNotification(
+          challengeId,
+          challenge['title'],
+        );
+      }
+      
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error updating challenge progress: $e');
+      return false;
+    }
+  }
+  
+  // Check and update challenge milestones
+  void _checkChallengeMilestones(String challengeId, double progress) {
+    final index = _userChallenges.indexWhere((c) => c['id'] == challengeId);
+    if (index == -1) return;
+    
+    final challenge = _userChallenges[index];
+    final milestones = List<Map<String, dynamic>>.from(challenge['milestones']);
+    
+    for (int i = 0; i < milestones.length; i++) {
+      final milestone = milestones[i];
+      if (!milestone['reached'] && progress >= milestone['percentage']) {
+        milestones[i]['reached'] = true;
+        
+        // Show milestone notification
+        _notificationService.showChallengeMilestoneNotification(
+          challengeId,
+          challenge['title'],
+          (milestone['percentage'] * 100).toInt(),
+        );
+      }
+    }
+    
+    _userChallenges[index]['milestones'] = milestones;
+  }
+  
+  // Get user's active challenges
+  List<Map<String, dynamic>> get activeChallenges => 
+    _userChallenges.where((c) => c['status'] == 'active').toList();
+  
+  // Get user's completed challenges
+  List<Map<String, dynamic>> get completedChallenges => 
+    _userChallenges.where((c) => c['status'] == 'completed').toList();
+  
+  // Leave a challenge
+  Future<bool> leaveSavingsChallenge(String challengeId) async {
+    _isLoading = true;
+    _error = '';
+    notifyListeners();
+    
+    try {
+      // Remove from Appwrite
+      await _appwriteService.leaveSavingsChallenge(challengeId);
+      
+      // Remove from local list
+      _userChallenges.removeWhere((c) => c['id'] == challengeId);
+      
+      // Cancel challenge notifications
+      _notificationService.cancelChallengeNotifications(challengeId);
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Failed to leave challenge: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+  
+  // Fetch user's joined challenges
+  Future<void> fetchUserChallenges() async {
+    try {
+      final challenges = await _appwriteService.fetchUserChallenges();
+      _userChallenges = challenges;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error fetching user challenges: $e');
+    }
+  }
+  
+  // Schedule challenge notifications
+  void _scheduleChallengeNotifications(Map<String, dynamic> challenge) {
+    final challengeId = challenge['id'];
+    final title = challenge['title'];
+    final timeframeDays = challenge['timeframeDays'] as int;
+    
+    // Daily progress reminders
+    _notificationService.scheduleDailyChallengeReminder(
+      challengeId,
+      title,
+    );
+    
+    // Weekly progress summary
+    if (timeframeDays > 7) {
+      _notificationService.scheduleWeeklyChallengeReminder(
+        challengeId,
+        title,
+      );
+    }
+    
+    // Final week countdown
+    if (timeframeDays > 7) {
+      _notificationService.scheduleChallengeCountdown(
+        challengeId,
+        title,
+        7, // 7 days before end
+      );
+    }
+  }
+  
   // Get AI savings suggestion
   Future<void> getAISavingSuggestion() async {
     if (_aiSuggestionDismissed) return;
@@ -334,6 +672,7 @@ class SavingsProvider with ChangeNotifier {
       // Predefined challenges
       final predefinedChallenges = [
         {
+          'id': 'challenge_52_week',
           'title': '52-Week Challenge',
           'description': 'Save KES 50 in week 1, KES 100 in week 2, and so on. By week 52, you\'ll have saved KES 68,900!',
           'icon': 'calendar_month',
@@ -344,6 +683,7 @@ class SavingsProvider with ChangeNotifier {
           'timeframeDays': 365,
         },
         {
+          'id': 'challenge_no_spend',
           'title': '30-Day No-Spend Challenge',
           'description': 'Cut out non-essential spending for 30 days and see how much you can save!',
           'icon': 'timer',
@@ -354,6 +694,7 @@ class SavingsProvider with ChangeNotifier {
           'timeframeDays': 30,
         },
         {
+          'id': 'challenge_round_up',
           'title': 'Round-Up Challenge',
           'description': 'Round up every purchase to the nearest 100 KES and save the difference. Small amounts add up!',
           'icon': 'attach_money',
@@ -364,6 +705,7 @@ class SavingsProvider with ChangeNotifier {
           'timeframeDays': 90,
         },
         {
+          'id': 'challenge_1_percent',
           'title': '1% Daily Challenge',
           'description': 'Save just 1% of your daily income. Within a year, you\'ll have saved over a third of your monthly income!',
           'icon': 'percent',
@@ -378,6 +720,7 @@ class SavingsProvider with ChangeNotifier {
       // Add AI challenge to predefined ones
       _savingsChallenges = [
         {
+          'id': 'challenge_ai_generated',
           'title': challenge['title'],
           'description': challenge['description'],
           'icon': 'auto_awesome',
@@ -398,20 +741,26 @@ class SavingsProvider with ChangeNotifier {
       // Fallback to predefined challenges
       _savingsChallenges = [
         {
+          'id': 'challenge_52_week',
           'title': '52-Week Challenge',
           'description': 'Save KES 50 in week 1, KES 100 in week 2, and so on. By week 52, you\'ll have saved KES 68,900!',
           'icon': 'calendar_month',
           'color': Colors.purple.value,
           'participants': 1245,
           'isPopular': true,
+          'difficulty': 'medium',
+          'timeframeDays': 365,
         },
         {
+          'id': 'challenge_no_spend',
           'title': '30-Day No-Spend Challenge',
           'description': 'Cut out non-essential spending for 30 days and see how much you can save!',
           'icon': 'timer',
           'color': Colors.blue.value,
           'participants': 857,
           'isPopular': false,
+          'difficulty': 'hard',
+          'timeframeDays': 30,
         },
       ];
       _isLoading = false;

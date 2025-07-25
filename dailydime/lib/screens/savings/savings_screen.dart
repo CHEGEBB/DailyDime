@@ -1,16 +1,17 @@
 // lib/screens/savings/savings_screen.dart
 
+import 'package:dailydime/models/savings_goal.dart';
+import 'package:dailydime/providers/savings_provider.dart';
 import 'package:dailydime/screens/savings/create_goal_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lottie/lottie.dart';
-import 'package:dailydime/widgets/common/custom_button.dart';
+import 'package:intl/intl.dart';
 import 'package:dailydime/widgets/charts/circular_percent_indicator.dart';
 import 'package:dailydime/widgets/charts/linear_percent_indicator.dart';
-import 'package:dailydime/models/savings_goal.dart';
-import 'package:dailydime/providers/savings_provider.dart';
-import 'package:dailydime/services/savings_ai_service.dart';
-import 'package:intl/intl.dart';
+import 'package:dailydime/widgets/common/custom_button.dart';
+import 'package:dailydime/config/app_config.dart';
+import 'dart:math' as math;
 
 class SavingsScreen extends StatefulWidget {
   const SavingsScreen({Key? key}) : super(key: key);
@@ -21,38 +22,20 @@ class SavingsScreen extends StatefulWidget {
 
 class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<String> _goalCategories = [
-    'All',
-    'Active',
-    'Completed',
-    'Upcoming'
-  ];
+  final accentColor = const Color(0xFF26D07C); // Emerald green
   
   String _selectedCategory = 'All';
-  bool _isLoading = true;
-  SavingAIRecommendation? _aiRecommendation;
+  bool _isRefreshing = false;
   
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadData();
-  }
-  
-  Future<void> _loadData() async {
-    final provider = Provider.of<SavingsProvider>(context, listen: false);
-    await provider.loadSavingsGoals();
     
-    // Get AI recommendation
-    final aiService = SavingsAIService();
-    final recommendation = await aiService.getRecommendation();
-    
-    if (mounted) {
-      setState(() {
-        _aiRecommendation = recommendation;
-        _isLoading = false;
-      });
-    }
+    // Initialize data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchData();
+    });
   }
   
   @override
@@ -60,147 +43,144 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
     _tabController.dispose();
     super.dispose();
   }
+  
+  Future<void> _fetchData() async {
+    final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+    await savingsProvider.fetchSavingsGoals();
+    await savingsProvider.getAISavingSuggestion();
+    await savingsProvider.fetchSavingsChallenges();
+  }
+  
+  Future<void> _refreshData() async {
+    setState(() {
+      _isRefreshing = true;
+    });
+    
+    await _fetchData();
+    
+    setState(() {
+      _isRefreshing = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final provider = Provider.of<SavingsProvider>(context);
-    final accentColor = Theme.of(context).colorScheme.secondary;
-    
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: SafeArea(
-        child: _isLoading
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Lottie.asset(
-                      'assets/animations/savings_loading.json',
-                      width: 200,
-                      height: 200,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Loading your savings...',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : RefreshIndicator(
-                onRefresh: _loadData,
-                child: CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    // Header with total savings
-                    SliverToBoxAdapter(
-                      child: _buildSavingsHeader(context, provider),
-                    ),
-                    
-                    // Main content with tabs
-                    SliverToBoxAdapter(
-                      child: Container(
-                        margin: const EdgeInsets.only(top: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(30),
-                            topRight: Radius.circular(30),
-                          ),
+    return Consumer<SavingsProvider>(
+      builder: (context, savingsProvider, child) {
+        final isLoading = savingsProvider.isLoading;
+        
+        return Scaffold(
+          backgroundColor: Colors.grey[100],
+          body: SafeArea(
+            child: RefreshIndicator(
+              onRefresh: _refreshData,
+              color: accentColor,
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  // Floating Header with Total Savings
+                  SliverToBoxAdapter(
+                    child: _buildHeader(savingsProvider),
+                  ),
+                  
+                  // Main content
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(30),
+                          topRight: Radius.circular(30),
                         ),
-                        child: Column(
-                          children: [
-                            // AI Smart Save Suggestion
-                            if (_aiRecommendation != null)
-                              _buildAISuggestionCard(context, provider),
-                            
-                            // Tab Bar
-                            Container(
-                              margin: const EdgeInsets.fromLTRB(12, 20, 12, 0),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
+                      ),
+                      child: Column(
+                        children: [
+                          // AI Smart Save Suggestion
+                          if (savingsProvider.aiSavingSuggestion != null)
+                            _buildAISuggestion(context, savingsProvider),
+                          
+                          // Tab Bar
+                          Container(
+                            margin: const EdgeInsets.fromLTRB(12, 20, 12, 0),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: TabBar(
+                              controller: _tabController,
+                              indicator: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
+                                color: accentColor,
                               ),
-                              child: TabBar(
-                                controller: _tabController,
-                                indicator: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: accentColor,
+                              labelColor: Colors.white,
+                              unselectedLabelColor: Colors.grey[700],
+                              labelStyle: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              tabs: const [
+                                Tab(
+                                  text: 'Savings Goals',
+                                  height: 50,
                                 ),
-                                labelColor: Colors.white,
-                                unselectedLabelColor: Colors.grey[700],
-                                labelStyle: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                                Tab(
+                                  text: 'Challenges',
+                                  height: 50,
                                 ),
-                                tabs: const [
-                                  Tab(
-                                    text: 'Savings Goals',
-                                    height: 50,
-                                  ),
-                                  Tab(
-                                    text: 'Challenges',
-                                    height: 50,
-                                  ),
-                                ],
-                              ),
+                              ],
                             ),
-                            
-                            // Tab Bar View
-                            SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.6,
-                              child: TabBarView(
-                                controller: _tabController,
-                                children: [
-                                  // Savings Goals Tab
-                                  _buildSavingsGoalsTab(context, provider),
-                                  
-                                  // Challenges Tab
-                                  _buildChallengesTab(context),
-                                ],
-                              ),
+                          ),
+                          
+                          // Tab Bar View
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.6,
+                            child: TabBarView(
+                              controller: _tabController,
+                              children: [
+                                // Savings Goals Tab
+                                _buildSavingsGoalsTab(savingsProvider),
+                                
+                                // Challenges Tab
+                                _buildChallengesTab(savingsProvider),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateGoalScreen(),
             ),
-          );
-          
-          if (result == true) {
-            _loadData();
-          }
-        },
-        backgroundColor: accentColor,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('New Goal', style: TextStyle(color: Colors.white)),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateGoalScreen(),
+                ),
+              );
+            },
+            backgroundColor: accentColor,
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('New Goal', style: TextStyle(color: Colors.white)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        );
+      },
     );
   }
-
-  Widget _buildSavingsHeader(BuildContext context, SavingsProvider provider) {
-    final accentColor = const Color(0xFF26D07C); // Emerald green
-    final totalSaved = provider.getTotalSaved();
-    final totalTarget = provider.getTotalTarget();
-    final percentage = totalTarget > 0 ? totalSaved / totalTarget : 0.0;
+  
+  Widget _buildHeader(SavingsProvider savingsProvider) {
+    final size = MediaQuery.of(context).size;
+    final totalSavings = savingsProvider.totalSavingsAmount;
+    final mtdSavings = savingsProvider.mtdSavingsAmount;
+    final avgDailySavings = savingsProvider.averageDailySavings;
+    final activeGoals = savingsProvider.activeGoals.length;
     
     return Container(
       height: 280,
@@ -258,19 +238,12 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () {
-                            // Show savings notifications
-                            provider.fetchSavingsReminders();
-                            _showNotificationsBottomSheet(context);
-                          },
+                          onPressed: () {},
                           icon: const Icon(Icons.notifications_outlined, color: Colors.white),
                           iconSize: 24,
                         ),
                         IconButton(
-                          onPressed: () {
-                            // Show savings options
-                            _showOptionsMenu(context);
-                          },
+                          onPressed: () {},
                           icon: const Icon(Icons.more_vert, color: Colors.white),
                           iconSize: 24,
                         ),
@@ -288,7 +261,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                       radius: 40.0,
                       lineWidth: 8.0,
                       animation: true,
-                      percent: percentage.clamp(0.0, 1.0),
+                      percent: _calculateGrowthPercentage(totalSavings),
                       center: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -322,7 +295,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              'KES ${totalSaved.toStringAsFixed(0)}',
+                              '${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(totalSavings)}',
                               style: const TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
@@ -330,32 +303,31 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                               ),
                             ),
                             const SizedBox(width: 8),
-                            if (provider.getGrowthRate() != 0)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      provider.getGrowthRate() > 0 ? Icons.trending_up : Icons.trending_down,
-                                      color: Colors.white,
-                                      size: 12,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${provider.getGrowthRate().abs().toStringAsFixed(1)}%',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
                               ),
+                              child: Row(
+                                children: const [
+                                  Icon(
+                                    Icons.trending_up,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    '12.5%',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -371,17 +343,17 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                   children: [
                     _buildSavingsMetric(
                       'This Month',
-                      'KES ${provider.getCurrentMonthSavings().toStringAsFixed(0)}',
+                      '${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(mtdSavings)}',
                       Icons.calendar_today,
                     ),
                     _buildSavingsMetric(
                       'Total Goals',
-                      '${provider.getActiveGoalsCount()} Active',
+                      '$activeGoals Active',
                       Icons.flag,
                     ),
                     _buildSavingsMetric(
                       'Average',
-                      'KES ${provider.getDailySavingsAverage().toStringAsFixed(0)}/day',
+                      '${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(avgDailySavings)}/day',
                       Icons.trending_up,
                     ),
                   ],
@@ -393,11 +365,33 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
       ),
     );
   }
-
-  Widget _buildAISuggestionCard(BuildContext context, SavingsProvider provider) {
+  
+  Widget _buildAISuggestion(BuildContext context, SavingsProvider savingsProvider) {
+    final suggestion = savingsProvider.aiSavingSuggestion;
+    if (suggestion == null) return const SizedBox();
+    
+    // Find target goal
+    final targetGoalName = suggestion['recommendedGoal'] as String;
+    final targetGoal = savingsProvider.savingsGoals.firstWhere(
+      (g) => g.title.toLowerCase() == targetGoalName.toLowerCase() || 
+             (targetGoalName == 'emergency' && g.category == SavingsGoalCategory.emergency),
+      orElse: () => savingsProvider.savingsGoals.isNotEmpty 
+        ? savingsProvider.savingsGoals.first 
+        : SavingsGoal(
+            title: 'New Goal', 
+            targetAmount: 10000, 
+            targetDate: DateTime.now().add(const Duration(days: 90)),
+            category: SavingsGoalCategory.other,
+            iconAsset: 'savings',
+            color: accentColor,
+          ),
+    );
+    
+    final double savingAmount = suggestion['savingAmount'] as double;
+    final String reason = suggestion['reason'] as String;
+    
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -416,51 +410,87 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
           ),
         ],
       ),
-      child: Row(
+      child: Stack(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.lightbulb_outline,
-              color: Colors.white,
-              size: 28,
+          // Background animation
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Opacity(
+              opacity: 0.2,
+              child: Lottie.asset(
+                'assets/animations/money_coins.json',
+                width: 100,
+                height: 100,
+              ),
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
+          
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  children: const [
-                    Text(
-                      'Smart Save',
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.lightbulb_outline,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'AI Smart Saving',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Icon(
+                    const SizedBox(width: 8),
+                    const Icon(
                       Icons.auto_awesome,
                       color: Colors.white,
                       size: 16,
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
-                  _aiRecommendation?.message ?? 'AI has detected a savings opportunity for you',
+                  'You can save ${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(savingAmount)} today! $reason',
                   style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white,
                     height: 1.3,
                   ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Add to: ${targetGoal.title}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -468,10 +498,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          // Skip this recommendation
-                          setState(() {
-                            _aiRecommendation = null;
-                          });
+                          savingsProvider.dismissAISuggestion();
                         },
                         style: OutlinedButton.styleFrom(
                           backgroundColor: Colors.white.withOpacity(0.2),
@@ -493,24 +520,8 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () async {
-                          if (_aiRecommendation != null) {
-                            // Apply the AI recommendation
-                            await provider.applyAIRecommendation(_aiRecommendation!);
-                            
-                            if (mounted) {
-                              setState(() {
-                                _aiRecommendation = null;
-                              });
-                              
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Added KES ${_aiRecommendation!.amount.toStringAsFixed(0)} to your savings'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          }
+                        onPressed: () {
+                          savingsProvider.applyAISavingSuggestion(targetGoal.id);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
@@ -520,7 +531,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                         child: Text(
-                          'Save KES ${_aiRecommendation?.amount.toStringAsFixed(0) ?? "0"}',
+                          'Save ${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(savingAmount)}',
                           style: TextStyle(
                             color: Colors.blue[700],
                             fontWeight: FontWeight.bold,
@@ -533,13 +544,53 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
               ],
             ),
           ),
+          
+          // Close button
+          Positioned(
+            top: 8,
+            right: 8,
+            child: InkWell(
+              onTap: () {
+                savingsProvider.dismissAISuggestion();
+              },
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
-  
-  Widget _buildSavingsGoalsTab(BuildContext context, SavingsProvider provider) {
-    final goals = provider.getFilteredGoals(_selectedCategory);
+
+  Widget _buildSavingsGoalsTab(SavingsProvider savingsProvider) {
+    final List<String> categories = ['All', 'Active', 'Completed', 'Upcoming'];
+    
+    List<SavingsGoal> filteredGoals;
+    switch (_selectedCategory) {
+      case 'Active':
+        filteredGoals = savingsProvider.activeGoals;
+        break;
+      case 'Completed':
+        filteredGoals = savingsProvider.completedGoals;
+        break;
+      case 'Upcoming':
+        filteredGoals = savingsProvider.upcomingGoals;
+        break;
+      case 'All':
+      default:
+        filteredGoals = savingsProvider.savingsGoals;
+        break;
+    }
     
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -551,9 +602,9 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
             height: 40,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: _goalCategories.length,
+              itemCount: categories.length,
               itemBuilder: (context, index) {
-                final category = _goalCategories[index];
+                final category = categories[index];
                 final isSelected = category == _selectedCategory;
                 
                 return GestureDetector(
@@ -566,9 +617,16 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     margin: const EdgeInsets.only(right: 12),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isSelected ? Theme.of(context).colorScheme.secondary : Colors.grey[100],
+                      color: isSelected ? accentColor : Colors.grey[100],
                       borderRadius: BorderRadius.circular(20),
                       border: !isSelected ? Border.all(color: Colors.grey[300]!) : null,
+                      boxShadow: isSelected ? [
+                        BoxShadow(
+                          color: accentColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ] : null,
                     ),
                     child: Text(
                       category,
@@ -587,94 +645,28 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
           const SizedBox(height: 20),
           
           // Goals list
-          goals.isEmpty
-              ? Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Lottie.asset(
-                          'assets/animations/empty_goals.json',
-                          width: 200,
-                          height: 200,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No savings goals found',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tap the + button to create your first goal',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : Expanded(
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: goals.length,
-                    itemBuilder: (context, index) {
-                      final goal = goals[index];
-                      return _buildGoalCard(
-                        context: context,
-                        goal: goal,
-                        provider: provider,
-                      );
-                    },
-                  ),
-                ),
+          Expanded(
+            child: savingsProvider.isLoading
+                ? Center(child: _buildLoadingAnimation())
+                : filteredGoals.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        padding: EdgeInsets.zero,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: filteredGoals.length,
+                        itemBuilder: (context, index) {
+                          final goal = filteredGoals[index];
+                          return _buildGoalCard(goal);
+                        },
+                      ),
+          ),
         ],
       ),
     );
   }
   
-  Widget _buildChallengesTab(BuildContext context) {
-    // List of available challenges
-    final List<Map<String, dynamic>> challenges = [
-      {
-        'title': '52-Week Challenge',
-        'description': 'Save KES 50 in week 1, KES 100 in week 2, and so on. By week 52, you\'ll have saved KES 68,900!',
-        'icon': Icons.calendar_month,
-        'color': Colors.purple,
-        'participants': 1245,
-        'isPopular': true,
-      },
-      {
-        'title': '30-Day No-Spend Challenge',
-        'description': 'Cut out non-essential spending for 30 days and see how much you can save!',
-        'icon': Icons.timer,
-        'color': Colors.blue,
-        'participants': 857,
-        'isPopular': false,
-      },
-      {
-        'title': 'Round-Up Challenge',
-        'description': 'Round up every purchase to the nearest 100 KES and save the difference. Small amounts add up!',
-        'icon': Icons.attach_money,
-        'color': Colors.green,
-        'participants': 924,
-        'isPopular': true,
-      },
-      {
-        'title': '1% Daily Challenge',
-        'description': 'Save just 1% of your daily income. Within a year, you\'ll have saved over a third of your monthly income!',
-        'icon': Icons.percent,
-        'color': Colors.orange,
-        'participants': 613,
-        'isPopular': false,
-      },
-    ];
+  Widget _buildChallengesTab(SavingsProvider savingsProvider) {
+    final challenges = savingsProvider.savingsChallenges;
     
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -687,6 +679,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
             decoration: BoxDecoration(
               color: Colors.amber[50],
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.amber[200]!),
             ),
             child: Row(
               children: [
@@ -744,41 +737,52 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
           
           const SizedBox(height: 16),
           
-          // Challenge list
+          // Challenges list
           Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.zero,
-              physics: const BouncingScrollPhysics(),
-              itemCount: challenges.length + 1, // +1 for the custom challenge button
-              itemBuilder: (context, index) {
-                if (index < challenges.length) {
-                  final challenge = challenges[index];
-                  return _buildChallengeCard(
-                    title: challenge['title'],
-                    description: challenge['description'],
-                    icon: challenge['icon'],
-                    color: challenge['color'],
-                    participants: challenge['participants'],
-                    isPopular: challenge['isPopular'],
-                  );
-                } else {
-                  // Custom challenge button at the end
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 16, bottom: 24),
-                    child: CustomButton(
-                      text: 'Create Custom Challenge',
-                      onPressed: () {
-                        // Show custom challenge creation dialog
-                        _showCreateChallengeDialog(context);
-                      },
-                      isSmall: false,
-                      isOutlined: true,
-                      icon: Icons.add_circle_outline,
-                      buttonColor: Colors.blue,
-                    ),
-                  );
-                }
+            child: savingsProvider.isLoading
+                ? Center(child: _buildLoadingAnimation())
+                : challenges.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No challenges available',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.zero,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: challenges.length,
+                        itemBuilder: (context, index) {
+                          final challenge = challenges[index];
+                          return _buildChallengeCard(
+                            title: challenge['title'],
+                            description: challenge['description'],
+                            icon: _getIconData(challenge['icon']),
+                            color: Color(challenge['color']),
+                            participants: challenge['participants'],
+                            isPopular: challenge['isPopular'],
+                            isAiGenerated: challenge['isAiGenerated'] ?? false,
+                          );
+                        },
+                      ),
+          ),
+          
+          // Custom challenge button
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: CustomButton(
+              text: 'Create Custom Challenge',
+              onPressed: () {
+                // Show challenge creation modal
+                _showCreateChallengeModal(context);
               },
+              isSmall: false,
+              isOutlined: true,
+              icon: Icons.add_circle_outline,
+              buttonColor: Colors.blue, // or any other MaterialColor
             ),
           ),
         ],
@@ -823,22 +827,23 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
     );
   }
   
-  Widget _buildGoalCard({
-    required BuildContext context,
-    required SavingsGoal goal,
-    required SavingsProvider provider,
-  }) {
-    // Calculate percentage
-    final percentage = goal.targetAmount > 0 ? goal.savedAmount / goal.targetAmount : 0.0;
+  Widget _buildGoalCard(SavingsGoal goal) {
+    // Calculate percentage and days left
+    final percentage = goal.progressPercentage;
+    final daysLeft = goal.daysLeft;
     
-    // Calculate days left
-    final daysLeft = goal.deadline.difference(DateTime.now()).inDays;
-    
-    // Color based on progress
-    final progressColor = goal.category.color;
+    // Determine status color
+    Color statusColor;
+    if (goal.status == SavingsGoalStatus.completed) {
+      statusColor = Colors.green;
+    } else if (!goal.isOnTrack) {
+      statusColor = Colors.red;
+    } else {
+      statusColor = accentColor;
+    }
     
     return GestureDetector(
-      onTap: () => _showSavingsDetails(context, goal, provider),
+      onTap: () => _showSavingsDetails(context, goal),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
@@ -864,12 +869,12 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: goal.category.color.withOpacity(0.1),
+                      color: goal.color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
-                      goal.category.icon,
-                      color: goal.category.color,
+                      _getIconData(goal.iconAsset),
+                      color: goal.color,
                       size: 30,
                     ),
                   ),
@@ -880,7 +885,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          goal.name,
+                          goal.title,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -889,7 +894,9 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Target date: ${DateFormat('dd/MM/yyyy').format(goal.deadline)}',
+                          goal.isCompleted 
+                              ? 'Completed on ${DateFormat('d MMM y').format(goal.targetDate)}'
+                              : 'Target date: ${DateFormat('d MMM y').format(goal.targetDate)}',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey[600],
@@ -899,52 +906,70 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     ),
                   ),
                   // Quick add button
-                  PopupMenuButton<String>(
-                    icon: Container(
+                  if (goal.status != SavingsGoalStatus.completed)
+                    Container(
                       decoration: BoxDecoration(
-                        color: progressColor.withOpacity(0.1),
+                        color: accentColor.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        Icons.more_vert,
-                        color: progressColor,
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.add,
+                          color: accentColor,
+                        ),
+                        onPressed: () => _showAddContributionModal(context, goal),
                       ),
                     ),
-                    onSelected: (value) async {
-                      if (value == 'add') {
-                        _showAddAmountDialog(context, goal, provider);
-                      } else if (value == 'edit') {
-                        _showEditGoalDialog(context, goal, provider);
+                  
+                  // Options menu
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: Colors.grey[600],
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CreateGoalScreen(existingGoal: goal),
+                          ),
+                        );
                       } else if (value == 'delete') {
-                        _showDeleteConfirmation(context, goal, provider);
+                        _showDeleteConfirmation(context, goal);
+                      } else if (value == 'insights') {
+                        _showGoalInsights(context, goal);
                       }
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem<String>(
-                        value: 'add',
-                        child: Row(
-                          children: [
-                            Icon(Icons.add_circle_outline, size: 18),
-                            SizedBox(width: 8),
-                            Text('Add Money'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem<String>(
+                      const PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit_outlined, size: 18),
+                            Icon(Icons.edit, size: 18),
                             SizedBox(width: 8),
                             Text('Edit Goal'),
                           ],
                         ),
                       ),
-                      const PopupMenuItem<String>(
+                      const PopupMenuItem(
+                        value: 'insights',
+                        child: Row(
+                          children: [
+                            Icon(Icons.auto_awesome, size: 18),
+                            SizedBox(width: 8),
+                            Text('AI Insights'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                            Icon(Icons.delete, size: 18, color: Colors.red),
                             SizedBox(width: 8),
                             Text('Delete', style: TextStyle(color: Colors.red)),
                           ],
@@ -967,15 +992,15 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'KES ${goal.savedAmount.toStringAsFixed(0)}',
+                        '${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(goal.currentAmount)}',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: progressColor,
+                          color: statusColor,
                         ),
                       ),
                       Text(
-                        'KES ${goal.targetAmount.toStringAsFixed(0)}',
+                        '${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(goal.targetAmount)}',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -992,7 +1017,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     lineHeight: 8.0,
                     percent: percentage.clamp(0.0, 1.0),
                     backgroundColor: Colors.grey[200],
-                    progressColor: progressColor,
+                    progressColor: statusColor,
                     barRadius: const Radius.circular(8),
                     padding: EdgeInsets.zero,
                     animation: true,
@@ -1005,32 +1030,71 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '${(percentage * 100).toInt()}% Completed',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: progressColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
                       Row(
                         children: [
-                          Icon(
-                            Icons.timelapse,
-                            size: 14,
-                            color: daysLeft < 7 ? Colors.red : Colors.grey[600],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            daysLeft <= 0 ? 'Overdue' : '$daysLeft days left',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: daysLeft < 7 ? Colors.red : Colors.grey[600],
-                              fontWeight: daysLeft < 7 ? FontWeight.bold : FontWeight.normal,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${(percentage * 100).toInt()}% ${goal.isOnTrack ? 'On Track' : 'Behind'}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: statusColor,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
+                          if (goal.isAiSuggested)
+                            Container(
+                              margin: const EdgeInsets.only(left: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: const [
+                                  Icon(
+                                    Icons.auto_awesome,
+                                    size: 12,
+                                    color: Colors.amber,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'AI Suggested',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.amber,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
+                      if (!goal.isCompleted)
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.timelapse,
+                              size: 14,
+                              color: daysLeft < 7 ? Colors.red : Colors.grey[600],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              daysLeft <= 0 ? 'Overdue!' : '$daysLeft days left',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: daysLeft < 7 ? Colors.red : Colors.grey[600],
+                                fontWeight: daysLeft < 7 ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ],
@@ -1049,6 +1113,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
     required Color color,
     required int participants,
     required bool isPopular,
+    bool isAiGenerated = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1096,22 +1161,51 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     ),
                   ],
                 ),
-                if (isPopular)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Popular',
-                      style: TextStyle(
-                        color: Colors.amber,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                Row(
+                  children: [
+                    if (isAiGenerated)
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.purple.shade300),
+                        ),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.auto_awesome, color: Colors.purple, size: 12),
+                            SizedBox(width: 4),
+                            Text(
+                              'AI',
+                              style: TextStyle(
+                                color: Colors.purple,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
+                    if (isPopular)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber),
+                        ),
+                        child: const Text(
+                          'Popular',
+                          style: TextStyle(
+                            color: Colors.amber,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -1147,10 +1241,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                 SizedBox(
                   height: 36,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // Show join challenge dialog
-                      _showJoinChallengeDialog(context, title);
-                    },
+                    onPressed: () => _showJoinChallengeModal(context, title, description, color),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: color,
                       shape: RoundedRectangleBorder(
@@ -1174,971 +1265,1048 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
       ),
     );
   }
-
-  void _showSavingsDetails(BuildContext context, SavingsGoal goal, SavingsProvider provider) {
-    final percentage = goal.targetAmount > 0 ? goal.savedAmount / goal.targetAmount : 0.0;
-    final daysLeft = goal.deadline.difference(DateTime.now()).inDays;
-    final progressColor = goal.category.color;
-    
-    // Calculate daily amount needed
-    double dailyAmountNeeded = 0;
-    if (daysLeft > 0) {
-      dailyAmountNeeded = (goal.targetAmount - goal.savedAmount) / daysLeft;
-    }
-    
-    // Calculate forecast
-    final forecastData = provider.getForecastData(goal);
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header with close button
-            Container(
-              decoration: BoxDecoration(
-                color: progressColor.withOpacity(0.1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            goal.category.icon,
-                            color: progressColor,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            goal.name,
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey[800],
-                            ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(
-                          Icons.close,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Progress circle
-                  Center(
-                    child: CircularPercentIndicator(
-                      radius: 80.0,
-                      lineWidth: 12.0,
-                      animation: true,
-                      percent: percentage.clamp(0.0, 1.0),
-                      center: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${(percentage * 100).toInt()}%',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: progressColor,
-                            ),
-                          ),
-                          Text(
-                            'Complete',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                      circularStrokeCap: CircularStrokeCap.round,
-                      progressColor: progressColor,
-                      backgroundColor: Colors.grey[200]!,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Amount info
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildDetailInfoItem(
-                        'Saved',
-                        'KES ${goal.savedAmount.toStringAsFixed(0)}',
-                        Icons.savings,
-                        progressColor,
-                      ),
-                      _buildDetailInfoItem(
-                        'Target',
-                        'KES ${goal.targetAmount.toStringAsFixed(0)}',
-                        Icons.flag,
-                        Colors.grey[700]!,
-                      ),
-                      _buildDetailInfoItem(
-                        'Remaining',
-                        'KES ${(goal.targetAmount - goal.savedAmount).toStringAsFixed(0)}',
-                        Icons.hourglass_empty,
-                        Colors.orange,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Details content
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(24),
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  // Time left info
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Time Remaining',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              daysLeft <= 0 ? 'Overdue' : '$daysLeft days left',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: daysLeft < 7 ? Colors.red : Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Daily Goal',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              daysLeft <= 0 
-                                  ? 'N/A' 
-                                  : 'KES ${dailyAmountNeeded.toStringAsFixed(0)}/day',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // AI Forecast
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.indigo.shade600,
-                          Colors.indigo.shade400,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: const [
-                            Icon(
-                              Icons.insights,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'AI Forecast',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          forecastData.message,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        LinearPercentIndicator(
-                          lineHeight: 8.0,
-                          percent: forecastData.probability.clamp(0.0, 1.0),
-                          backgroundColor: Colors.white.withOpacity(0.3),
-                          progressColor: Colors.white,
-                          barRadius: const Radius.circular(8),
-                          padding: EdgeInsets.zero,
-                          animation: true,
-                          animationDuration: 1000,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Probability of reaching goal on time: ${(forecastData.probability * 100).toInt()}%',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Transaction history
-                  const Text(
-                    'Transaction History',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Transaction list
-                  ...goal.transactions.map((transaction) => _buildTransactionItem(
-                    transaction.amount,
-                    transaction.date,
-                    transaction.note,
-                  )).toList(),
-                  
-                  if (goal.transactions.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'No transactions yet',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Action buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showEditGoalDialog(context, goal, provider);
-                          },
-                          icon: const Icon(Icons.edit_outlined),
-                          label: const Text('Edit Goal'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showAddAmountDialog(context, goal, provider);
-                          },
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add Money'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: progressColor,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
   
-  Widget _buildDetailInfoItem(String title, String value, IconData icon, Color color) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 20,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildTransactionItem(double amount, DateTime date, String? note) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.add,
-              color: Colors.green,
-              size: 16,
-            ),
+          Lottie.asset(
+            'assets/animations/empty_goals.json',
+            height: 200,
+            fit: BoxFit.contain,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  note ?? 'Added to savings',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  DateFormat('dd MMM yyyy, hh:mm a').format(date),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            'KES ${amount.toStringAsFixed(0)}',
-            style: const TextStyle(
-              fontSize: 16,
+          const SizedBox(height: 20),
+          const Text(
+            'No savings goals yet',
+            style: TextStyle(
+              fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.green,
+              color: Colors.black87,
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create your first savings goal to start tracking your progress',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 20),
+          CustomButton(
+            text: 'Create Goal',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateGoalScreen(),
+                ),
+              );
+            },
+            isSmall: true,
+            buttonColor: Colors.blue,
           ),
         ],
       ),
     );
   }
   
-  void _showAddAmountDialog(BuildContext context, SavingsGoal goal, SavingsProvider provider) {
-    final TextEditingController amountController = TextEditingController();
-    final TextEditingController noteController = TextEditingController();
-    
-    showDialog(
+  Widget _buildLoadingAnimation() {
+    return Lottie.asset(
+      'assets/animations/loading.json',
+      height: 120,
+      width: 120,
+    );
+  }
+  
+  IconData _getIconData(String iconName) {
+    switch (iconName) {
+      case 'laptop': return Icons.laptop;
+      case 'beach_access': return Icons.beach_access;
+      case 'directions_car': return Icons.directions_car;
+      case 'home': return Icons.home;
+      case 'phone_android': return Icons.phone_android;
+      case 'school': return Icons.school;
+      case 'health_and_safety': return Icons.health_and_safety;
+      case 'shopping_bag': return Icons.shopping_bag;
+      case 'attach_money': return Icons.attach_money;
+      case 'account_balance': return Icons.account_balance;
+      case 'trending_up': return Icons.trending_up;
+      case 'calendar_month': return Icons.calendar_month;
+      case 'timer': return Icons.timer;
+      case 'percent': return Icons.percent;
+      case 'auto_awesome': return Icons.auto_awesome;
+      case 'money_off': return Icons.money_off;
+      default: return Icons.savings;
+    }
+  }
+  
+  void _showSavingsDetails(BuildContext context, SavingsGoal goal) {
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Add to ${goal.name}',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildSavingsDetailsSheet(context, goal),
+    );
+  }
+  
+  Widget _buildSavingsDetailsSheet(BuildContext context, SavingsGoal goal) {
+    final size = MediaQuery.of(context).size;
+    
+    return Container(
+      height: size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  goal.color,
+                  goal.color.withOpacity(0.8),
+                ],
+              ),
+            ),
+            child: Column(
+              children: [
+                // Pull handle
+                Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Goal info
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        _getIconData(goal.iconAsset),
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            goal.title,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          if (goal.description.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              goal.description,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Progress indicator
+                Row(
+                  children: [
+                    CircularPercentIndicator(
+                      radius: 40.0,
+                      lineWidth: 8.0,
+                      animation: true,
+                      percent: goal.progressPercentage.clamp(0.0, 1.0),
+                      center: Text(
+                        '${(goal.progressPercentage * 100).toInt()}%',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                      circularStrokeCap: CircularStrokeCap.round,
+                      progressColor: Colors.white,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Current',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                              const Text(
+                                'Target',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(goal.currentAmount)}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                '${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(goal.targetAmount)}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  goal.isCompleted 
+                                      ? 'Completed!' 
+                                      : (goal.daysLeft <= 0 
+                                          ? 'Overdue!' 
+                                          : '${goal.daysLeft} days left'),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              if (goal.recommendedWeeklySaving != null) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(goal.recommendedWeeklySaving)}/week',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Tabs and content
+          Expanded(
+            child: DefaultTabController(
+              length: 2,
+              child: Column(
+                children: [
+                  TabBar(
+                    tabs: const [
+                      Tab(text: 'Transactions'),
+                      Tab(text: 'AI Insights'),
+                    ],
+                    labelColor: goal.color,
+                    unselectedLabelColor: Colors.grey[600],
+                    indicatorColor: goal.color,
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        // Transactions tab
+                        _buildTransactionsTab(goal),
+                        
+                        // AI Insights tab
+                        _buildInsightsTab(goal),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Action buttons
+          if (!goal.isCompleted)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CreateGoalScreen(existingGoal: goal),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Edit'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showAddContributionModal(context, goal);
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Money'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: goal.color,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildTransactionsTab(SavingsGoal goal) {
+    final transactions = goal.transactions;
+    
+    if (transactions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Lottie.asset(
+              'assets/animations/empty_transactions.json',
+              height: 150,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No transactions yet',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add your first contribution to start tracking',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: transactions.length,
+      itemBuilder: (context, index) {
+        final transaction = transactions[transactions.length - 1 - index]; // Reverse order
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: goal.color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.arrow_upward,
+                  color: goal.color,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      transaction.note.isNotEmpty ? transaction.note : 'Contribution',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('d MMM y, h:mm a').format(transaction.date),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '+ ${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(transaction.amount)}',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: goal.color,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+ // Continuing from where the file was cut off...
+
+Widget _buildInsightsTab(SavingsGoal goal) {
+  return FutureBuilder<Map<String, dynamic>>(
+    future: Provider.of<SavingsProvider>(context, listen: false).getGoalInsights(goal.id),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return Center(child: Lottie.asset('assets/animations/loading.json', height: 100));
+      }
+      
+      if (snapshot.hasError || !snapshot.hasData) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text('Could not load insights', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+            ],
+          ),
+        );
+      }
+      
+      final insights = snapshot.data!;
+      final motivationalMessage = insights['motivationalMessage'] as String? ?? 'Keep going!';
+      final practicalAdvice = insights['practicalAdvice'] as String? ?? 'Save consistently to reach your goal.';
+      final needsAdjustment = insights['needsAdjustment'] as bool? ?? false;
+      final forecast = insights['forecast'] as String? ?? 'on track';
+      final weeklySavingsNeeded = insights['weeklySavingsNeeded'] as double? ?? goal.dailySavingNeeded * 7;
+      
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildInsightCard(
+              title: 'AI Forecast',
+              content: 'Based on your current savings pattern, you are $forecast to reach your goal.',
+              icon: Icons.trending_up,
+              color: forecast.contains('track') ? Colors.green : Colors.orange,
+              animation: 'assets/animations/forecast.json',
+            ),
+            
+            _buildInsightCard(
+              title: 'Weekly Target',
+              content: 'You should save ${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(weeklySavingsNeeded)} per week to reach your goal on time.',
+              icon: Icons.calendar_today,
+              color: Colors.blue,
+            ),
+            
+            _buildInsightCard(
+              title: 'Motivation',
+              content: motivationalMessage,
+              icon: Icons.emoji_emotions,
+              color: Colors.amber,
+              animation: 'assets/animations/motivation.json',
+            ),
+            
+            _buildInsightCard(
+              title: 'Smart Advice',
+              content: practicalAdvice,
+              icon: Icons.lightbulb,
+              color: Colors.purple,
+            ),
+            
+            if (needsAdjustment)
+              _buildInsightCard(
+                title: 'Goal Adjustment Needed',
+                content: 'Your goal may need adjustment. Consider extending the deadline or adjusting the target amount.',
+                icon: Icons.build,
+                color: Colors.red,
+                isWarning: true,
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+Widget _buildInsightCard({
+  required String title,
+  required String content,
+  required IconData icon,
+  required Color color,
+  String? animation,
+  bool isWarning = false,
+}) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: isWarning ? Colors.red[50] : color.withOpacity(0.05),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: isWarning ? Colors.red[200]! : color.withOpacity(0.2)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        animation != null
+            ? SizedBox(
+                width: 50,
+                height: 50,
+                child: Lottie.asset(animation, fit: BoxFit.cover),
+              )
+            : Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isWarning ? Colors.red : color,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                content,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[800],
+                  height: 1.4,
+                ),
+              ),
+            ],
           ),
         ),
-        content: Column(
+      ],
+    ),
+  );
+}
+
+void _showAddContributionModal(BuildContext context, SavingsGoal goal) {
+  final TextEditingController amountController = TextEditingController();
+  final TextEditingController noteController = TextEditingController();
+  
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: goal.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(_getIconData(goal.iconAsset), color: goal.color, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Add Contribution',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      goal.title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
             TextField(
               controller: amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Amount (KES)',
-                border: OutlineInputBorder(),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                prefixText: AppConfig.currencySymbol + ' ',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: goal.color, width: 2),
+                ),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: noteController,
-              decoration: const InputDecoration(
-                labelText: 'Note (Optional)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final amount = double.tryParse(amountController.text);
-              if (amount != null && amount > 0) {
-                await provider.addToGoal(
-                  goalId: goal.id,
-                  amount: amount,
-                  note: noteController.text.isNotEmpty ? noteController.text : null,
-                );
-                
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Added KES $amount to ${goal.name}'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter a valid amount'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  void _showEditGoalDialog(BuildContext context, SavingsGoal goal, SavingsProvider provider) {
-    final TextEditingController nameController = TextEditingController(text: goal.name);
-    final TextEditingController amountController = TextEditingController(text: goal.targetAmount.toString());
-    DateTime selectedDeadline = goal.deadline;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Edit Goal',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Goal Name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Target Amount (KES)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Deadline: ${DateFormat('dd MMM yyyy').format(selectedDeadline)}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                    ),
-                  ),
+              decoration: InputDecoration(
+                labelText: 'Note (optional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                TextButton(
-                  onPressed: () async {
-                    final pickedDate = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDeadline,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime(2030),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  final amount = double.tryParse(amountController.text);
+                  if (amount != null && amount > 0) {
+                    final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+                    savingsProvider.addContribution(
+                      goal.id, // Assuming the first positional argument is goal.id
+                      amount,   // Assuming the second positional argument is amount
+                      noteController.text, // Assuming the third positional argument is note
                     );
-                    
-                    if (pickedDate != null && mounted) {
-                      setState(() {
-                        selectedDeadline = pickedDate;
-                      });
-                    }
-                  },
-                  child: const Text('Change'),
+                    Navigator.pop(context);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: goal.color,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = nameController.text;
-              final amount = double.tryParse(amountController.text);
-              
-              if (name.isNotEmpty && amount != null && amount > 0) {
-                await provider.updateGoal(
-                  goalId: goal.id,
-                  name: name,
-                  targetAmount: amount,
-                  deadline: selectedDeadline,
-                );
-                
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Goal updated successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter valid details'),
-                    backgroundColor: Colors.red,
+                child: const Text(
+                  'Save Contribution',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  void _showDeleteConfirmation(BuildContext context, SavingsGoal goal, SavingsProvider provider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Goal?'),
-        content: Text('Are you sure you want to delete "${goal.name}"? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await provider.deleteGoal(goal.id);
-              
-              if (mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Goal deleted'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  void _showJoinChallengeDialog(BuildContext context, String challengeName) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Join $challengeName'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Lottie.asset(
-              'assets/animations/challenge_join.json',
-              width: 150,
-              height: 150,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'You\'re about to join the $challengeName. This will create a new savings goal with the challenge structure.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[700],
+                ),
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Joined $challengeName successfully!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: const Text('Join Challenge'),
-          ),
-        ],
       ),
-    );
-  }
-  
-  void _showCreateChallengeDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create Custom Challenge'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Lottie.asset(
-              'assets/animations/custom_challenge.json',
-              width: 150,
-              height: 150,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Custom challenges are coming soon! You\'ll be able to create your own savings challenges with personalized rules and invite friends.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[700],
+    ),
+  );
+}
+
+void _showDeleteConfirmation(BuildContext context, SavingsGoal goal) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text('Delete Goal?'),
+      content: Text('Are you sure you want to delete "${goal.title}"? This action cannot be undone.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel', style: TextStyle(color: Colors.grey[700])),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+            savingsProvider.deleteSavingsGoal(goal.id);
+            Navigator.pop(context);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: const Text('Delete', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showGoalInsights(BuildContext context, SavingsGoal goal) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(5),
               ),
             ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it'),
           ),
+          Expanded(child: _buildInsightsTab(goal)),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
+
+void _showCreateChallengeModal(BuildContext context) {
+  final TextEditingController titleController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
   
-  void _showNotificationsBottomSheet(BuildContext context) {
-    final provider = Provider.of<SavingsProvider>(context, listen: false);
-    final reminders = provider.getSavingsReminders();
-    
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-        ),
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Text(
+              'Create Challenge',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: titleController,
+              decoration: InputDecoration(
+                labelText: 'Challenge Title',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: descriptionController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'Challenge Description',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Savings Reminders',
+                  'Use AI to enhance challenge',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
+                const SizedBox(width: 8),
+                const Icon(Icons.auto_awesome, color: Colors.amber, size: 20),
+                const Spacer(),
+                Switch(
+                  value: true,
+                  onChanged: (value) {},
+                  activeColor: accentColor,
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            
-            reminders.isEmpty
-                ? Center(
-                    child: Column(
-                      children: [
-                        Lottie.asset(
-                          'assets/animations/empty_notifications.json',
-                          width: 150,
-                          height: 150,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No reminders at the moment',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : Expanded(
-                    child: ListView.builder(
-                      itemCount: reminders.length,
-                      itemBuilder: (context, index) {
-                        final reminder = reminders[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.notifications_active,
-                                  color: Colors.blue,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      reminder.title,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      reminder.message,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[700],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      DateFormat('dd MMM yyyy, hh:mm a').format(reminder.date),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[500],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+                  savingsProvider.createSavingsChallenge(
+                    title: titleController.text,
+                    description: descriptionController.text,
+                  );
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  void _showOptionsMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildOptionItem(
-              context,
-              'Analyze Savings Trends',
-              Icons.insights,
-              Colors.purple,
-              () {
-                Navigator.pop(context);
-                // Show savings trends analysis
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Savings analysis coming soon!'),
+                ),
+                child: const Text(
+                  'Create Challenge',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                );
-              },
-            ),
-            _buildOptionItem(
-              context,
-              'Export Savings Data',
-              Icons.file_download,
-              Colors.blue,
-              () {
-                Navigator.pop(context);
-                // Export savings data
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Export feature coming soon!'),
-                  ),
-                );
-              },
-            ),
-            _buildOptionItem(
-              context,
-              'Savings Settings',
-              Icons.settings,
-              Colors.grey,
-              () {
-                Navigator.pop(context);
-                // Navigate to settings
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Settings feature coming soon!'),
-                  ),
-                );
-              },
+                ),
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
-  
-  Widget _buildOptionItem(
-    BuildContext context,
-    String title,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          color: color,
-        ),
-      ),
-      title: Text(title),
-      onTap: onTap,
-    );
-  }
+    ),
+  );
 }
+
+void _showJoinChallengeModal(BuildContext context, String title, String description, Color color) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(Icons.emoji_events, color: color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Join Challenge',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[800],
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Lottie.asset(
+            'assets/animations/challenge.json',
+            height: 120,
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Challenge Rules:',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '• Save the specified amount consistently\n• Track your progress in the app\n• Complete within the timeframe\n• Share your success with the community',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[800],
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text('Maybe Later'),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+                    savingsProvider.joinSavingsChallenge(title);
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    'Join Now',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+double _calculateGrowthPercentage(double amount) {
+  // This is a placeholder calculation
+  // In a real app, you would calculate based on previous data
+  return math.min(amount / 20000, 1.0);
+}
+}
+              
