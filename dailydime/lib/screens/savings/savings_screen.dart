@@ -7,7 +7,7 @@ import 'package:lottie/lottie.dart';
 import 'package:dailydime/widgets/common/custom_button.dart';
 import 'package:dailydime/widgets/charts/circular_percent_indicator.dart';
 import 'package:dailydime/widgets/charts/linear_percent_indicator.dart';
-import 'package:dailydime/models/savings_model.dart';
+import 'package:dailydime/models/savings_goal.dart';
 import 'package:dailydime/providers/savings_provider.dart';
 import 'package:dailydime/services/savings_ai_service.dart';
 import 'package:intl/intl.dart';
