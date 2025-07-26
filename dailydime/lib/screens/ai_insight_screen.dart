@@ -1,5 +1,6 @@
 // lib/screens/ai_insight_screen.dart
 
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:dailydime/services/ai_insight_service.dart';
 import 'package:dailydime/services/appwrite_service.dart';
@@ -9,8 +10,6 @@ import 'package:dailydime/screens/chat_screen.dart';
 import 'package:dailydime/widgets/financial_score_card.dart';
 import 'package:dailydime/widgets/charts/charts_widget.dart';
 import 'package:lottie/lottie.dart';
-import 'package:provider/provider.dart';
-import 'package:dailydime/providers/insight_provider.dart';
 
 class AIInsightScreen extends StatefulWidget {
   const AIInsightScreen({Key? key}) : super(key: key);
@@ -20,8 +19,10 @@ class AIInsightScreen extends StatefulWidget {
 }
 
 class _AIInsightScreenState extends State<AIInsightScreen> {
-  late AIInsightService _aiService;
+  AIInsightService? _aiService;
   bool _isLoading = true;
+  bool _hasError = false;
+  String _errorMessage = '';
   Map<String, dynamic> _insightData = {};
 
   @override
@@ -31,19 +32,44 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
   }
 
   Future<void> _initializeServices() async {
-    final appwriteService = Provider.of<AppwriteService>(context, listen: false);
-    _aiService = AIInsightService(appwriteService);
-    
-    await _loadInsights();
+    try {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+      });
+
+      // Initialize AppwriteService directly instead of using Provider
+      final appwriteService = AppwriteService();
+      _aiService = AIInsightService(appwriteService);
+      
+      await _loadInsights();
+    } catch (e) {
+      print('Error initializing services: $e');
+      setState(() {
+        _hasError = true;
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _loadInsights() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
+    if (_aiService == null) {
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'AI Service not initialized';
+        _isLoading = false;
+      });
+      return;
+    }
+
     try {
-      final data = await _aiService.fetchFinancialData();
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+      });
+      
+      final data = await _aiService!.fetchFinancialData();
       setState(() {
         _insightData = data;
         _isLoading = false;
@@ -51,6 +77,8 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
     } catch (e) {
       print('Error loading insights: $e');
       setState(() {
+        _hasError = true;
+        _errorMessage = e.toString();
         _isLoading = false;
       });
     }
@@ -63,20 +91,26 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
       body: SafeArea(
         child: _isLoading
             ? _buildLoadingState()
-            : _insightData.isEmpty
-                ? _buildEmptyState()
-                : _buildInsightDashboard(),
+            : _hasError
+                ? _buildErrorState()
+                : _insightData.isEmpty
+                    ? _buildEmptyState()
+                    : _buildInsightDashboard(),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => ChatScreen(aiService: _aiService)),
-          );
-        },
-        backgroundColor: const Color(0xFF32CD32),
-        child: const Icon(Icons.chat_outlined, color: Colors.white),
-      ),
+      floatingActionButton: _aiService != null && !_isLoading && !_hasError
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(aiService: _aiService!),
+                  ),
+                );
+              },
+              backgroundColor: const Color(0xFF32CD32),
+              child: const Icon(Icons.chat_outlined, color: Colors.white),
+            )
+          : null,
     );
   }
 
@@ -85,10 +119,16 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Lottie.asset(
-            'assets/animations/financial_loading.json',
+          // Replace with basic CircularProgressIndicator if Lottie asset doesn't exist
+          Container(
             width: 200,
             height: 200,
+            child: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF32CD32)),
+                strokeWidth: 4,
+              ),
+            ),
           ),
           const SizedBox(height: 20),
           const Text(
@@ -111,15 +151,68 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
     );
   }
 
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 80,
+              color: Colors.red[400],
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Something went wrong',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _errorMessage,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: _initializeServices,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF32CD32),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Lottie.asset(
-            'assets/animations/empty_state.json',
+          Container(
             width: 200,
             height: 200,
+            child: Icon(
+              Icons.analytics_outlined,
+              size: 100,
+              color: Colors.grey[400],
+            ),
           ),
           const SizedBox(height: 20),
           const Text(
@@ -144,7 +237,7 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
           const SizedBox(height: 30),
           ElevatedButton(
             onPressed: () {
-              // Navigate to add transaction screen
+              Navigator.pop(context); // Go back to add transactions
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF32CD32),
@@ -162,8 +255,8 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
   }
 
   Widget _buildInsightDashboard() {
-    final stats = _insightData['stats'];
-    final insights = _insightData['insights'];
+    final stats = _insightData['stats'] ?? {};
+    final insights = _insightData['insights'] ?? [];
     
     return RefreshIndicator(
       onRefresh: _loadInsights,
@@ -256,7 +349,7 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                if (index >= insights.length) return null;
+                if (insights.isEmpty || index >= insights.length) return null;
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: _buildInsightCard(insights[index]),
@@ -282,7 +375,7 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
                   ),
                   _buildSpendingTrendsCard(stats),
                   const SizedBox(height: 20),
-                  _buildTopCategoriesCard(stats['categoryBreakdown']),
+                  _buildTopCategoriesCard(stats['categoryBreakdown'] ?? []),
                   const SizedBox(height: 20),
                   _buildPredictedSpendingCard(stats),
                   const SizedBox(height: 20),
@@ -298,7 +391,7 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
   }
 
   Widget _buildFinancialHealthCard(Map<String, dynamic> stats) {
-    final score = stats['financialHealthScore'] as int;
+    final score = (stats['financialHealthScore'] ?? 50) as int;
     
     Color scoreColor;
     String healthStatus;
@@ -396,30 +489,30 @@ class _AIInsightScreenState extends State<AIInsightScreen> {
                   ],
                 ),
               ),
-           const SizedBox(width: 20),
-Expanded(
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _buildScoreIndicator(
-        'Savings', 
-        (stats['totalSavings'] > 0) ? 
-          min((stats['totalSavings'] as double) / 5000, 1.0).toDouble() : 0.1,
-      ),
-      const SizedBox(height: 10),
-      _buildScoreIndicator(
-        'Expenses', 
-        (stats['totalIncome'] as double) > 0 ? 
-          min(1 - ((stats['totalExpenses'] as double) / (stats['totalIncome'] as double)), 1.0).toDouble() : 0.5,
-      ),
-      const SizedBox(height: 10),
-      _buildScoreIndicator(
-        'Goals', 
-        min((stats['activeGoalsCount'] as int) / 3, 1.0).toDouble(),
-      ),
-    ],
-  ),
-),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildScoreIndicator(
+                      'Savings', 
+                      (stats['totalSavings'] != null && stats['totalSavings'] > 0) ? 
+                        min((stats['totalSavings'] as double) / 5000, 1.0).toDouble() : 0.1,
+                    ),
+                    const SizedBox(height: 10),
+                    _buildScoreIndicator(
+                      'Expenses', 
+                      (stats['totalIncome'] != null && (stats['totalIncome'] as double) > 0) ? 
+                        min(1 - ((stats['totalExpenses'] as double? ?? 0) / (stats['totalIncome'] as double)), 1.0).toDouble() : 0.5,
+                    ),
+                    const SizedBox(height: 10),
+                    _buildScoreIndicator(
+                      'Goals', 
+                      min((stats['activeGoalsCount'] as int? ?? 0) / 3, 1.0).toDouble(),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -451,7 +544,11 @@ Expanded(
   }
 
   Widget _buildSmartSavingSuggestionCard() {
-    final recommendation = _aiService.getSmartSavingRecommendation(_insightData['transactions']);
+    if (_aiService == null || _insightData['transactions'] == null) {
+      return Container();
+    }
+    
+    final recommendation = _aiService!.getSmartSavingRecommendation(_insightData['transactions']);
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -582,19 +679,19 @@ Expanded(
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: insight['color'].withOpacity(0.1),
+                  color: (insight['color'] as Color).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  insight['icon'],
-                  color: insight['color'],
+                  insight['icon'] as IconData,
+                  color: insight['color'] as Color,
                   size: 24,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  insight['title'],
+                  insight['title'] ?? '',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -605,20 +702,20 @@ Expanded(
           ),
           const SizedBox(height: 15),
           Text(
-            insight['description'],
+            insight['description'] ?? '',
             style: const TextStyle(
               fontSize: 14,
               height: 1.4,
             ),
           ),
-          if (insight['showChart']) ...[
+          if (insight['showChart'] == true && insight['chartData'] != null) ...[
             const SizedBox(height: 20),
             SizedBox(
               height: 120,
-              child: SpendingLineChart(data: insight['chartData']),
+              child: _buildSimpleChart(insight['chartData']),
             ),
           ],
-          if (insight['actionable']) ...[
+          if (insight['actionable'] == true) ...[
             const SizedBox(height: 15),
             Align(
               alignment: Alignment.centerRight,
@@ -627,13 +724,32 @@ Expanded(
                   // Action based on insight
                 },
                 style: TextButton.styleFrom(
-                  foregroundColor: insight['color'],
+                  foregroundColor: insight['color'] as Color,
                 ),
-                child: Text(insight['actionText']),
+                child: Text(insight['actionText'] ?? 'Learn More'),
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildSimpleChart(List<dynamic> data) {
+    // Simple placeholder chart - replace with actual chart widget
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(
+        child: Text(
+          'Chart Data (${data.length} points)',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+          ),
+        ),
       ),
     );
   }
@@ -663,47 +779,73 @@ Expanded(
             ),
           ),
           const SizedBox(height: 20),
-          SizedBox(
+          Container(
             height: 180,
-            child: SpendingAreaChart(
-              weeklySpending: stats['weeklySpending'],
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.show_chart,
+                    size: 48,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Weekly Spending Chart',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 15),
-          // Weekly trend insight
-       // Weekly trend insight
-Row(
-  children: [
-    Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: _aiService.getWeeklyTrend(_insightData['transactions'])['isPositive'] ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        _aiService.getWeeklyTrend(_insightData['transactions'])['isPositive'] ? Icons.trending_down : Icons.trending_up,
-        color: _aiService.getWeeklyTrend(_insightData['transactions'])['isPositive'] ? Colors.green : Colors.red,
-        size: 16,
-      ),
-    ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                      _aiService.getWeeklyTrend(_insightData['transactions'])['description'],
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[700],
+          if (_aiService != null && _insightData['transactions'] != null)
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _aiService!.getWeeklyTrend(_insightData['transactions'])['isPositive'] 
+                        ? Colors.green.withOpacity(0.1) 
+                        : Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _aiService!.getWeeklyTrend(_insightData['transactions'])['isPositive'] 
+                        ? Icons.trending_down 
+                        : Icons.trending_up,
+                    color: _aiService!.getWeeklyTrend(_insightData['transactions'])['isPositive'] 
+                        ? Colors.green 
+                        : Colors.red,
+                    size: 16,
                   ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _aiService!.getWeeklyTrend(_insightData['transactions'])['description'] ?? '',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildTopCategoriesCard(List<Map<String, dynamic>> categories) {
+  Widget _buildTopCategoriesCard(List<dynamic> categories) {
     if (categories.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(20),
@@ -728,16 +870,27 @@ Row(
               ),
             ),
             const SizedBox(height: 20),
-            Lottie.asset(
-              'assets/animations/empty_categories.json',
+            Container(
               height: 120,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'No spending categories yet',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.pie_chart_outline,
+                      size: 48,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'No spending categories yet',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -775,14 +928,37 @@ Row(
               children: [
                 Expanded(
                   flex: 3,
-                  child: CategoryPieChart(
-                    categories: categories,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.pie_chart,
+                            size: 48,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Category Chart',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   flex: 4,
-                  child: _buildCategoryList(categories),
+                  child: _buildCategoryList(categories.cast<Map<String, dynamic>>()),
                 ),
               ],
             ),
@@ -804,19 +980,19 @@ Row(
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: category['color'],
+                  color: category['color'] as Color? ?? Colors.grey,
                   shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  category['name'],
+                  category['name'] ?? '',
                   style: const TextStyle(fontSize: 13),
                 ),
               ),
               Text(
-                '${AppConfig.currencySymbol} ${category['amount'].toStringAsFixed(0)}',
+                '${AppConfig.currencySymbol} ${(category['amount'] as double? ?? 0).toStringAsFixed(0)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
@@ -887,10 +1063,39 @@ Row(
             ],
           ),
           const SizedBox(height: 20),
-          SizedBox(
+          Container(
             height: 200,
-            child: PredictedSpendingChart(
-              data: stats['predictedSpending'],
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.trending_up,
+                    size: 48,
+                    color: Colors.purple[400],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Predicted Spending Chart',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '${stats['predictedSpending']?.length ?? 0} data points',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 15),
@@ -1084,10 +1289,5 @@ Row(
         ],
       ),
     );
-  }
-  
-  // Helper function for progress calculations
-  double min(double a, double b) {
-    return a < b ? a : b;
   }
 }
