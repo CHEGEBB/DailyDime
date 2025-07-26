@@ -217,7 +217,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
             child: Opacity(
               opacity: 0.1,
               child: Image.asset(
-                'assets/images/pattern2.png',
+                'assets/images/pattern8.png',
                 fit: BoxFit.cover,
               ),
             ),
@@ -1113,7 +1113,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
             child: Column(
               children: [
                 Lottie.asset(
-                  'assets/animations/empty.json',
+                  'assets/animations/empty_goals.json',
                   height: 120,
                 ),
                 const SizedBox(height: 16),

@@ -22,7 +22,7 @@ class AIInsightService {
   void _initializeGemini() {
     if (_apiKey.isNotEmpty) {
       _model = GenerativeModel(
-        model: 'gemini-pro',
+        model: 'gemini-2.0-flash',
         apiKey: _apiKey,
       );
     }
