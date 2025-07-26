@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:dailydime/config/app_config.dart';
+import 'package:flutter/material.dart' as ui;
 
 class SpendingLineChart extends StatelessWidget {
   final List<Map<String, dynamic>> data;
@@ -200,7 +201,7 @@ class GoalTimelineChart extends StatelessWidget {
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
-            tooltipBgColor: Colors.blueGrey.shade800,
+            tooltipMargin: 8,
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               final goal = goals[groupIndex];
               return BarTooltipItem(
@@ -362,7 +363,7 @@ class IncomeExpenseBarChart extends StatelessWidget {
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
-            tooltipBgColor: Colors.blueGrey.shade800,
+            // Removed the tooltip parameter
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               final periodData = data[groupIndex];
               final isIncome = rodIndex == 0;
@@ -518,7 +519,7 @@ class PredictedSpendingChart extends StatelessWidget {
       LineChartData(
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            tooltipBgColor: Colors.blueGrey.shade800,
+            // tooltipBgColor: Colors.blueGrey.shade800,
             getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
               return touchedBarSpots.map((barSpot) {
                 final flSpot = barSpot;

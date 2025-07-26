@@ -55,6 +55,7 @@ dev_dependencies:
   
   shimmer: ^2.0.0
   google_generative_ai: ^0.4.7
+  flutter_heatmap_calendar: ^1.0.0
 
 flutter:
   uses-material-design: true
