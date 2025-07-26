@@ -1,5 +1,3 @@
-// lib/screens/savings/savings_screen.dart
-
 import 'package:dailydime/models/savings_goal.dart';
 import 'package:dailydime/providers/savings_provider.dart';
 import 'package:dailydime/screens/savings/create_goal_screen.dart';
@@ -11,6 +9,8 @@ import 'package:dailydime/widgets/charts/circular_percent_indicator.dart';
 import 'package:dailydime/widgets/charts/linear_percent_indicator.dart';
 import 'package:dailydime/widgets/common/custom_button.dart';
 import 'package:dailydime/config/app_config.dart';
+import 'package:dailydime/services/appwrite_service.dart';
+import 'package:dailydime/services/storage_service.dart';
 import 'dart:math' as math;
 
 class SavingsScreen extends StatefulWidget {
@@ -32,6 +32,11 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     
+    // Listen for tab changes
+    _tabController.addListener(() {
+      setState(() {});
+    });
+    
     // Initialize data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchData();
@@ -46,7 +51,17 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
   
   Future<void> _fetchData() async {
     final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+    
+    // First try to fetch from local storage for immediate display
+    // await savingsProvider.fetchSavingsGoalsFromLocal();
+    
+    // Then fetch from remote to ensure data is up-to-date
     await savingsProvider.fetchSavingsGoals();
+    
+    // Save the fetched goals to local storage for offline access
+    // await savingsProvider.syncGoalsToLocalStorage();
+    
+    // Fetch other data
     await savingsProvider.getAISavingSuggestion();
     await savingsProvider.fetchSavingsChallenges();
   }
@@ -87,9 +102,9 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                   SliverToBoxAdapter(
                     child: Container(
                       margin: const EdgeInsets.only(top: 16),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.white,
-                        borderRadius: const BorderRadius.only(
+                        borderRadius: BorderRadius.only(
                           topLeft: Radius.circular(30),
                           topRight: Radius.circular(30),
                         ),
@@ -100,7 +115,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                           if (savingsProvider.aiSavingSuggestion != null)
                             _buildAISuggestion(context, savingsProvider),
                           
-                          // Tab Bar
+                          // Tab Bar with no divider
                           Container(
                             margin: const EdgeInsets.fromLTRB(12, 20, 12, 0),
                             decoration: BoxDecoration(
@@ -112,12 +127,22 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                               indicator: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
                                 color: accentColor,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: accentColor.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
                               ),
+                              dividerColor: Colors.transparent, // Remove divider
+                              indicatorSize: TabBarIndicatorSize.tab,
                               labelColor: Colors.white,
                               unselectedLabelColor: Colors.grey[700],
                               labelStyle: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
                               ),
                               tabs: const [
                                 Tab(
@@ -161,7 +186,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                 MaterialPageRoute(
                   builder: (context) => const CreateGoalScreen(),
                 ),
-              );
+              ).then((_) => _fetchData()); // Refresh after returning
             },
             backgroundColor: accentColor,
             icon: const Icon(Icons.add, color: Colors.white),
@@ -176,7 +201,6 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
   }
   
   Widget _buildHeader(SavingsProvider savingsProvider) {
-    final size = MediaQuery.of(context).size;
     final totalSavings = savingsProvider.totalSavingsAmount;
     final mtdSavings = savingsProvider.mtdSavingsAmount;
     final avgDailySavings = savingsProvider.averageDailySavings;
@@ -238,12 +262,23 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            // Toggle notifications
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Notifications toggled'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
                           icon: const Icon(Icons.notifications_outlined, color: Colors.white),
                           iconSize: 24,
                         ),
                         IconButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            // Show options menu
+                            _showOptionsMenu(context);
+                          },
                           icon: const Icon(Icons.more_vert, color: Colors.white),
                           iconSize: 24,
                         ),
@@ -370,8 +405,14 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
     final suggestion = savingsProvider.aiSavingSuggestion;
     if (suggestion == null) return const SizedBox();
     
-    // Find target goal
-    final targetGoalName = suggestion['recommendedGoal'] as String;
+    // Safely access values with null checking to prevent type errors
+    final String targetGoalName = suggestion['recommendedGoal'] as String? ?? 'emergency';
+    final double savingAmount = (suggestion['savingAmount'] is double) 
+        ? suggestion['savingAmount'] as double 
+        : 0.0;
+    final String reason = suggestion['reason'] as String? ?? 'You have extra funds available.';
+    
+    // Find target goal with proper null checking
     final targetGoal = savingsProvider.savingsGoals.firstWhere(
       (g) => g.title.toLowerCase() == targetGoalName.toLowerCase() || 
              (targetGoalName == 'emergency' && g.category == SavingsGoalCategory.emergency),
@@ -384,16 +425,13 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
             category: SavingsGoalCategory.other,
             iconAsset: 'savings',
             color: accentColor,
-dailyTarget: null, 
-weeklyTarget: null, 
-priority: 'medium', 
-isRecurring: false, 
-reminderFrequency: 'weekly',
+            dailyTarget: null, 
+            weeklyTarget: null, 
+            priority: 'medium', 
+            isRecurring: false, 
+            reminderFrequency: 'weekly',
           ),
     );
-    
-    final double savingAmount = suggestion['savingAmount'] as double;
-    final String reason = suggestion['reason'] as String;
     
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 24, 16, 0),
@@ -417,16 +455,16 @@ reminderFrequency: 'weekly',
       ),
       child: Stack(
         children: [
-          // Background animation
+          // Background animation - made larger
           Positioned(
-            right: -20,
-            top: -20,
+            right: -30,
+            top: -30,
             child: Opacity(
-              opacity: 0.2,
+              opacity: 0.3, // Slightly more visible
               child: Lottie.asset(
                 'assets/animations/money_coins.json',
-                width: 100,
-                height: 100,
+                width: 150, // Larger animation
+                height: 150,
               ),
             ),
           ),
@@ -748,12 +786,22 @@ reminderFrequency: 'weekly',
                 ? Center(child: _buildLoadingAnimation())
                 : challenges.isEmpty
                     ? Center(
-                        child: Text(
-                          'No challenges available',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 16,
-                          ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Lottie.asset(
+                              'assets/animations/empty_challenges.json',
+                              height: 150,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No challenges available',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
                       )
                     : ListView.builder(
@@ -762,14 +810,23 @@ reminderFrequency: 'weekly',
                         itemCount: challenges.length,
                         itemBuilder: (context, index) {
                           final challenge = challenges[index];
+                          // Safe access with null checks
+                          String title = challenge['title'] as String? ?? 'Challenge';
+                          String description = challenge['description'] as String? ?? 'Join this savings challenge';
+                          String iconName = challenge['icon'] as String? ?? 'emoji_events';
+                          int colorValue = challenge['color'] as int? ?? 0xFF26D07C;
+                          int participants = challenge['participants'] as int? ?? 0;
+                          bool isPopular = challenge['isPopular'] as bool? ?? false;
+                          bool isAiGenerated = challenge['isAiGenerated'] as bool? ?? false;
+                          
                           return _buildChallengeCard(
-                            title: challenge['title'],
-                            description: challenge['description'],
-                            icon: _getIconData(challenge['icon']),
-                            color: Color(challenge['color']),
-                            participants: challenge['participants'],
-                            isPopular: challenge['isPopular'],
-                            isAiGenerated: challenge['isAiGenerated'] ?? false,
+                            title: title,
+                            description: description,
+                            icon: _getIconData(iconName),
+                            color: Color(colorValue),
+                            participants: participants,
+                            isPopular: isPopular,
+                            isAiGenerated: isAiGenerated,
                           );
                         },
                       ),
@@ -942,7 +999,7 @@ reminderFrequency: 'weekly',
                           MaterialPageRoute(
                             builder: (context) => CreateGoalScreen(existingGoal: goal),
                           ),
-                        );
+                        ).then((_) => _fetchData()); // Refresh after editing
                       } else if (value == 'delete') {
                         _showDeleteConfirmation(context, goal);
                       } else if (value == 'insights') {
@@ -1308,7 +1365,7 @@ reminderFrequency: 'weekly',
                 MaterialPageRoute(
                   builder: (context) => const CreateGoalScreen(),
                 ),
-              );
+              ).then((_) => _fetchData()); // Refresh after creating
             },
             isSmall: true,
             buttonColor: Colors.blue,
@@ -1579,6 +1636,7 @@ reminderFrequency: 'weekly',
                     labelColor: goal.color,
                     unselectedLabelColor: Colors.grey[600],
                     indicatorColor: goal.color,
+                    dividerHeight: 0, // Remove divider line
                   ),
                   Expanded(
                     child: TabBarView(
@@ -1611,7 +1669,7 @@ reminderFrequency: 'weekly',
                           MaterialPageRoute(
                             builder: (context) => CreateGoalScreen(existingGoal: goal),
                           ),
-                        );
+                        ).then((_) => _fetchData()); // Refresh after editing
                       },
                       icon: const Icon(Icons.edit),
                       label: const Text('Edit'),
@@ -1750,548 +1808,258 @@ reminderFrequency: 'weekly',
     );
   }
   
- // Continuing from where the file was cut off...
-
-Widget _buildInsightsTab(SavingsGoal goal) {
-  return FutureBuilder<Map<String, dynamic>>(
-    future: Provider.of<SavingsProvider>(context, listen: false).getGoalInsights(goal.id),
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return Center(child: Lottie.asset('assets/animations/loading.json', height: 100));
-      }
-      
-      if (snapshot.hasError || !snapshot.hasData) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text('Could not load insights', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
-            ],
-          ),
-        );
-      }
-      
-      final insights = snapshot.data!;
-      final motivationalMessage = insights['motivationalMessage'] as String? ?? 'Keep going!';
-      final practicalAdvice = insights['practicalAdvice'] as String? ?? 'Save consistently to reach your goal.';
-      final needsAdjustment = insights['needsAdjustment'] as bool? ?? false;
-      final forecast = insights['forecast'] as String? ?? 'on track';
-      final weeklySavingsNeeded = insights['weeklySavingsNeeded'] as double? ?? goal.dailySavingNeeded * 7;
-      
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildInsightCard(
-              title: 'AI Forecast',
-              content: 'Based on your current savings pattern, you are $forecast to reach your goal.',
-              icon: Icons.trending_up,
-              color: forecast.contains('track') ? Colors.green : Colors.orange,
-              animation: 'assets/animations/forecast.json',
+  Widget _buildInsightsTab(SavingsGoal goal) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: Provider.of<SavingsProvider>(context, listen: false).getGoalInsights(goal.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: Lottie.asset('assets/animations/loading.json', height: 100));
+        }
+        
+        if (snapshot.hasError || !snapshot.hasData) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text('Could not load insights', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+              ],
             ),
-            
-            _buildInsightCard(
-              title: 'Weekly Target',
-              content: 'You should save ${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(weeklySavingsNeeded)} per week to reach your goal on time.',
-              icon: Icons.calendar_today,
-              color: Colors.blue,
-            ),
-            
-            _buildInsightCard(
-              title: 'Motivation',
-              content: motivationalMessage,
-              icon: Icons.emoji_emotions,
-              color: Colors.amber,
-              animation: 'assets/animations/motivation.json',
-            ),
-            
-            _buildInsightCard(
-              title: 'Smart Advice',
-              content: practicalAdvice,
-              icon: Icons.lightbulb,
-              color: Colors.purple,
-            ),
-            
-            if (needsAdjustment)
-              _buildInsightCard(
-                title: 'Goal Adjustment Needed',
-                content: 'Your goal may need adjustment. Consider extending the deadline or adjusting the target amount.',
-                icon: Icons.build,
-                color: Colors.red,
-                isWarning: true,
-              ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-Widget _buildInsightCard({
-  required String title,
-  required String content,
-  required IconData icon,
-  required Color color,
-  String? animation,
-  bool isWarning = false,
-}) {
-  return Container(
-    margin: const EdgeInsets.only(bottom: 16),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: isWarning ? Colors.red[50] : color.withOpacity(0.05),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: isWarning ? Colors.red[200]! : color.withOpacity(0.2)),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        animation != null
-            ? SizedBox(
-                width: 50,
-                height: 50,
-                child: Lottie.asset(animation, fit: BoxFit.cover),
-              )
-            : Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-        const SizedBox(width: 16),
-        Expanded(
+          );
+        }
+        
+        final insights = snapshot.data!;
+        
+        // Safe access with null checking
+        final motivationalMessage = insights['motivationalMessage'] as String? ?? 'Keep going!';
+        final practicalAdvice = insights['practicalAdvice'] as String? ?? 'Save consistently to reach your goal.';
+        final needsAdjustment = insights['needsAdjustment'] as bool? ?? false;
+        final forecast = insights['forecast'] as String? ?? 'on track';
+        final weeklySavingsNeeded = insights['weeklySavingsNeeded'] as double? ?? goal.dailySavingNeeded * 7;
+        
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isWarning ? Colors.red : color,
-                ),
+              _buildInsightCard(
+                title: 'AI Forecast',
+                content: 'Based on your current savings pattern, you are $forecast to reach your goal.',
+                icon: Icons.trending_up,
+                color: forecast.contains('track') ? Colors.green : Colors.orange,
+                animation: 'assets/animations/forecast.json',
               ),
-              const SizedBox(height: 8),
-              Text(
-                content,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[800],
-                  height: 1.4,
-                ),
+              
+              _buildInsightCard(
+                title: 'Weekly Target',
+                content: 'You should save ${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(weeklySavingsNeeded)} per week to reach your goal on time.',
+                icon: Icons.calendar_today,
+                color: Colors.blue,
               ),
+              
+              _buildInsightCard(
+                title: 'Motivation',
+                content: motivationalMessage,
+                icon: Icons.emoji_emotions,
+                color: Colors.amber,
+                animation: 'assets/animations/motivation.json',
+              ),
+              
+              _buildInsightCard(
+                title: 'Smart Advice',
+                content: practicalAdvice,
+                icon: Icons.lightbulb,
+                color: Colors.purple,
+              ),
+              
+              if (needsAdjustment)
+                _buildInsightCard(
+                  title: 'Goal Adjustment Needed',
+                  content: 'Your goal may need adjustment. Consider extending the deadline or adjusting the target amount.',
+                  icon: Icons.build,
+                  color: Colors.red,
+                  isWarning: true,
+                ),
             ],
           ),
-        ),
-      ],
-    ),
-  );
-}
+        );
+      },
+    );
+  }
 
-void _showAddContributionModal(BuildContext context, SavingsGoal goal) {
-  final TextEditingController amountController = TextEditingController();
-  final TextEditingController noteController = TextEditingController();
-  
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+  Widget _buildInsightCard({
+    required String title,
+    required String content,
+    required IconData icon,
+    required Color color,
+    String? animation,
+    bool isWarning = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isWarning ? Colors.red[50] : color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isWarning ? Colors.red[200]! : color.withOpacity(0.2)),
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: goal.color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(_getIconData(goal.iconAsset), color: goal.color, size: 24),
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Add Contribution',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      goal.title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'Amount',
-                prefixText: AppConfig.currencySymbol + ' ',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: goal.color, width: 2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: noteController,
-              decoration: InputDecoration(
-                labelText: 'Note (optional)',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  final amount = double.tryParse(amountController.text);
-                  if (amount != null && amount > 0) {
-                    final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
-                    savingsProvider.addContribution(
-                      goal.id, // Assuming the first positional argument is goal.id
-                      amount,   // Assuming the second positional argument is amount
-                      noteController.text, // Assuming the third positional argument is note
-                    );
-                    Navigator.pop(context);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: goal.color,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text(
-                  'Save Contribution',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-void _showDeleteConfirmation(BuildContext context, SavingsGoal goal) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('Delete Goal?'),
-      content: Text('Are you sure you want to delete "${goal.title}"? This action cannot be undone.'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Cancel', style: TextStyle(color: Colors.grey[700])),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
-            savingsProvider.deleteSavingsGoal(goal.id);
-            Navigator.pop(context);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-          child: const Text('Delete', style: TextStyle(color: Colors.white)),
-        ),
-      ],
-    ),
-  );
-}
-
-void _showGoalInsights(BuildContext context, SavingsGoal goal) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Container(
-              width: 40,
-              height: 5,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(5),
-              ),
-            ),
-          ),
-          Expanded(child: _buildInsightsTab(goal)),
-        ],
-      ),
-    ),
-  );
-}
-
-void _showCreateChallengeModal(BuildContext context) {
-  final TextEditingController titleController = TextEditingController();
-  final TextEditingController descriptionController = TextEditingController();
-  
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Create Challenge',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: titleController,
-              decoration: InputDecoration(
-                labelText: 'Challenge Title',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Challenge Description',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                const Text(
-                  'Use AI to enhance challenge',
-                  style: TextStyle(
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.auto_awesome, color: Colors.amber, size: 20),
-                const Spacer(),
-                Switch(
-                  value: true,
-                  onChanged: (value) {},
-                  activeColor: accentColor,
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
-                  savingsProvider.createSavingsChallenge(
-                    title: titleController.text,
-                    description: descriptionController.text,
-                  );
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accentColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text(
-                  'Create Challenge',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-void _showJoinChallengeModal(BuildContext context, String title, String description, Color color) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => Container(
-      padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(Icons.emoji_events, color: color, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Join Challenge',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            description,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[800],
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Lottie.asset(
-            'assets/animations/challenge.json',
-            height: 120,
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Challenge Rules:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '• Save the specified amount consistently\n• Track your progress in the app\n• Complete within the timeframe\n• Share your success with the community',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[800],
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+          animation != null
+              ? SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: Lottie.asset(animation, fit: BoxFit.cover),
+                )
+              : Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    shape: BoxShape.circle,
                   ),
-                  child: const Text('Maybe Later'),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isWarning ? Colors.red : color,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  content,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[800],
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddContributionModal(BuildContext context, SavingsGoal goal) {
+    final TextEditingController amountController = TextEditingController();
+    final TextEditingController noteController = TextEditingController();
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: goal.color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(_getIconData(goal.iconAsset), color: goal.color, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Add Contribution',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        goal.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: AppConfig.currencySymbol + ' ',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: goal.color, width: 2),
+                  ),
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
+              const SizedBox(height: 16),
+              TextField(
+                controller: noteController,
+                decoration: InputDecoration(
+                  labelText: 'Note (optional)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
-                    savingsProvider.joinSavingsChallenge(title);
-                    Navigator.pop(context);
+                    final amount = double.tryParse(amountController.text);
+                    if (amount != null && amount > 0) {
+                      final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+                      savingsProvider.addContribution(
+                        goal.id,
+                        amount,
+                        noteController.text,
+                      ).then((_) {
+                        // After adding contribution, fetch the updated data
+                        _fetchData();
+                      });
+                      Navigator.pop(context);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: color,
+                    backgroundColor: goal.color,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   child: const Text(
-                    'Join Now',
+                    'Save Contribution',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -2302,16 +2070,377 @@ void _showJoinChallengeModal(BuildContext context, String title, String descript
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context, SavingsGoal goal) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Goal?'),
+        content: Text('Are you sure you want to delete "${goal.title}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[700])),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+              savingsProvider.deleteSavingsGoal(goal.id).then((_) {
+                // After deleting, fetch the updated data
+                _fetchData();
+              });
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 
-double _calculateGrowthPercentage(double amount) {
-  // This is a placeholder calculation
-  // In a real app, you would calculate based on previous data
-  return math.min(amount / 20000, 1.0);
+  void _showGoalInsights(BuildContext context, SavingsGoal goal) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+            ),
+            Expanded(child: _buildInsightsTab(goal)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCreateChallengeModal(BuildContext context) {
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController descriptionController = TextEditingController();
+    bool useAI = true;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Create Challenge',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    labelText: 'Challenge Title',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Challenge Description',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    const Text(
+                      'Use AI to enhance challenge',
+                      style: TextStyle(
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.auto_awesome, color: Colors.amber, size: 20),
+                    const Spacer(),
+                    Switch(
+                      value: useAI,
+                      onChanged: (value) {
+                        setModalState(() {
+                          useAI = value;
+                        });
+                      },
+                      activeColor: accentColor,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+                      savingsProvider.createSavingsChallenge(
+                        title: titleController.text,
+                        description: descriptionController.text,
+                        useAI: useAI,
+                      ).then((_) {
+                        // After creating, fetch the updated data
+                        _fetchData();
+                      });
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Create Challenge',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showJoinChallengeModal(BuildContext context, String title, String description, Color color) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.emoji_events, color: color, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Join Challenge',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[800],
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Lottie.asset(
+              'assets/animations/challenge.json',
+              height: 120,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Challenge Rules:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• Save the specified amount consistently\n• Track your progress in the app\n• Complete within the timeframe\n• Share your success with the community',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[800],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text('Maybe Later'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+                      savingsProvider.joinSavingsChallenge(title).then((_) {
+                        // After joining, fetch the updated data
+                        _fetchData();
+                      });
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Join Now',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showOptionsMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 8, bottom: 16),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.refresh, color: accentColor),
+            title: const Text('Refresh Data'),
+            onTap: () {
+              Navigator.pop(context);
+              _refreshData();
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.sync, color: accentColor),
+            title: const Text('Sync with Cloud'),
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Syncing with cloud...'))
+              );
+              _fetchData();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.settings, color: Colors.grey),
+            title: const Text('Settings'),
+            onTap: () {
+              Navigator.pop(context);
+              // Navigate to settings
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  double _calculateGrowthPercentage(double amount) {
+    // This is a placeholder calculation
+    // In a real app, you would calculate based on previous data
+    return math.min(amount / 20000, 1.0);
+  }
 }
-}
-              

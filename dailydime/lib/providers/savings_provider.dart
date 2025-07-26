@@ -259,7 +259,7 @@ class SavingsProvider with ChangeNotifier {
     String? icon,
     Color? color,
     String difficulty = 'medium',
-    int timeframeDays = 30,
+    int timeframeDays = 30, required bool useAI,
   }) async {
     _isLoading = true;
     _error = '';
