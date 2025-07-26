@@ -145,7 +145,7 @@ class _AIInsightScreenState extends State<AIInsightScreen> with SingleTickerProv
                         t.category?.toLowerCase().contains('restaurant') == true)) {
       opportunities.add({
         'title': 'Reduce dining expenses',
-        'description': 'You can save ${AppConfig.currencySymbol} 65 this week. By cooking at home 2 out of 4 times instead of eating out, you can save roughly $65 based on your previous spending.',
+        'description': 'You can save \${AppConfig.currencySymbol} 65 this week. By cooking at home 2 out of 4 times instead of eating out, you can save roughly ksh 65 based on your previous spending.',
         'amount': 65,
         'icon': Icons.restaurant,
         'color': Colors.orange,
@@ -271,7 +271,7 @@ class _AIInsightScreenState extends State<AIInsightScreen> with SingleTickerProv
     for (final transaction in recentLargeTransactions) {
       anomalies.add({
         'title': 'Unusual Transaction',
-        'description': '${transaction.title} (${AppConfig.formatCurrency(transaction.amount)}) on ${_formatDate(transaction.date)} is larger than 90% of your transactions.',
+        'description': '${transaction.title} (${AppConfig.formatCurrency(transaction.amount as int)}) on ${_formatDate(transaction.date)} is larger than 90% of your transactions.',
         'icon': Icons.warning_amber,
         'color': Colors.orange,
         'date': transaction.date,
@@ -299,7 +299,7 @@ class _AIInsightScreenState extends State<AIInsightScreen> with SingleTickerProv
     for (final duplicate in potentialDuplicates.take(2)) {
       anomalies.add({
         'title': 'Potential Duplicate',
-        'description': 'Transaction ${duplicate.title} (${AppConfig.formatCurrency(duplicate.amount)}) on ${_formatDate(duplicate.date)} may be a duplicate payment.',
+        'description': 'Transaction ${duplicate.title} (${AppConfig.formatCurrency(duplicate.amount as int)}) on ${_formatDate(duplicate.date)} may be a duplicate payment.',
         'icon': Icons.copy,
         'color': Colors.red,
         'date': duplicate.date,
