@@ -1,5 +1,7 @@
 // lib/services/profile_service.dart
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:dailydime/config/app_config.dart';
@@ -56,7 +58,7 @@ class ProfileService {
     try {
       final response = await _databases.listDocuments(
         databaseId: AppConfig.databaseId,
-        collectionId: 'profiles',
+        collectionId: '68851a2d000ed1577872',
         queries: [
           Query.equal('userId', userId),
         ],
@@ -92,7 +94,7 @@ class ProfileService {
 
       return await _databases.updateDocument(
         databaseId: AppConfig.databaseId,
-        collectionId: 'profiles',
+        collectionId: '68851a2d000ed1577872',
         documentId: profileId,
         data: data,
       );
@@ -101,8 +103,65 @@ class ProfileService {
     }
   }
 
-  // Upload a profile image
-  Future<String?> uploadProfileImage(String filePath, String fileName) async {
+  // Upload a profile image (supports both web and mobile)
+  Future<String?> uploadProfileImage(dynamic fileSource, String fileName) async {
+    try {
+      InputFile inputFile;
+      
+      if (kIsWeb) {
+        // For web, expect Uint8List bytes
+        if (fileSource is Uint8List) {
+          inputFile = InputFile.fromBytes(
+            bytes: fileSource,
+            filename: fileName,
+          );
+        } else {
+          throw Exception('For web platform, file must be provided as Uint8List');
+        }
+      } else {
+        // For mobile/desktop, expect file path
+        if (fileSource is String) {
+          inputFile = InputFile.fromPath(
+            path: fileSource,
+            filename: fileName,
+          );
+        } else {
+          throw Exception('For mobile/desktop platforms, file must be provided as file path');
+        }
+      }
+      
+      final file = await _storage.createFile(
+        bucketId: AppConfig.mainBucket,
+        fileId: ID.unique(),
+        file: inputFile,
+      );
+      
+      return file.$id;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Helper method to upload from bytes (useful for web)
+  Future<String?> uploadProfileImageFromBytes(Uint8List bytes, String fileName) async {
+    try {
+      final file = await _storage.createFile(
+        bucketId: AppConfig.mainBucket,
+        fileId: ID.unique(),
+        file: InputFile.fromBytes(
+          bytes: bytes,
+          filename: fileName,
+        ),
+      );
+      
+      return file.$id;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Helper method to upload from path (useful for mobile)
+  Future<String?> uploadProfileImageFromPath(String filePath, String fileName) async {
     try {
       final file = await _storage.createFile(
         bucketId: AppConfig.mainBucket,
@@ -128,7 +187,7 @@ class ProfileService {
       // Delete old profile image if exists
       final profile = await _databases.getDocument(
         databaseId: AppConfig.databaseId,
-        collectionId: 'profiles',
+        collectionId: '68851a2d000ed1577872',
         documentId: profileId,
       );
       
@@ -149,7 +208,7 @@ class ProfileService {
       // Update profile with new image ID
       return await _databases.updateDocument(
         databaseId: AppConfig.databaseId,
-        collectionId: 'profiles',
+        collectionId: '68851a2d000ed1577872',
         documentId: profileId,
         data: {
           'profileImageId': imageId,
@@ -168,6 +227,136 @@ class ProfileService {
         bucketId: AppConfig.mainBucket,
         fileId: imageId,
       ).toString();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Delete a user's profile
+  Future<bool> deleteUserProfile(String profileId) async {
+    try {
+      // Get profile to check for image
+      final profile = await _databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+      );
+      
+      // Delete profile image if exists
+      final imageId = profile.data['profileImageId'];
+      if (imageId != null) {
+        try {
+          await _storage.deleteFile(
+            bucketId: AppConfig.mainBucket,
+            fileId: imageId,
+          );
+        } catch (e) {
+          print('Error deleting profile image: $e');
+        }
+      }
+      
+      // Delete the profile document
+      await _databases.deleteDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+      );
+      
+      return true;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Get all profiles (for admin purposes)
+  Future<List<models.Document>> getAllProfiles({
+    int limit = 25,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [
+          Query.limit(limit),
+          Query.offset(offset),
+          Query.orderDesc('createdAt'),
+        ],
+      );
+      
+      return response.documents;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Search profiles by name or email
+  Future<List<models.Document>> searchProfiles(String searchTerm) async {
+    try {
+      final response = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [
+          Query.or([
+            Query.search('name', searchTerm),
+            Query.search('email', searchTerm),
+          ]),
+          Query.limit(50),
+        ],
+      );
+      
+      return response.documents;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Check if profile exists for user
+  Future<bool> profileExists(String userId) async {
+    try {
+      final profile = await getUserProfile(userId);
+      return profile != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Get profile statistics
+  Future<Map<String, int>> getProfileStats() async {
+    try {
+      final response = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [Query.limit(1)],
+      );
+      
+      int totalProfiles = response.total;
+      
+      // Count profiles with images
+      final profilesWithImages = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [
+          Query.isNotNull('profileImageId'),
+          Query.limit(1),
+        ],
+      );
+      
+      // Count profiles with notifications enabled
+      final profilesWithNotifications = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [
+          Query.equal('notificationsEnabled', true),
+          Query.limit(1),
+        ],
+      );
+      
+      return {
+        'totalProfiles': totalProfiles,
+        'profilesWithImages': profilesWithImages.total,
+        'profilesWithNotifications': profilesWithNotifications.total,
+      };
     } catch (e) {
       rethrow;
     }
