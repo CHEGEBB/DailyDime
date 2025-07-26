@@ -20,59 +20,63 @@ class SavingsScreen extends StatefulWidget {
   State<SavingsScreen> createState() => _SavingsScreenState();
 }
 
-class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProviderStateMixin {
+class _SavingsScreenState extends State<SavingsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final accentColor = const Color(0xFF26D07C); // Emerald green
-  
+
   String _selectedCategory = 'All';
   bool _isRefreshing = false;
-  
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
+
     // Listen for tab changes
     _tabController.addListener(() {
       setState(() {});
     });
-    
+
     // Initialize data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchData();
     });
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _fetchData() async {
-    final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
-    
+    final savingsProvider = Provider.of<SavingsProvider>(
+      context,
+      listen: false,
+    );
+
     // First try to fetch from local storage for immediate display
     // await savingsProvider.fetchSavingsGoalsFromLocal();
-    
+
     // Then fetch from remote to ensure data is up-to-date
     await savingsProvider.fetchSavingsGoals();
-    
+
     // Save the fetched goals to local storage for offline access
     // await savingsProvider.syncGoalsToLocalStorage();
-    
+
     // Fetch other data
     await savingsProvider.getAISavingSuggestion();
     await savingsProvider.fetchSavingsChallenges();
   }
-  
+
   Future<void> _refreshData() async {
     setState(() {
       _isRefreshing = true;
     });
-    
+
     await _fetchData();
-    
+
     setState(() {
       _isRefreshing = false;
     });
@@ -83,7 +87,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
     return Consumer<SavingsProvider>(
       builder: (context, savingsProvider, child) {
         final isLoading = savingsProvider.isLoading;
-        
+
         return Scaffold(
           backgroundColor: Colors.grey[100],
           body: SafeArea(
@@ -94,10 +98,8 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                 physics: const BouncingScrollPhysics(),
                 slivers: [
                   // Floating Header with Total Savings
-                  SliverToBoxAdapter(
-                    child: _buildHeader(savingsProvider),
-                  ),
-                  
+                  SliverToBoxAdapter(child: _buildHeader(savingsProvider)),
+
                   // Main content
                   SliverToBoxAdapter(
                     child: Container(
@@ -114,7 +116,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                           // AI Smart Save Suggestion
                           if (savingsProvider.aiSavingSuggestion != null)
                             _buildAISuggestion(context, savingsProvider),
-                          
+
                           // Tab Bar with no divider
                           Container(
                             margin: const EdgeInsets.fromLTRB(12, 20, 12, 0),
@@ -135,7 +137,8 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                                   ),
                                 ],
                               ),
-                              dividerColor: Colors.transparent, // Remove divider
+                              dividerColor:
+                                  Colors.transparent, // Remove divider
                               indicatorSize: TabBarIndicatorSize.tab,
                               labelColor: Colors.white,
                               unselectedLabelColor: Colors.grey[700],
@@ -145,18 +148,12 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                                 letterSpacing: 0.5,
                               ),
                               tabs: const [
-                                Tab(
-                                  text: 'Savings Goals',
-                                  height: 50,
-                                ),
-                                Tab(
-                                  text: 'Challenges',
-                                  height: 50,
-                                ),
+                                Tab(text: 'Savings Goals', height: 50),
+                                Tab(text: 'Challenges', height: 50),
                               ],
                             ),
                           ),
-                          
+
                           // Tab Bar View
                           SizedBox(
                             height: MediaQuery.of(context).size.height * 0.6,
@@ -165,7 +162,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                               children: [
                                 // Savings Goals Tab
                                 _buildSavingsGoalsTab(savingsProvider),
-                                
+
                                 // Challenges Tab
                                 _buildChallengesTab(savingsProvider),
                               ],
@@ -190,7 +187,10 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
             },
             backgroundColor: accentColor,
             icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text('New Goal', style: TextStyle(color: Colors.white)),
+            label: const Text(
+              'New Goal',
+              style: TextStyle(color: Colors.white),
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -199,13 +199,13 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
       },
     );
   }
-  
+
   Widget _buildHeader(SavingsProvider savingsProvider) {
     final totalSavings = savingsProvider.totalSavingsAmount;
     final mtdSavings = savingsProvider.mtdSavingsAmount;
     final avgDailySavings = savingsProvider.averageDailySavings;
     final activeGoals = savingsProvider.activeGoals.length;
-    
+
     return Container(
       height: 280,
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -240,7 +240,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
               ),
             ),
           ),
-          
+
           // Content
           Padding(
             padding: const EdgeInsets.all(24),
@@ -271,7 +271,10 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                               ),
                             );
                           },
-                          icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                          icon: const Icon(
+                            Icons.notifications_outlined,
+                            color: Colors.white,
+                          ),
                           iconSize: 24,
                         ),
                         IconButton(
@@ -279,16 +282,19 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                             // Show options menu
                             _showOptionsMenu(context);
                           },
-                          icon: const Icon(Icons.more_vert, color: Colors.white),
+                          icon: const Icon(
+                            Icons.more_vert,
+                            color: Colors.white,
+                          ),
                           iconSize: 24,
                         ),
                       ],
                     ),
                   ],
                 ),
-                
+
                 const Spacer(),
-                
+
                 // Total savings amount with visual element
                 Row(
                   children: [
@@ -339,7 +345,10 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                             ),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(12),
@@ -369,9 +378,9 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                     ),
                   ],
                 ),
-                
+
                 const Spacer(),
-                
+
                 // Savings metrics row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -400,92 +409,99 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
       ),
     );
   }
-  
-  Widget _buildAISuggestion(BuildContext context, SavingsProvider savingsProvider) {
+
+  Widget _buildAISuggestion(
+    BuildContext context,
+    SavingsProvider savingsProvider,
+  ) {
     final suggestion = savingsProvider.aiSavingSuggestion;
     if (suggestion == null) return const SizedBox();
-    
-   // Safe data extraction with proper type checking
-final dynamic recommendedGoalData = suggestion['recommendedGoal'];
-final String targetGoalName = recommendedGoalData is String 
-    ? recommendedGoalData 
-    : (recommendedGoalData is List && recommendedGoalData.isNotEmpty 
-        ? recommendedGoalData.first.toString() 
-        : 'emergency');
 
-final dynamic savingAmountData = suggestion['savingAmount'];
-final double savingAmount = savingAmountData is double 
-    ? savingAmountData 
-    : (savingAmountData is int 
-        ? savingAmountData.toDouble() 
-        : (savingAmountData is String 
-            ? double.tryParse(savingAmountData) ?? 0.0 
-            : 0.0));
+    // Safe data extraction with proper type checking
+    final dynamic recommendedGoalData = suggestion['recommendedGoal'];
+    final String targetGoalName = recommendedGoalData is String
+        ? recommendedGoalData
+        : (recommendedGoalData is List && recommendedGoalData.isNotEmpty
+              ? recommendedGoalData.first.toString()
+              : 'emergency');
 
-final dynamic reasonData = suggestion['reason'];
-final String reason = reasonData is String 
-    ? reasonData 
-    : (reasonData is List && reasonData.isNotEmpty 
-        ? reasonData.first.toString() 
-        : 'You have extra funds available.');
-    
+    final dynamic savingAmountData = suggestion['savingAmount'];
+    final double savingAmount = savingAmountData is double
+        ? savingAmountData
+        : (savingAmountData is int
+              ? savingAmountData.toDouble()
+              : (savingAmountData is String
+                    ? double.tryParse(savingAmountData) ?? 0.0
+                    : 0.0));
+
+    final dynamic reasonData = suggestion['reason'];
+    final String reason = reasonData is String
+        ? reasonData
+        : (reasonData is List && reasonData.isNotEmpty
+              ? reasonData.first.toString()
+              : 'You have extra funds available.');
+
     // Find target goal with proper null checking
     final targetGoal = savingsProvider.savingsGoals.firstWhere(
-      (g) => g.title.toLowerCase() == targetGoalName.toLowerCase() || 
-             (targetGoalName == 'emergency' && g.category == SavingsGoalCategory.emergency),
-      orElse: () => savingsProvider.savingsGoals.isNotEmpty 
-        ? savingsProvider.savingsGoals.first 
-        : SavingsGoal(
-            title: 'New Goal', 
-            targetAmount: 10000, 
-            targetDate: DateTime.now().add(const Duration(days: 90)),
-            category: SavingsGoalCategory.other,
-            iconAsset: 'savings',
-            color: accentColor,
-            dailyTarget: null, 
-            weeklyTarget: null, 
-            priority: 'medium', 
-            isRecurring: false, 
-            reminderFrequency: 'weekly',
-          ),
+      (g) =>
+          g.title.toLowerCase() == targetGoalName.toLowerCase() ||
+          (targetGoalName == 'emergency' &&
+              g.category == SavingsGoalCategory.emergency),
+      orElse: () => savingsProvider.savingsGoals.isNotEmpty
+          ? savingsProvider.savingsGoals.first
+          : SavingsGoal(
+              title: 'New Goal',
+              targetAmount: 10000,
+              targetDate: DateTime.now().add(const Duration(days: 90)),
+              category: SavingsGoalCategory.other,
+              iconAsset: 'savings',
+              color: accentColor,
+              dailyTarget: null,
+              weeklyTarget: null,
+              priority: 'medium',
+              isRecurring: false,
+              reminderFrequency: 'weekly',
+            ),
     );
-    
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 24, 16, 0),
       decoration: BoxDecoration(
-       gradient: LinearGradient(
-  colors: [
-    const Color(0xFF20B2AA), // Celestial teal
-    accentColor, // Your emerald green (0xFF26D07C)
-  ],
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-),
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF20B2AA), // Celestial teal
+            accentColor, // Your emerald green (0xFF26D07C)
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-  BoxShadow(
-    color: const Color(0xFF20B2AA).withOpacity(0.3), // Celestial teal shadow
-    blurRadius: 10,
-    offset: const Offset(0, 5),
-  ),
-],
+          BoxShadow(
+            color: const Color(
+              0xFF20B2AA,
+            ).withOpacity(0.3), // Celestial teal shadow
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Stack(
         children: [
           // Background animation - made larger
-         Positioned(
-  right: 10,
-  top: -20,
-  child: Opacity(
-    opacity: 0.4, 
-    child: Lottie.asset(
-      'assets/animations/money_coins.json',
-      width: 200,
-      height: 200,
-    ),
-  ),
-),
-          
+          Positioned(
+            right: 10,
+            top: -20,
+            child: Opacity(
+              opacity: 0.4,
+              child: Lottie.asset(
+                'assets/animations/money_coins.json',
+                width: 200,
+                height: 200,
+              ),
+            ),
+          ),
+
           // Content
           Padding(
             padding: const EdgeInsets.all(16),
@@ -562,7 +578,9 @@ final String reason = reasonData is String
                         },
                         style: OutlinedButton.styleFrom(
                           backgroundColor: Colors.white.withOpacity(0.2),
-                          side: BorderSide(color: Colors.white.withOpacity(0.5)),
+                          side: BorderSide(
+                            color: Colors.white.withOpacity(0.5),
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -581,7 +599,9 @@ final String reason = reasonData is String
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          savingsProvider.applyAISavingSuggestion(targetGoal.id);
+                          savingsProvider.applyAISavingSuggestion(
+                            targetGoal.id,
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
@@ -604,7 +624,7 @@ final String reason = reasonData is String
               ],
             ),
           ),
-          
+
           // Close button
           Positioned(
             top: 8,
@@ -619,11 +639,7 @@ final String reason = reasonData is String
                   color: Colors.white.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: 16,
-                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 16),
               ),
             ),
           ),
@@ -634,7 +650,7 @@ final String reason = reasonData is String
 
   Widget _buildSavingsGoalsTab(SavingsProvider savingsProvider) {
     final List<String> categories = ['All', 'Active', 'Completed', 'Upcoming'];
-    
+
     List<SavingsGoal> filteredGoals;
     switch (_selectedCategory) {
       case 'Active':
@@ -651,7 +667,7 @@ final String reason = reasonData is String
         filteredGoals = savingsProvider.savingsGoals;
         break;
     }
-    
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
@@ -666,7 +682,7 @@ final String reason = reasonData is String
               itemBuilder: (context, index) {
                 final category = categories[index];
                 final isSelected = category == _selectedCategory;
-                
+
                 return GestureDetector(
                   onTap: () {
                     setState(() {
@@ -675,18 +691,25 @@ final String reason = reasonData is String
                   },
                   child: Container(
                     margin: const EdgeInsets.only(right: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: isSelected ? accentColor : Colors.grey[100],
                       borderRadius: BorderRadius.circular(20),
-                      border: !isSelected ? Border.all(color: Colors.grey[300]!) : null,
-                      boxShadow: isSelected ? [
-                        BoxShadow(
-                          color: accentColor.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ] : null,
+                      border: !isSelected
+                          ? Border.all(color: Colors.grey[300]!)
+                          : null,
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: accentColor.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Text(
                       category,
@@ -701,33 +724,33 @@ final String reason = reasonData is String
               },
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Goals list
           Expanded(
             child: savingsProvider.isLoading
                 ? Center(child: _buildLoadingAnimation())
                 : filteredGoals.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: EdgeInsets.zero,
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: filteredGoals.length,
-                        itemBuilder: (context, index) {
-                          final goal = filteredGoals[index];
-                          return _buildGoalCard(goal);
-                        },
-                      ),
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: EdgeInsets.zero,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: filteredGoals.length,
+                    itemBuilder: (context, index) {
+                      final goal = filteredGoals[index];
+                      return _buildGoalCard(goal);
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildChallengesTab(SavingsProvider savingsProvider) {
     final challenges = savingsProvider.savingsChallenges;
-    
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
@@ -771,10 +794,7 @@ final String reason = reasonData is String
                       SizedBox(height: 6),
                       Text(
                         'Join fun savings challenges to boost your savings with a structured approach!',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.black87,
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.black87),
                       ),
                     ],
                   ),
@@ -782,9 +802,9 @@ final String reason = reasonData is String
               ],
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Popular challenges section
           const Text(
             'Popular Challenges',
@@ -794,102 +814,105 @@ final String reason = reasonData is String
               color: Colors.black87,
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Challenges list
           Expanded(
             child: savingsProvider.isLoading
                 ? Center(child: _buildLoadingAnimation())
                 : challenges.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Lottie.asset(
-                              'assets/animations/empty_challenges.json',
-                              height: 150,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No challenges available',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Lottie.asset(
+                          'assets/animations/empty_challenges.json',
+                          height: 150,
                         ),
-                      )
-                    : ListView.builder(
-                        padding: EdgeInsets.zero,
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: challenges.length,
-                        itemBuilder: (context, index) {
-                          final challenge = challenges[index];
-                        // Safe extraction for all challenge data
-final dynamic titleData = challenge['title'];
-String title = titleData is String 
-    ? titleData 
-    : (titleData is List && titleData.isNotEmpty 
-        ? titleData.first.toString() 
-        : 'Challenge');
+                        const SizedBox(height: 16),
+                        Text(
+                          'No challenges available',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.zero,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: challenges.length,
+                    itemBuilder: (context, index) {
+                      final challenge = challenges[index];
+                      // Safe extraction for all challenge data
+                      final dynamic titleData = challenge['title'];
+                      String title = titleData is String
+                          ? titleData
+                          : (titleData is List && titleData.isNotEmpty
+                                ? titleData.first.toString()
+                                : 'Challenge');
 
-final dynamic descData = challenge['description'];
-String description = descData is String 
-    ? descData 
-    : (descData is List && descData.isNotEmpty 
-        ? descData.first.toString() 
-        : 'Join this savings challenge');
+                      final dynamic descData = challenge['description'];
+                      String description = descData is String
+                          ? descData
+                          : (descData is List && descData.isNotEmpty
+                                ? descData.first.toString()
+                                : 'Join this savings challenge');
 
-final dynamic iconData = challenge['icon'];
-String iconName = iconData is String 
-    ? iconData 
-    : (iconData is List && iconData.isNotEmpty 
-        ? iconData.first.toString() 
-        : 'emoji_events');
+                      final dynamic iconData = challenge['icon'];
+                      String iconName = iconData is String
+                          ? iconData
+                          : (iconData is List && iconData.isNotEmpty
+                                ? iconData.first.toString()
+                                : 'emoji_events');
 
-final dynamic colorData = challenge['color'];
-int colorValue = colorData is int 
-    ? colorData 
-    : (colorData is String 
-        ? int.tryParse(colorData) ?? 0xFF26D07C 
-        : 0xFF26D07C);
+                      final dynamic colorData = challenge['color'];
+                      int colorValue = colorData is int
+                          ? colorData
+                          : (colorData is String
+                                ? int.tryParse(colorData) ?? 0xFF26D07C
+                                : 0xFF26D07C);
 
-final dynamic participantsData = challenge['participants'];
-int participants = participantsData is int 
-    ? participantsData 
-    : (participantsData is String 
-        ? int.tryParse(participantsData) ?? 0 
-        : 0);
+                      final dynamic participantsData =
+                          challenge['participants'];
+                      int participants = participantsData is int
+                          ? participantsData
+                          : (participantsData is String
+                                ? int.tryParse(participantsData) ?? 0
+                                : 0);
 
-final dynamic popularData = challenge['isPopular'];
-bool isPopular = popularData is bool 
-    ? popularData 
-    : (popularData is String 
-        ? (popularData.toLowerCase() == 'true' || popularData.toLowerCase() == 'yes')
-        : false);
+                      final dynamic popularData = challenge['isPopular'];
+                      bool isPopular = popularData is bool
+                          ? popularData
+                          : (popularData is String
+                                ? (popularData.toLowerCase() == 'true' ||
+                                      popularData.toLowerCase() == 'yes')
+                                : false);
 
-final dynamic aiData = challenge['isAiGenerated'];
-bool isAiGenerated = aiData is bool 
-    ? aiData 
-    : (aiData is String 
-        ? (aiData.toLowerCase() == 'true' || aiData.toLowerCase() == 'yes')
-        : false);
-                          
-                          return _buildChallengeCard(
-                            title: title,
-                            description: description,
-                            icon: _getIconData(iconName),
-                            color: Color(colorValue),
-                            participants: participants,
-                            isPopular: isPopular,
-                            isAiGenerated: isAiGenerated,
-                          );
-                        },
-                      ),
+                      final dynamic aiData = challenge['isAiGenerated'];
+                      bool isAiGenerated = aiData is bool
+                          ? aiData
+                          : (aiData is String
+                                ? (aiData.toLowerCase() == 'true' ||
+                                      aiData.toLowerCase() == 'yes')
+                                : false);
+
+                      return _buildChallengeCard(
+                        title: title,
+                        description: description,
+                        icon: _getIconData(iconName),
+                        color: Color(colorValue),
+                        participants: participants,
+                        isPopular: isPopular,
+                        isAiGenerated: isAiGenerated,
+                      );
+                    },
+                  ),
           ),
-          
+
           // Custom challenge button
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -909,7 +932,7 @@ bool isAiGenerated = aiData is bool
       ),
     );
   }
-  
+
   Widget _buildSavingsMetric(String title, String value, IconData icon) {
     return Column(
       children: [
@@ -919,11 +942,7 @@ bool isAiGenerated = aiData is bool
             color: Colors.white.withOpacity(0.2),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 16,
-          ),
+          child: Icon(icon, color: Colors.white, size: 16),
         ),
         const SizedBox(height: 8),
         Text(
@@ -946,12 +965,12 @@ bool isAiGenerated = aiData is bool
       ],
     );
   }
-  
+
   Widget _buildGoalCard(SavingsGoal goal) {
     // Calculate percentage and days left
     final percentage = goal.progressPercentage;
     final daysLeft = goal.daysLeft;
-    
+
     // Determine status color
     Color statusColor;
     if (goal.status == SavingsGoalStatus.completed) {
@@ -961,7 +980,7 @@ bool isAiGenerated = aiData is bool
     } else {
       statusColor = accentColor;
     }
-    
+
     return GestureDetector(
       onTap: () => _showSavingsDetails(context, goal),
       child: Container(
@@ -1014,7 +1033,7 @@ bool isAiGenerated = aiData is bool
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          goal.isCompleted 
+                          goal.isCompleted
                               ? 'Completed on ${DateFormat('d MMM y').format(goal.targetDate)}'
                               : 'Target date: ${DateFormat('d MMM y').format(goal.targetDate)}',
                           style: TextStyle(
@@ -1033,20 +1052,15 @@ bool isAiGenerated = aiData is bool
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: Icon(
-                          Icons.add,
-                          color: accentColor,
-                        ),
-                        onPressed: () => _showAddContributionModal(context, goal),
+                        icon: Icon(Icons.add, color: accentColor),
+                        onPressed: () =>
+                            _showAddContributionModal(context, goal),
                       ),
                     ),
-                  
+
                   // Options menu
                   PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: Colors.grey[600],
-                    ),
+                    icon: Icon(Icons.more_vert, color: Colors.grey[600]),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -1055,7 +1069,8 @@ bool isAiGenerated = aiData is bool
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => CreateGoalScreen(existingGoal: goal),
+                            builder: (context) =>
+                                CreateGoalScreen(existingGoal: goal),
                           ),
                         ).then((_) => _fetchData()); // Refresh after editing
                       } else if (value == 'delete') {
@@ -1100,7 +1115,7 @@ bool isAiGenerated = aiData is bool
                 ],
               ),
             ),
-            
+
             // Progress info
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -1129,9 +1144,9 @@ bool isAiGenerated = aiData is bool
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 12),
-                  
+
                   // Progress bar
                   LinearPercentIndicator(
                     lineHeight: 8.0,
@@ -1143,9 +1158,9 @@ bool isAiGenerated = aiData is bool
                     animation: true,
                     animationDuration: 1000,
                   ),
-                  
+
                   const SizedBox(height: 12),
-                  
+
                   // Status footer
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1153,7 +1168,10 @@ bool isAiGenerated = aiData is bool
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: statusColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
@@ -1170,7 +1188,10 @@ bool isAiGenerated = aiData is bool
                           if (goal.isAiSuggested)
                             Container(
                               margin: const EdgeInsets.only(left: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.amber.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
@@ -1202,15 +1223,23 @@ bool isAiGenerated = aiData is bool
                             Icon(
                               Icons.timelapse,
                               size: 14,
-                              color: daysLeft < 7 ? Colors.red : Colors.grey[600],
+                              color: daysLeft < 7
+                                  ? Colors.red
+                                  : Colors.grey[600],
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              daysLeft <= 0 ? 'Overdue!' : '$daysLeft days left',
+                              daysLeft <= 0
+                                  ? 'Overdue!'
+                                  : '$daysLeft days left',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: daysLeft < 7 ? Colors.red : Colors.grey[600],
-                                fontWeight: daysLeft < 7 ? FontWeight.bold : FontWeight.normal,
+                                color: daysLeft < 7
+                                    ? Colors.red
+                                    : Colors.grey[600],
+                                fontWeight: daysLeft < 7
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
                           ],
@@ -1225,7 +1254,7 @@ bool isAiGenerated = aiData is bool
       ),
     );
   }
-  
+
   Widget _buildChallengeCard({
     required String title,
     required String description,
@@ -1264,11 +1293,7 @@ bool isAiGenerated = aiData is bool
                         color: color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(
-                        icon,
-                        color: color,
-                        size: 24,
-                      ),
+                      child: Icon(icon, color: color, size: 24),
                     ),
                     const SizedBox(width: 12),
                     Text(
@@ -1286,7 +1311,10 @@ bool isAiGenerated = aiData is bool
                     if (isAiGenerated)
                       Container(
                         margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.purple.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
@@ -1294,7 +1322,11 @@ bool isAiGenerated = aiData is bool
                         ),
                         child: Row(
                           children: const [
-                            Icon(Icons.auto_awesome, color: Colors.purple, size: 12),
+                            Icon(
+                              Icons.auto_awesome,
+                              color: Colors.purple,
+                              size: 12,
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'AI',
@@ -1309,7 +1341,10 @@ bool isAiGenerated = aiData is bool
                       ),
                     if (isPopular)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.amber.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
@@ -1343,25 +1378,23 @@ bool isAiGenerated = aiData is bool
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.group,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
+                    Icon(Icons.group, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
                       '$participants participants',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                     ),
                   ],
                 ),
                 SizedBox(
                   height: 36,
                   child: ElevatedButton(
-                    onPressed: () => _showJoinChallengeModal(context, title, description, color),
+                    onPressed: () => _showJoinChallengeModal(
+                      context,
+                      title,
+                      description,
+                      color,
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: color,
                       shape: RoundedRectangleBorder(
@@ -1385,7 +1418,7 @@ bool isAiGenerated = aiData is bool
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -1409,10 +1442,7 @@ bool isAiGenerated = aiData is bool
           Text(
             'Create your first savings goal to start tracking your progress',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
           const SizedBox(height: 20),
           CustomButton(
@@ -1432,7 +1462,7 @@ bool isAiGenerated = aiData is bool
       ),
     );
   }
-  
+
   Widget _buildLoadingAnimation() {
     return Lottie.asset(
       'assets/animations/loading.json',
@@ -1440,29 +1470,46 @@ bool isAiGenerated = aiData is bool
       width: 120,
     );
   }
-  
+
   IconData _getIconData(String iconName) {
     switch (iconName) {
-      case 'laptop': return Icons.laptop;
-      case 'beach_access': return Icons.beach_access;
-      case 'directions_car': return Icons.directions_car;
-      case 'home': return Icons.home;
-      case 'phone_android': return Icons.phone_android;
-      case 'school': return Icons.school;
-      case 'health_and_safety': return Icons.health_and_safety;
-      case 'shopping_bag': return Icons.shopping_bag;
-      case 'attach_money': return Icons.attach_money;
-      case 'account_balance': return Icons.account_balance;
-      case 'trending_up': return Icons.trending_up;
-      case 'calendar_month': return Icons.calendar_month;
-      case 'timer': return Icons.timer;
-      case 'percent': return Icons.percent;
-      case 'auto_awesome': return Icons.auto_awesome;
-      case 'money_off': return Icons.money_off;
-      default: return Icons.savings;
+      case 'laptop':
+        return Icons.laptop;
+      case 'beach_access':
+        return Icons.beach_access;
+      case 'directions_car':
+        return Icons.directions_car;
+      case 'home':
+        return Icons.home;
+      case 'phone_android':
+        return Icons.phone_android;
+      case 'school':
+        return Icons.school;
+      case 'health_and_safety':
+        return Icons.health_and_safety;
+      case 'shopping_bag':
+        return Icons.shopping_bag;
+      case 'attach_money':
+        return Icons.attach_money;
+      case 'account_balance':
+        return Icons.account_balance;
+      case 'trending_up':
+        return Icons.trending_up;
+      case 'calendar_month':
+        return Icons.calendar_month;
+      case 'timer':
+        return Icons.timer;
+      case 'percent':
+        return Icons.percent;
+      case 'auto_awesome':
+        return Icons.auto_awesome;
+      case 'money_off':
+        return Icons.money_off;
+      default:
+        return Icons.savings;
     }
   }
-  
+
   void _showSavingsDetails(BuildContext context, SavingsGoal goal) {
     showModalBottomSheet(
       context: context,
@@ -1471,10 +1518,10 @@ bool isAiGenerated = aiData is bool
       builder: (context) => _buildSavingsDetailsSheet(context, goal),
     );
   }
-  
+
   Widget _buildSavingsDetailsSheet(BuildContext context, SavingsGoal goal) {
     final size = MediaQuery.of(context).size;
-    
+
     return Container(
       height: size.height * 0.85,
       decoration: const BoxDecoration(
@@ -1498,10 +1545,7 @@ bool isAiGenerated = aiData is bool
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  goal.color,
-                  goal.color.withOpacity(0.8),
-                ],
+                colors: [goal.color, goal.color.withOpacity(0.8)],
               ),
             ),
             child: Column(
@@ -1516,7 +1560,7 @@ bool isAiGenerated = aiData is bool
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Goal info
                 Row(
                   children: [
@@ -1560,9 +1604,9 @@ bool isAiGenerated = aiData is bool
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Progress indicator
                 Row(
                   children: [
@@ -1633,17 +1677,20 @@ bool isAiGenerated = aiData is bool
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  goal.isCompleted 
-                                      ? 'Completed!' 
-                                      : (goal.daysLeft <= 0 
-                                          ? 'Overdue!' 
-                                          : '${goal.daysLeft} days left'),
+                                  goal.isCompleted
+                                      ? 'Completed!'
+                                      : (goal.daysLeft <= 0
+                                            ? 'Overdue!'
+                                            : '${goal.daysLeft} days left'),
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -1654,7 +1701,10 @@ bool isAiGenerated = aiData is bool
                               if (goal.recommendedWeeklySaving != null) ...[
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(12),
@@ -1679,7 +1729,7 @@ bool isAiGenerated = aiData is bool
               ],
             ),
           ),
-          
+
           // Tabs and content
           Expanded(
             child: DefaultTabController(
@@ -1701,7 +1751,7 @@ bool isAiGenerated = aiData is bool
                       children: [
                         // Transactions tab
                         _buildTransactionsTab(goal),
-                        
+
                         // AI Insights tab
                         _buildInsightsTab(goal),
                       ],
@@ -1711,7 +1761,7 @@ bool isAiGenerated = aiData is bool
               ),
             ),
           ),
-          
+
           // Action buttons
           if (!goal.isCompleted)
             Padding(
@@ -1725,7 +1775,8 @@ bool isAiGenerated = aiData is bool
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => CreateGoalScreen(existingGoal: goal),
+                            builder: (context) =>
+                                CreateGoalScreen(existingGoal: goal),
                           ),
                         ).then((_) => _fetchData()); // Refresh after editing
                       },
@@ -1765,10 +1816,10 @@ bool isAiGenerated = aiData is bool
       ),
     );
   }
-  
+
   Widget _buildTransactionsTab(SavingsGoal goal) {
     final transactions = goal.transactions;
-    
+
     if (transactions.isEmpty) {
       return Center(
         child: Column(
@@ -1782,29 +1833,24 @@ bool isAiGenerated = aiData is bool
             const SizedBox(height: 16),
             const Text(
               'No transactions yet',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
               'Add your first contribution to start tracking',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
           ],
         ),
       );
     }
-    
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: transactions.length,
       itemBuilder: (context, index) {
-        final transaction = transactions[transactions.length - 1 - index]; // Reverse order
+        final transaction =
+            transactions[transactions.length - 1 - index]; // Reverse order
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -1822,11 +1868,7 @@ bool isAiGenerated = aiData is bool
                   color: goal.color.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.arrow_upward,
-                  color: goal.color,
-                  size: 20,
-                ),
+                child: Icon(Icons.arrow_upward, color: goal.color, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1834,7 +1876,9 @@ bool isAiGenerated = aiData is bool
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      transaction.note.isNotEmpty ? transaction.note : 'Contribution',
+                      transaction.note.isNotEmpty
+                          ? transaction.note
+                          : 'Contribution',
                       style: const TextStyle(
                         fontWeight: FontWeight.w500,
                         fontSize: 15,
@@ -1843,10 +1887,7 @@ bool isAiGenerated = aiData is bool
                     const SizedBox(height: 4),
                     Text(
                       DateFormat('d MMM y, h:mm a').format(transaction.date),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -1865,15 +1906,20 @@ bool isAiGenerated = aiData is bool
       },
     );
   }
-  
+
   Widget _buildInsightsTab(SavingsGoal goal) {
     return FutureBuilder<Map<String, dynamic>>(
-      future: Provider.of<SavingsProvider>(context, listen: false).getGoalInsights(goal.id),
+      future: Provider.of<SavingsProvider>(
+        context,
+        listen: false,
+      ).getGoalInsights(goal.id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: Lottie.asset('assets/animations/loading.json', height: 100));
+          return Center(
+            child: Lottie.asset('assets/animations/loading.json', height: 100),
+          );
         }
-        
+
         if (snapshot.hasError || !snapshot.hasData) {
           return Center(
             child: Column(
@@ -1881,52 +1927,57 @@ bool isAiGenerated = aiData is bool
               children: [
                 const Icon(Icons.error_outline, size: 48, color: Colors.grey),
                 const SizedBox(height: 16),
-                Text('Could not load insights', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+                Text(
+                  'Could not load insights',
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                ),
               ],
             ),
           );
         }
-        
+
         final insights = snapshot.data!;
-        
+
         // Safe extraction for insights data
-final dynamic motivationalData = insights['motivationalMessage'];
-final motivationalMessage = motivationalData is String 
-    ? motivationalData 
-    : (motivationalData is List && motivationalData.isNotEmpty 
-        ? motivationalData.first.toString() 
-        : 'Keep going!');
+        final dynamic motivationalData = insights['motivationalMessage'];
+        final motivationalMessage = motivationalData is String
+            ? motivationalData
+            : (motivationalData is List && motivationalData.isNotEmpty
+                  ? motivationalData.first.toString()
+                  : 'Keep going!');
 
-final dynamic adviceData = insights['practicalAdvice'];
-final practicalAdvice = adviceData is String 
-    ? adviceData 
-    : (adviceData is List && adviceData.isNotEmpty 
-        ? adviceData.first.toString() 
-        : 'Save consistently to reach your goal.');
+        final dynamic adviceData = insights['practicalAdvice'];
+        final practicalAdvice = adviceData is String
+            ? adviceData
+            : (adviceData is List && adviceData.isNotEmpty
+                  ? adviceData.first.toString()
+                  : 'Save consistently to reach your goal.');
 
-final dynamic adjustmentData = insights['needsAdjustment'];
-final needsAdjustment = adjustmentData is bool 
-    ? adjustmentData 
-    : (adjustmentData is String 
-        ? (adjustmentData.toLowerCase() == 'true' || adjustmentData.toLowerCase() == 'yes')
-        : false);
+        final dynamic adjustmentData = insights['needsAdjustment'];
+        final needsAdjustment = adjustmentData is bool
+            ? adjustmentData
+            : (adjustmentData is String
+                  ? (adjustmentData.toLowerCase() == 'true' ||
+                        adjustmentData.toLowerCase() == 'yes')
+                  : false);
 
-final dynamic forecastData = insights['forecast'];
-final forecast = forecastData is String 
-    ? forecastData 
-    : (forecastData is List && forecastData.isNotEmpty 
-        ? forecastData.first.toString() 
-        : 'on track');
+        final dynamic forecastData = insights['forecast'];
+        final forecast = forecastData is String
+            ? forecastData
+            : (forecastData is List && forecastData.isNotEmpty
+                  ? forecastData.first.toString()
+                  : 'on track');
 
-final dynamic weeklyData = insights['weeklySavingsNeeded'];
-final weeklySavingsNeeded = weeklyData is double 
-    ? weeklyData 
-    : (weeklyData is int 
-        ? weeklyData.toDouble() 
-        : (weeklyData is String 
-            ? double.tryParse(weeklyData) ?? (goal.dailySavingNeeded * 7)
-            : (goal.dailySavingNeeded * 7)));
-        
+        final dynamic weeklyData = insights['weeklySavingsNeeded'];
+        final weeklySavingsNeeded = weeklyData is double
+            ? weeklyData
+            : (weeklyData is int
+                  ? weeklyData.toDouble()
+                  : (weeklyData is String
+                        ? double.tryParse(weeklyData) ??
+                              (goal.dailySavingNeeded * 7)
+                        : (goal.dailySavingNeeded * 7)));
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1934,19 +1985,23 @@ final weeklySavingsNeeded = weeklyData is double
             children: [
               _buildInsightCard(
                 title: 'AI Forecast',
-                content: 'Based on your current savings pattern, you are $forecast to reach your goal.',
+                content:
+                    'Based on your current savings pattern, you are $forecast to reach your goal.',
                 icon: Icons.trending_up,
-                color: forecast.contains('track') ? Colors.green : Colors.orange,
+                color: forecast.contains('track')
+                    ? Colors.green
+                    : Colors.orange,
                 animation: 'assets/animations/forecast.json',
               ),
-              
+
               _buildInsightCard(
                 title: 'Weekly Target',
-                content: 'You should save ${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(weeklySavingsNeeded)} per week to reach your goal on time.',
+                content:
+                    'You should save ${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(weeklySavingsNeeded)} per week to reach your goal on time.',
                 icon: Icons.calendar_today,
                 color: const Color.fromARGB(255, 47, 245, 202),
               ),
-              
+
               _buildInsightCard(
                 title: 'Motivation',
                 content: motivationalMessage,
@@ -1954,18 +2009,19 @@ final weeklySavingsNeeded = weeklyData is double
                 color: Colors.amber,
                 animation: 'assets/animations/motivation.json',
               ),
-              
+
               _buildInsightCard(
                 title: 'Smart Advice',
                 content: practicalAdvice,
                 icon: Icons.lightbulb,
                 color: Colors.purple,
               ),
-              
+
               if (needsAdjustment)
                 _buildInsightCard(
                   title: 'Goal Adjustment Needed',
-                  content: 'Your goal may need adjustment. Consider extending the deadline or adjusting the target amount.',
+                  content:
+                      'Your goal may need adjustment. Consider extending the deadline or adjusting the target amount.',
                   icon: Icons.build,
                   color: Colors.red,
                   isWarning: true,
@@ -1991,7 +2047,9 @@ final weeklySavingsNeeded = weeklyData is double
       decoration: BoxDecoration(
         color: isWarning ? Colors.red[50] : color.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isWarning ? Colors.red[200]! : color.withOpacity(0.2)),
+        border: Border.all(
+          color: isWarning ? Colors.red[200]! : color.withOpacity(0.2),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2043,7 +2101,7 @@ final weeklySavingsNeeded = weeklyData is double
   void _showAddContributionModal(BuildContext context, SavingsGoal goal) {
     final TextEditingController amountController = TextEditingController();
     final TextEditingController noteController = TextEditingController();
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2070,7 +2128,11 @@ final weeklySavingsNeeded = weeklyData is double
                       color: goal.color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(_getIconData(goal.iconAsset), color: goal.color, size: 24),
+                    child: Icon(
+                      _getIconData(goal.iconAsset),
+                      color: goal.color,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Column(
@@ -2086,10 +2148,7 @@ final weeklySavingsNeeded = weeklyData is double
                       const SizedBox(height: 4),
                       Text(
                         goal.title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[700],
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                       ),
                     ],
                   ),
@@ -2098,7 +2157,9 @@ final weeklySavingsNeeded = weeklyData is double
               const SizedBox(height: 24),
               TextField(
                 controller: amountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Amount',
                   prefixText: AppConfig.currencySymbol + ' ',
@@ -2128,15 +2189,16 @@ final weeklySavingsNeeded = weeklyData is double
                   onPressed: () {
                     final amount = double.tryParse(amountController.text);
                     if (amount != null && amount > 0) {
-                      final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
-                      savingsProvider.addContribution(
-                        goal.id,
-                        amount,
-                        noteController.text,
-                      ).then((_) {
-                        // After adding contribution, fetch the updated data
-                        _fetchData();
-                      });
+                      final savingsProvider = Provider.of<SavingsProvider>(
+                        context,
+                        listen: false,
+                      );
+                      savingsProvider
+                          .addContribution(goal.id, amount, noteController.text)
+                          .then((_) {
+                            // After adding contribution, fetch the updated data
+                            _fetchData();
+                          });
                       Navigator.pop(context);
                     }
                   },
@@ -2170,7 +2232,9 @@ final weeklySavingsNeeded = weeklyData is double
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete Goal?'),
-        content: Text('Are you sure you want to delete "${goal.title}"? This action cannot be undone.'),
+        content: Text(
+          'Are you sure you want to delete "${goal.title}"? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -2178,7 +2242,10 @@ final weeklySavingsNeeded = weeklyData is double
           ),
           ElevatedButton(
             onPressed: () {
-              final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+              final savingsProvider = Provider.of<SavingsProvider>(
+                context,
+                listen: false,
+              );
               savingsProvider.deleteSavingsGoal(goal.id).then((_) {
                 // After deleting, fetch the updated data
                 _fetchData();
@@ -2187,7 +2254,9 @@ final weeklySavingsNeeded = weeklyData is double
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
@@ -2231,7 +2300,7 @@ final weeklySavingsNeeded = weeklyData is double
     final TextEditingController titleController = TextEditingController();
     final TextEditingController descriptionController = TextEditingController();
     bool useAI = true;
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2253,10 +2322,7 @@ final weeklySavingsNeeded = weeklyData is double
               children: [
                 const Text(
                   'Create Challenge',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
                 TextField(
@@ -2284,12 +2350,14 @@ final weeklySavingsNeeded = weeklyData is double
                   children: [
                     const Text(
                       'Use AI to enhance challenge',
-                      style: TextStyle(
-                        fontSize: 16,
-                      ),
+                      style: TextStyle(fontSize: 16),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.auto_awesome, color: Colors.amber, size: 20),
+                    const Icon(
+                      Icons.auto_awesome,
+                      color: Colors.amber,
+                      size: 20,
+                    ),
                     const Spacer(),
                     Switch(
                       value: useAI,
@@ -2307,15 +2375,20 @@ final weeklySavingsNeeded = weeklyData is double
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
-                      savingsProvider.createSavingsChallenge(
-                        title: titleController.text,
-                        description: descriptionController.text,
-                        useAI: useAI,
-                      ).then((_) {
-                        // After creating, fetch the updated data
-                        _fetchData();
-                      });
+                      final savingsProvider = Provider.of<SavingsProvider>(
+                        context,
+                        listen: false,
+                      );
+                      savingsProvider
+                          .createSavingsChallenge(
+                            title: titleController.text,
+                            description: descriptionController.text,
+                            useAI: useAI,
+                          )
+                          .then((_) {
+                            // After creating, fetch the updated data
+                            _fetchData();
+                          });
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
@@ -2343,7 +2416,12 @@ final weeklySavingsNeeded = weeklyData is double
     );
   }
 
-  void _showJoinChallengeModal(BuildContext context, String title, String description, Color color) {
+  void _showJoinChallengeModal(
+    BuildContext context,
+    String title,
+    String description,
+    Color color,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2383,10 +2461,7 @@ final weeklySavingsNeeded = weeklyData is double
                       const SizedBox(height: 4),
                       Text(
                         title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[700],
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                       ),
                     ],
                   ),
@@ -2403,17 +2478,11 @@ final weeklySavingsNeeded = weeklyData is double
               ),
             ),
             const SizedBox(height: 16),
-            Lottie.asset(
-              'assets/animations/challenge.json',
-              height: 120,
-            ),
+            Lottie.asset('assets/animations/challenge.json', height: 120),
             const SizedBox(height: 20),
             const Text(
               'Challenge Rules:',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -2443,7 +2512,10 @@ final weeklySavingsNeeded = weeklyData is double
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      final savingsProvider = Provider.of<SavingsProvider>(context, listen: false);
+                      final savingsProvider = Provider.of<SavingsProvider>(
+                        context,
+                        listen: false,
+                      );
                       savingsProvider.joinSavingsChallenge(title).then((_) {
                         // After joining, fetch the updated data
                         _fetchData();
@@ -2508,7 +2580,7 @@ final weeklySavingsNeeded = weeklyData is double
             onTap: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Syncing with cloud...'))
+                const SnackBar(content: Text('Syncing with cloud...')),
               );
               _fetchData();
             },
