@@ -144,7 +144,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                               unselectedLabelColor: Colors.grey[700],
                               labelStyle: const TextStyle(
                                 fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w400,
                                 letterSpacing: 0.5,
                                 fontFamily: 'Dm sans'
                               ),
