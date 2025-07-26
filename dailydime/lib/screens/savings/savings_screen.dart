@@ -867,14 +867,14 @@ final dynamic popularData = challenge['isPopular'];
 bool isPopular = popularData is bool 
     ? popularData 
     : (popularData is String 
-        ? popularData.toLowerCase() == 'true' 
+        ? (popularData.toLowerCase() == 'true' || popularData.toLowerCase() == 'yes')
         : false);
 
 final dynamic aiData = challenge['isAiGenerated'];
 bool isAiGenerated = aiData is bool 
     ? aiData 
     : (aiData is String 
-        ? aiData.toLowerCase() == 'true' 
+        ? (aiData.toLowerCase() == 'true' || aiData.toLowerCase() == 'yes')
         : false);
                           
                           return _buildChallengeCard(
@@ -1889,12 +1889,43 @@ bool isAiGenerated = aiData is bool
         
         final insights = snapshot.data!;
         
-        // Safe access with null checking
-        final motivationalMessage = insights['motivationalMessage'] as String? ?? 'Keep going!';
-        final practicalAdvice = insights['practicalAdvice'] as String? ?? 'Save consistently to reach your goal.';
-        final needsAdjustment = insights['needsAdjustment'] as bool? ?? false;
-        final forecast = insights['forecast'] as String? ?? 'on track';
-        final weeklySavingsNeeded = insights['weeklySavingsNeeded'] as double? ?? goal.dailySavingNeeded * 7;
+        // Safe extraction for insights data
+final dynamic motivationalData = insights['motivationalMessage'];
+final motivationalMessage = motivationalData is String 
+    ? motivationalData 
+    : (motivationalData is List && motivationalData.isNotEmpty 
+        ? motivationalData.first.toString() 
+        : 'Keep going!');
+
+final dynamic adviceData = insights['practicalAdvice'];
+final practicalAdvice = adviceData is String 
+    ? adviceData 
+    : (adviceData is List && adviceData.isNotEmpty 
+        ? adviceData.first.toString() 
+        : 'Save consistently to reach your goal.');
+
+final dynamic adjustmentData = insights['needsAdjustment'];
+final needsAdjustment = adjustmentData is bool 
+    ? adjustmentData 
+    : (adjustmentData is String 
+        ? (adjustmentData.toLowerCase() == 'true' || adjustmentData.toLowerCase() == 'yes')
+        : false);
+
+final dynamic forecastData = insights['forecast'];
+final forecast = forecastData is String 
+    ? forecastData 
+    : (forecastData is List && forecastData.isNotEmpty 
+        ? forecastData.first.toString() 
+        : 'on track');
+
+final dynamic weeklyData = insights['weeklySavingsNeeded'];
+final weeklySavingsNeeded = weeklyData is double 
+    ? weeklyData 
+    : (weeklyData is int 
+        ? weeklyData.toDouble() 
+        : (weeklyData is String 
+            ? double.tryParse(weeklyData) ?? (goal.dailySavingNeeded * 7)
+            : (goal.dailySavingNeeded * 7)));
         
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
