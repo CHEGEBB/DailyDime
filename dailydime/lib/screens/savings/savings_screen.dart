@@ -453,14 +453,14 @@ final String reason = reasonData is String
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 24, 16, 0),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.blue[700]!,
-            Colors.blue[600]!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+       gradient: LinearGradient(
+  colors: [
+    const Color(0xFF20B2AA), // Celestial teal
+    accentColor, // Your emerald green (0xFF26D07C)
+  ],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
