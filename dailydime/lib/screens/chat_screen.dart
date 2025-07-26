@@ -310,7 +310,7 @@ class TypingIndicator extends StatelessWidget {
                   width: 60,
                   height: 20,
                   child: Lottie.asset(
-                    'assets/animations/typing_indicator.json',
+                    'animations/typing_indicator.json',
                     fit: BoxFit.contain,
                   ),
                 ),
