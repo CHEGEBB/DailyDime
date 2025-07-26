@@ -31,7 +31,7 @@ class ProfileService {
     try {
       return await _databases.createDocument(
         databaseId: AppConfig.databaseId,
-        collectionId: 'profiles', // We'll create this collection
+        collectionId: '68851a2d000ed1577872', // We'll create this collection
         documentId: ID.unique(),
         data: {
           'userId': userId,

@@ -6,7 +6,7 @@ import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/services/auth_service.dart';
 import 'package:dailydime/services/profile_service.dart';
 import 'package:dailydime/widgets/common/custom_button.dart';
-import 'package:dailydime/widgets/common/custom_text_field.dart';
+import 'package:dailydime/widgets/common/custom_text_field_profile.dart';
 import 'package:dailydime/widgets/common/loading_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -487,7 +487,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                         image: const DecorationImage(
-                          image: AssetImage('assets/images/pattern5.png'),
+                          image: AssetImage('assets/images/pattern8.png'),
                           fit: BoxFit.cover,
                           opacity: 0.4,
                         ),
@@ -940,7 +940,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             onPressed: _confirmLogout,
                             isOutlined: true,
                             icon: Icons.logout,
-                            buttonColor: Colors.red.shade700,
+                            buttonColor: Colors.red,
                           ),
                           
                           const SizedBox(height: 16),
