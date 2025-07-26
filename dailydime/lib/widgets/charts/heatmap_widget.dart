@@ -5,6 +5,68 @@ import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:dailydime/config/app_config.dart';
 
+// This is the class your code is looking for
+class SpendingHeatmap extends StatelessWidget {
+  final List<Map<String, dynamic>> heatmapData;
+  
+  const SpendingHeatmap({
+    Key? key,
+    required this.heatmapData,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return SpendingHeatmapWidget(
+      startDate: DateTime.now().subtract(const Duration(days: 90)),
+      spendingData: _convertToDateMap(heatmapData),
+    );
+  }
+
+  Map<DateTime, double> _convertToDateMap(List<Map<String, dynamic>> data) {
+    Map<DateTime, double> result = {};
+    
+    for (var item in data) {
+      try {
+        // Handle different possible date formats
+        DateTime date;
+        if (item['date'] is String) {
+          date = DateTime.parse(item['date']);
+        } else if (item['date'] is DateTime) {
+          date = item['date'];
+        } else {
+          continue; // Skip invalid date entries
+        }
+        
+        // Handle different possible amount formats
+        double amount = 0.0;
+        if (item['amount'] is num) {
+          amount = item['amount'].toDouble();
+        } else if (item['amount'] is String) {
+          amount = double.tryParse(item['amount']) ?? 0.0;
+        } else if (item['spending'] is num) {
+          amount = item['spending'].toDouble();
+        } else if (item['spending'] is String) {
+          amount = double.tryParse(item['spending']) ?? 0.0;
+        } else if (item['total'] is num) {
+          amount = item['total'].toDouble();
+        } else if (item['total'] is String) {
+          amount = double.tryParse(item['total']) ?? 0.0;
+        }
+        
+        // Normalize date to midnight for consistent mapping
+        DateTime normalizedDate = DateTime(date.year, date.month, date.day);
+        result[normalizedDate] = amount;
+      } catch (e) {
+        // Skip invalid entries
+        continue;
+      }
+    }
+    
+    return result;
+  }
+}
+
+// Your existing class - keeping it unchanged
 class SpendingHeatmapWidget extends StatelessWidget {
   final DateTime startDate;
   final Map<DateTime, double> spendingData;
@@ -56,6 +118,8 @@ class SpendingHeatmapWidget extends StatelessWidget {
   }
 
   Map<DateTime, int> _processDataset() {
+    if (spendingData.isEmpty) return {};
+    
     // Find the max spending to normalize values
     double maxSpending = 0;
     spendingData.forEach((date, amount) {
@@ -64,11 +128,15 @@ class SpendingHeatmapWidget extends StatelessWidget {
       }
     });
 
+    if (maxSpending == 0) return {};
+
     // Convert to HeatMap dataset (values from 0-5)
     Map<DateTime, int> dataset = {};
     spendingData.forEach((date, amount) {
-      final normalizedValue = (amount / maxSpending * 4).ceil();
-      dataset[date] = normalizedValue;
+      if (amount > 0) {
+        final normalizedValue = (amount / maxSpending * 4).ceil();
+        dataset[date] = normalizedValue;
+      }
     });
 
     return dataset;
