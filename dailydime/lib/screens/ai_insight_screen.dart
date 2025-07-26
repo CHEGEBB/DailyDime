@@ -431,7 +431,7 @@ class _AIInsightScreenState extends State<AIInsightScreen> with SingleTickerProv
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Lottie.asset(
-            'assets/animations/empty_state.json',
+            'assets/animations/empty_goals.json',
             width: 200,
             height: 200,
           ),
@@ -1210,7 +1210,7 @@ class _AIInsightScreenState extends State<AIInsightScreen> with SingleTickerProv
             child: Opacity(
               opacity: 0.2,
               child: Image.asset(
-                'assets/images/plant_decoration.png',
+                'assets/images/pattern5.png',
                 width: 80,
               ),
             ),
