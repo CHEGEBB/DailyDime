@@ -473,18 +473,18 @@ final String reason = reasonData is String
       child: Stack(
         children: [
           // Background animation - made larger
-          Positioned(
-            right: -30,
-            top: -30,
-            child: Opacity(
-              opacity: 0.3, // Slightly more visible
-              child: Lottie.asset(
-                'assets/animations/money_coins.json',
-                width: 150, // Larger animation
-                height: 150,
-              ),
-            ),
-          ),
+         Positioned(
+  right: -40,
+  top: -40,
+  child: Opacity(
+    opacity: 0.4, // More visible
+    child: Lottie.asset(
+      'assets/animations/money_coins.json',
+      width: 200, // Much larger animation
+      height: 200,
+    ),
+  ),
+),
           
           // Content
           Padding(
