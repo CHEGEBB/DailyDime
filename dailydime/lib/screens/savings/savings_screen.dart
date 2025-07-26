@@ -474,13 +474,13 @@ final String reason = reasonData is String
         children: [
           // Background animation - made larger
          Positioned(
-  right: -40,
-  top: -40,
+  right: -10,
+  top: -20,
   child: Opacity(
     opacity: 0.4, // More visible
     child: Lottie.asset(
       'assets/animations/money_coins.json',
-      width: 200, // Much larger animation
+      width: 200,
       height: 200,
     ),
   ),
