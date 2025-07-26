@@ -45,7 +45,7 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
     const TransactionsScreen(),
     const BudgetScreen(),
     const SavingsScreen(),
-    const AiInsightScreen(),
+    const AIInsightScreen(), // Changed from AiInsightScreen to AIInsightScreen
   ];
 
   void _navigateToTab(int index) {
