@@ -6,7 +6,7 @@ import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/models/transaction.dart';
 import 'package:dailydime/providers/insight_provider.dart';
 import 'package:dailydime/widgets/financial_score_card.dart';
-import 'package:dailydime/widgets/charts_widget.dart';
+import 'package:dailydime/widgets/charts/charts_widget.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:dailydime/services/ai_notification_service.dart';

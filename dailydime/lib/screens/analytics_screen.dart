@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/providers/insight_provider.dart';
-import 'package:dailydime/widgets/heatmap_widget.dart';
-import 'package:dailydime/widgets/charts_widget.dart';
+import 'package:dailydime/widgets/charts/heatmap_widget.dart';
+import 'package:dailydime/widgets/charts/charts_widget.dart';
 import 'package:lottie/lottie.dart';
 
 class AnalyticsScreen extends StatefulWidget {
