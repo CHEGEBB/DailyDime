@@ -463,12 +463,12 @@ final String reason = reasonData is String
 ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+  BoxShadow(
+    color: const Color(0xFF20B2AA).withOpacity(0.3), // Celestial teal shadow
+    blurRadius: 10,
+    offset: const Offset(0, 5),
+  ),
+],
       ),
       child: Stack(
         children: [
