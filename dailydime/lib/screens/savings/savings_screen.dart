@@ -405,12 +405,29 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
     final suggestion = savingsProvider.aiSavingSuggestion;
     if (suggestion == null) return const SizedBox();
     
-    // Safely access values with null checking to prevent type errors
-    final String targetGoalName = suggestion['recommendedGoal'] as String? ?? 'emergency';
-    final double savingAmount = (suggestion['savingAmount'] is double) 
-        ? suggestion['savingAmount'] as double 
-        : 0.0;
-    final String reason = suggestion['reason'] as String? ?? 'You have extra funds available.';
+   // Safe data extraction with proper type checking
+final dynamic recommendedGoalData = suggestion['recommendedGoal'];
+final String targetGoalName = recommendedGoalData is String 
+    ? recommendedGoalData 
+    : (recommendedGoalData is List && recommendedGoalData.isNotEmpty 
+        ? recommendedGoalData.first.toString() 
+        : 'emergency');
+
+final dynamic savingAmountData = suggestion['savingAmount'];
+final double savingAmount = savingAmountData is double 
+    ? savingAmountData 
+    : (savingAmountData is int 
+        ? savingAmountData.toDouble() 
+        : (savingAmountData is String 
+            ? double.tryParse(savingAmountData) ?? 0.0 
+            : 0.0));
+
+final dynamic reasonData = suggestion['reason'];
+final String reason = reasonData is String 
+    ? reasonData 
+    : (reasonData is List && reasonData.isNotEmpty 
+        ? reasonData.first.toString() 
+        : 'You have extra funds available.');
     
     // Find target goal with proper null checking
     final targetGoal = savingsProvider.savingsGoals.firstWhere(
@@ -810,14 +827,55 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                         itemCount: challenges.length,
                         itemBuilder: (context, index) {
                           final challenge = challenges[index];
-                          // Safe access with null checks
-                          String title = challenge['title'] as String? ?? 'Challenge';
-                          String description = challenge['description'] as String? ?? 'Join this savings challenge';
-                          String iconName = challenge['icon'] as String? ?? 'emoji_events';
-                          int colorValue = challenge['color'] as int? ?? 0xFF26D07C;
-                          int participants = challenge['participants'] as int? ?? 0;
-                          bool isPopular = challenge['isPopular'] as bool? ?? false;
-                          bool isAiGenerated = challenge['isAiGenerated'] as bool? ?? false;
+                        // Safe extraction for all challenge data
+final dynamic titleData = challenge['title'];
+String title = titleData is String 
+    ? titleData 
+    : (titleData is List && titleData.isNotEmpty 
+        ? titleData.first.toString() 
+        : 'Challenge');
+
+final dynamic descData = challenge['description'];
+String description = descData is String 
+    ? descData 
+    : (descData is List && descData.isNotEmpty 
+        ? descData.first.toString() 
+        : 'Join this savings challenge');
+
+final dynamic iconData = challenge['icon'];
+String iconName = iconData is String 
+    ? iconData 
+    : (iconData is List && iconData.isNotEmpty 
+        ? iconData.first.toString() 
+        : 'emoji_events');
+
+final dynamic colorData = challenge['color'];
+int colorValue = colorData is int 
+    ? colorData 
+    : (colorData is String 
+        ? int.tryParse(colorData) ?? 0xFF26D07C 
+        : 0xFF26D07C);
+
+final dynamic participantsData = challenge['participants'];
+int participants = participantsData is int 
+    ? participantsData 
+    : (participantsData is String 
+        ? int.tryParse(participantsData) ?? 0 
+        : 0);
+
+final dynamic popularData = challenge['isPopular'];
+bool isPopular = popularData is bool 
+    ? popularData 
+    : (popularData is String 
+        ? popularData.toLowerCase() == 'true' 
+        : false);
+
+final dynamic aiData = challenge['isAiGenerated'];
+bool isAiGenerated = aiData is bool 
+    ? aiData 
+    : (aiData is String 
+        ? aiData.toLowerCase() == 'true' 
+        : false);
                           
                           return _buildChallengeCard(
                             title: title,
@@ -1855,7 +1913,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                 title: 'Weekly Target',
                 content: 'You should save ${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(weeklySavingsNeeded)} per week to reach your goal on time.',
                 icon: Icons.calendar_today,
-                color: Colors.blue,
+                color: const Color.fromARGB(255, 47, 245, 202),
               ),
               
               _buildInsightCard(
