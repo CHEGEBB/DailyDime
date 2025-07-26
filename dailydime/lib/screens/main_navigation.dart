@@ -5,7 +5,7 @@ import 'package:dailydime/screens/home_screen.dart';
 import 'package:dailydime/screens/transactions/transactions_screen.dart';
 import 'package:dailydime/screens/budget/budget_screen.dart';
 import 'package:dailydime/screens/savings/savings_screen.dart';
-import 'package:dailydime/screens/ai_chat_screen.dart';
+import 'package:dailydime/screens/ai_insight_screen.dart';
 import 'package:dailydime/screens/profile_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -45,7 +45,7 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
     const TransactionsScreen(),
     const BudgetScreen(),
     const SavingsScreen(),
-    const AIChatScreen(),
+    const AiInsightScreen(),
   ];
 
   void _navigateToTab(int index) {
