@@ -146,6 +146,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.5,
+                                fontFamily: 'Dm sans'
                               ),
                               tabs: const [
                                 Tab(text: 'Savings Goals', height: 50),
