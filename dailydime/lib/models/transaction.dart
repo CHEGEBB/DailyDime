@@ -219,4 +219,6 @@ class Transaction {
       description,
     );
   }
+
+  get type => null;
 }
