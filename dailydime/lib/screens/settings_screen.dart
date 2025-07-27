@@ -1,716 +1,455 @@
-// lib/screens/settings_screen.dart
+// lib/services/profile_service.dart
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/models.dart' as models;
 import 'package:dailydime/config/app_config.dart';
-import 'package:dailydime/services/auth_service.dart';
-import 'package:dailydime/utils/settings_storage.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:lottie/lottie.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+class ProfileService {
+  static final ProfileService _instance = ProfileService._internal();
+  factory ProfileService() => _instance;
+  ProfileService._internal();
 
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
+  // Initialize Appwrite client
+  final Client client = Client()
+    ..setEndpoint(AppConfig.appwriteEndpoint)
+    ..setProject(AppConfig.appwriteProjectId)
+    ..setSelfSigned(status: true); // Remove this in production
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  final SettingsStorage _settingsStorage = SettingsStorage();
-  final _authService = AuthService();
-  
-  // Theme colors
-  final Color primaryColor = const Color(0xFF26D07C); // Emerald
-  final Color secondaryColor = const Color(0xFF0AB3B8); // Teal
-  final Color backgroundColor = const Color(0xFFF8F9FA);
-  
-  // Settings state
-  bool _darkModeEnabled = false;
-  bool _notificationsEnabled = true;
-  bool _biometricsEnabled = false;
-  bool _isLoading = true;
-  bool _isSaving = false;
-  String _appVersion = '';
-  String _appName = '';
-  
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-    _loadAppInfo();
-  }
-  
-  Future<void> _loadSettings() async {
-    setState(() => _isLoading = true);
-    
+  // Initialize Appwrite services
+  late final Databases _databases = Databases(client);
+  late final Storage _storage = Storage(client);
+
+  // Create a profile for a user
+  Future<models.Document> createUserProfile({
+    required String userId,
+    required String name,
+    required String email,
+    String? phone,
+    String? occupation,
+    String? location,
+  }) async {
     try {
-      await _settingsStorage.init();
+      return await _databases.createDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: ID.unique(),
+        data: {
+          'userId': userId,
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'occupation': occupation,
+          'location': location,
+          'profileImageId': null,
+          'notificationsEnabled': true,
+          'darkModeEnabled': false,
+          'biometricsEnabled': false,
+          'createdAt': DateTime.now().toIso8601String(),
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Get a user's profile by their user ID
+  Future<models.Document?> getUserProfile(String userId) async {
+    try {
+      final response = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [
+          Query.equal('userId', userId),
+        ],
+      );
+
+      if (response.documents.isNotEmpty) {
+        return response.documents.first;
+      }
       
-      setState(() {
-        _darkModeEnabled = _settingsStorage.getDarkMode();
-        _notificationsEnabled = _settingsStorage.getNotifications();
-        _biometricsEnabled = _settingsStorage.getBiometrics();
-      });
+      return null;
     } catch (e) {
-      print('Error loading settings: $e');
-    } finally {
-      setState(() => _isLoading = false);
+      rethrow;
     }
   }
-  
-  Future<void> _loadAppInfo() async {
+
+  // Get a profile by profile document ID
+  Future<models.Document?> getProfileById(String profileId) async {
     try {
-      PackageInfo packageInfo = await PackageInfo.fromPlatform();
-      setState(() {
-        _appName = packageInfo.appName;
-        _appVersion = packageInfo.version;
-      });
+      return await _databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+      );
     } catch (e) {
-      print('Error loading app info: $e');
-      setState(() {
-        _appName = 'DailyDime';
-        _appVersion = AppConfig.appVersion;
-      });
+      if (e is AppwriteException && e.code == 404) {
+        return null; // Profile not found
+      }
+      rethrow;
     }
   }
-  
-  Future<void> _toggleDarkMode(bool value) async {
-    setState(() {
-      _isSaving = true;
-      _darkModeEnabled = value;
-    });
-    
+
+  // Update a user's profile with expanded preferences
+  Future<models.Document> updateUserProfile({
+    required String profileId,
+    String? phone,
+    String? occupation,
+    String? location,
+    bool? notificationsEnabled,
+    bool? darkModeEnabled,
+    bool? biometricsEnabled,
+  }) async {
     try {
-      await _settingsStorage.setDarkMode(value);
-      await _syncSettingsWithServer();
+      Map<String, dynamic> data = {
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+
+      if (phone != null) data['phone'] = phone;
+      if (occupation != null) data['occupation'] = occupation;
+      if (location != null) data['location'] = location;
+      if (notificationsEnabled != null) data['notificationsEnabled'] = notificationsEnabled;
+      if (darkModeEnabled != null) data['darkModeEnabled'] = darkModeEnabled;
+      if (biometricsEnabled != null) data['biometricsEnabled'] = biometricsEnabled;
+
+      return await _databases.updateDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+        data: data,
+      );
     } catch (e) {
-      print('Error saving dark mode setting: $e');
-      setState(() => _darkModeEnabled = !value); // Revert if error
-      _showErrorSnackBar('Failed to save setting');
-    } finally {
-      setState(() => _isSaving = false);
+      rethrow;
     }
   }
-  
-  Future<void> _toggleNotifications(bool value) async {
-    setState(() {
-      _isSaving = true;
-      _notificationsEnabled = value;
-    });
-    
+
+  // Update a specific user preference
+  Future<models.Document> updateUserPreference({
+    required String profileId,
+    required String preferenceKey,
+    required dynamic preferenceValue,
+  }) async {
     try {
-      await _settingsStorage.setNotifications(value);
-      await _syncSettingsWithServer();
+      // Validate preference keys
+      final validPreferences = [
+        'notificationsEnabled',
+        'darkModeEnabled',
+        'biometricsEnabled',
+        'phone',
+        'occupation',
+        'location',
+        'name',
+        'email'
+      ];
+
+      if (!validPreferences.contains(preferenceKey)) {
+        throw Exception('Invalid preference key: $preferenceKey');
+      }
+
+      return await _databases.updateDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+        data: {
+          preferenceKey: preferenceValue,
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+      );
     } catch (e) {
-      print('Error saving notifications setting: $e');
-      setState(() => _notificationsEnabled = !value); // Revert if error
-      _showErrorSnackBar('Failed to save setting');
-    } finally {
-      setState(() => _isSaving = false);
+      rethrow;
     }
   }
-  
-  Future<void> _toggleBiometrics(bool value) async {
-    setState(() {
-      _isSaving = true;
-      _biometricsEnabled = value;
-    });
-    
+
+  // Convenience methods for updating specific preferences
+  Future<models.Document> updateNotificationPreference({
+    required String profileId,
+    required bool enabled,
+  }) async {
+    return await updateUserPreference(
+      profileId: profileId,
+      preferenceKey: 'notificationsEnabled',
+      preferenceValue: enabled,
+    );
+  }
+
+  Future<models.Document> updateDarkModePreference({
+    required String profileId,
+    required bool enabled,
+  }) async {
+    return await updateUserPreference(
+      profileId: profileId,
+      preferenceKey: 'darkModeEnabled',
+      preferenceValue: enabled,
+    );
+  }
+
+  Future<models.Document> updateBiometricsPreference({
+    required String profileId,
+    required bool enabled,
+  }) async {
+    return await updateUserPreference(
+      profileId: profileId,
+      preferenceKey: 'biometricsEnabled',
+      preferenceValue: enabled,
+    );
+  }
+
+  Future<models.Document> updatePhoneNumber({
+    required String profileId,
+    required String phone,
+  }) async {
+    return await updateUserPreference(
+      profileId: profileId,
+      preferenceKey: 'phone',
+      preferenceValue: phone,
+    );
+  }
+
+  Future<models.Document> updateOccupation({
+    required String profileId,
+    required String occupation,
+  }) async {
+    return await updateUserPreference(
+      profileId: profileId,
+      preferenceKey: 'occupation',
+      preferenceValue: occupation,
+    );
+  }
+
+  Future<models.Document> updateLocation({
+    required String profileId,
+    required String location,
+  }) async {
+    return await updateUserPreference(
+      profileId: profileId,
+      preferenceKey: 'location',
+      preferenceValue: location,
+    );
+  }
+
+  // Update multiple user preferences at once
+  Future<models.Document> updateUserPreferences({
+    required String profileId,
+    required Map<String, dynamic> preferences,
+  }) async {
     try {
-      await _settingsStorage.setBiometrics(value);
-      await _syncSettingsWithServer();
+      // Validate preference keys
+      final validPreferences = [
+        'notificationsEnabled',
+        'darkModeEnabled',
+        'biometricsEnabled',
+        'phone',
+        'occupation',
+        'location',
+        'name',
+        'email'
+      ];
+
+      for (String key in preferences.keys) {
+        if (!validPreferences.contains(key)) {
+          throw Exception('Invalid preference key: $key');
+        }
+      }
+
+      Map<String, dynamic> data = Map<String, dynamic>.from(preferences);
+      data['updatedAt'] = DateTime.now().toIso8601String();
+
+      return await _databases.updateDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+        data: data,
+      );
     } catch (e) {
-      print('Error saving biometrics setting: $e');
-      setState(() => _biometricsEnabled = !value); // Revert if error
-      _showErrorSnackBar('Failed to save setting');
-    } finally {
-      setState(() => _isSaving = false);
+      rethrow;
     }
   }
-  
-  Future<void> _syncSettingsWithServer() async {
-    // TODO: Implement sync with Appwrite server
-    // This would typically update the user profile document with the settings
-    await Future.delayed(const Duration(milliseconds: 300)); // Simulate network request
-  }
-  
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red.shade800,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 4),
-      ),
-    );
-  }
-  
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: primaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-  
-  Future<void> _launchURL(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      _showErrorSnackBar('Could not launch $url');
+
+  // Upload a profile image (supports both web and mobile)
+  Future<String?> uploadProfileImage(dynamic fileSource, String fileName) async {
+    try {
+      InputFile inputFile;
+      
+      if (kIsWeb) {
+        // For web, expect Uint8List bytes
+        if (fileSource is Uint8List) {
+          inputFile = InputFile.fromBytes(
+            bytes: fileSource,
+            filename: fileName,
+          );
+        } else {
+          throw Exception('For web platform, file must be provided as Uint8List');
+        }
+      } else {
+        // For mobile/desktop, expect file path
+        if (fileSource is String) {
+          inputFile = InputFile.fromPath(
+            path: fileSource,
+            filename: fileName,
+          );
+        } else {
+          throw Exception('For mobile/desktop platforms, file must be provided as file path');
+        }
+      }
+      
+      final file = await _storage.createFile(
+        bucketId: AppConfig.mainBucket,
+        fileId: ID.unique(),
+        file: inputFile,
+      );
+      
+      return file.$id;
+    } catch (e) {
+      rethrow;
     }
   }
-  
-  @override
-  Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-      ),
-      child: Scaffold(
-        backgroundColor: backgroundColor,
-        body: _isLoading
-            ? Center(
-                child: Lottie.asset(
-                  'assets/animations/loading.json',
-                  width: 120,
-                  height: 120,
-                ),
-              )
-            : _buildSettingsContent(),
-      ),
-    );
-  }
-  
-  Widget _buildSettingsContent() {
-    return SafeArea(
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Header
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: backgroundColor,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.chevron_left,
-                color: Colors.black87,
-                size: 28,
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            title: const Text(
-              'Settings',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.settings,
-                    color: primaryColor,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          // Settings list
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // Appearance section
-                _buildSectionHeader('Appearance'),
-                const SizedBox(height: 10),
-                
-                _buildSettingsCard([
-                  _buildSwitchTile(
-                    title: 'Dark Mode',
-                    subtitle: 'Enable dark theme throughout the app',
-                    icon: Icons.dark_mode_outlined,
-                    iconColor: const Color(0xFF5E72E4),
-                    value: _darkModeEnabled,
-                    onChanged: _isSaving ? null : _toggleDarkMode,
-                  ),
-                  _buildSettingsTile(
-                    title: 'App Theme',
-                    subtitle: 'Customize app colors',
-                    icon: Icons.color_lens_outlined,
-                    iconColor: const Color(0xFFFB6340),
-                    onTap: () {
-                      // Navigate to theme settings
-                      _showSuccessSnackBar('Theme customization coming soon!');
-                    },
-                  ),
-                ]),
-                
-                const SizedBox(height: 20),
-                
-                // Notifications section
-                _buildSectionHeader('Notifications'),
-                const SizedBox(height: 10),
-                
-                _buildSettingsCard([
-                  _buildSwitchTile(
-                    title: 'Push Notifications',
-                    subtitle: 'Get important alerts and reminders',
-                    icon: Icons.notifications_outlined,
-                    iconColor: const Color(0xFFFF9500),
-                    value: _notificationsEnabled,
-                    onChanged: _isSaving ? null : _toggleNotifications,
-                  ),
-                  _buildSettingsTile(
-                    title: 'Budget Alerts',
-                    subtitle: 'Configure budget threshold notifications',
-                    icon: Icons.money_off_outlined,
-                    iconColor: const Color(0xFFFFD60A),
-                    onTap: () {
-                      // Navigate to budget alerts settings
-                      _showSuccessSnackBar('Budget alerts configuration coming soon!');
-                    },
-                  ),
-                  _buildSettingsTile(
-                    title: 'Reminder Schedule',
-                    subtitle: 'Set times for budget check reminders',
-                    icon: Icons.schedule_outlined,
-                    iconColor: const Color(0xFF11CDEF),
-                    onTap: () {
-                      // Navigate to reminder settings
-                      _showSuccessSnackBar('Reminder settings coming soon!');
-                    },
-                  ),
-                ]),
-                
-                const SizedBox(height: 20),
-                
-                // Security section
-                _buildSectionHeader('Security'),
-                const SizedBox(height: 10),
-                
-                _buildSettingsCard([
-                  _buildSwitchTile(
-                    title: 'Biometric Authentication',
-                    subtitle: 'Use fingerprint or face ID to login',
-                    icon: Icons.fingerprint,
-                    iconColor: primaryColor,
-                    value: _biometricsEnabled,
-                    onChanged: _isSaving ? null : _toggleBiometrics,
-                  ),
-                  _buildSettingsTile(
-                    title: 'Change Password',
-                    subtitle: 'Update your account password',
-                    icon: Icons.lock_outline,
-                    iconColor: const Color(0xFFFF3B30),
-                    onTap: () {
-                      // Navigate back to profile to use the change password dialog
-                      Navigator.of(context).pop();
-                      _showSuccessSnackBar('Please use the Change Password button on your profile');
-                    },
-                  ),
-                  _buildSettingsTile(
-                    title: 'Privacy Settings',
-                    subtitle: 'Manage your data and privacy',
-                    icon: Icons.shield_outlined,
-                    iconColor: const Color(0xFF007AFF),
-                    onTap: () {
-                      // Navigate to privacy settings
-                      _showSuccessSnackBar('Privacy settings coming soon!');
-                    },
-                  ),
-                ]),
-                
-                const SizedBox(height: 20),
-                
-                // Data & Sync section
-                _buildSectionHeader('Data & Sync'),
-                const SizedBox(height: 10),
-                
-                _buildSettingsCard([
-                  _buildSettingsTile(
-                    title: 'Export Data',
-                    subtitle: 'Export your financial data as CSV or PDF',
-                    icon: Icons.download_outlined,
-                    iconColor: const Color(0xFF34C759),
-                    onTap: () {
-                      // Show export options
-                      _showSuccessSnackBar('Data export feature coming soon!');
-                    },
-                  ),
-                  _buildSettingsTile(
-                    title: 'Backup & Restore',
-                    subtitle: 'Backup your data to the cloud',
-                    icon: Icons.cloud_upload_outlined,
-                    iconColor: const Color(0xFF5856D6),
-                    onTap: () {
-                      // Navigate to backup settings
-                      _showSuccessSnackBar('Backup feature coming soon!');
-                    },
-                  ),
-                  _buildSettingsTile(
-                    title: 'Sync Frequency',
-                    subtitle: 'Choose how often data syncs to the cloud',
-                    icon: Icons.sync_outlined,
-                    iconColor: const Color(0xFF5AC8FA),
-                    onTap: () {
-                      // Navigate to sync settings
-                      _showSuccessSnackBar('Sync settings coming soon!');
-                    },
-                  ),
-                ]),
-                
-                const SizedBox(height: 20),
-                
-                // Support section
-                _buildSectionHeader('Support & Feedback'),
-                const SizedBox(height: 10),
-                
-                _buildSettingsCard([
-                  _buildSettingsTile(
-                    title: 'Help Center',
-                    subtitle: 'Get help with using the app',
-                    icon: Icons.help_outline,
-                    iconColor: const Color(0xFF34C759),
-                    onTap: () {
-                      _launchURL('https://example.com/help');
-                    },
-                  ),
-                  _buildSettingsTile(
-                    title: 'Contact Support',
-                    subtitle: 'Email our support team',
-                    icon: Icons.email_outlined,
-                    iconColor: const Color(0xFF5856D6),
-                    onTap: () {
-                      _launchURL('mailto:support@dailydime.app');
-                    },
-                  ),
-                  _buildSettingsTile(
-                    title: 'Report a Bug',
-                    subtitle: 'Help us improve the app',
-                    icon: Icons.bug_report_outlined,
-                    iconColor: const Color(0xFFFF2D55),
-                    onTap: () {
-                      _launchURL('https://example.com/bug-report');
-                    },
-                  ),
-                  _buildSettingsTile(
-                    title: 'Rate the App',
-                    subtitle: 'Leave a review on the app store',
-                    icon: Icons.star_outline,
-                    iconColor: const Color(0xFFFFCC00),
-                    onTap: () {
-                      _launchURL('https://example.com/rate');
-                    },
-                  ),
-                ]),
-                
-                const SizedBox(height: 20),
-                
-                // About section
-                _buildSectionHeader('About'),
-                const SizedBox(height: 10),
-                
-                _buildSettingsCard([
-                  _buildSettingsTile(
-                    title: 'About $_appName',
-                    subtitle: 'Learn more about the app',
-                    icon: Icons.info_outline,
-                    iconColor: const Color(0xFF007AFF),
-                    onTap: () {
-                      _showAboutDialog();
-                    },
-                  ),
-                  _buildSettingsTile(
-                    title: 'Terms of Service',
-                    subtitle: 'Read our terms and conditions',
-                    icon: Icons.description_outlined,
-                    iconColor: const Color(0xFF8E8E93),
-                    onTap: () {
-                      _launchURL('https://example.com/terms');
-                    },
-                  ),
-                  _buildSettingsTile(
-                    title: 'Privacy Policy',
-                    subtitle: 'View our privacy policy',
-                    icon: Icons.privacy_tip_outlined,
-                    iconColor: const Color(0xFF8E8E93),
-                    onTap: () {
-                      _launchURL('https://example.com/privacy');
-                    },
-                  ),
-                  _buildSettingsTile(
-                    title: 'Third-Party Licenses',
-                    subtitle: 'View licenses for libraries we use',
-                    icon: Icons.policy_outlined,
-                    iconColor: const Color(0xFF8E8E93),
-                    onTap: () {
-                      // Show licenses page
-                      showLicensePage(
-                        context: context,
-                        applicationName: _appName,
-                        applicationVersion: _appVersion,
-                        applicationIcon: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Image.asset(
-                            'assets/images/app_icon.png',
-                            width: 50,
-                            height: 50,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ]),
-                
-                // App version
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 30.0),
-                  child: Center(
-                    child: Text(
-                      '$_appName v$_appVersion',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ),
-                ),
-              ]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 8, bottom: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey[800],
+
+  // Helper method to upload from bytes (useful for web)
+  Future<String?> uploadProfileImageFromBytes(Uint8List bytes, String fileName) async {
+    try {
+      final file = await _storage.createFile(
+        bucketId: AppConfig.mainBucket,
+        fileId: ID.unique(),
+        file: InputFile.fromBytes(
+          bytes: bytes,
+          filename: fileName,
         ),
-      ),
-    ).animate().fadeIn(duration: 400.ms).slideX(
-      begin: -0.1,
-      end: 0,
-      curve: Curves.easeOutQuad,
-      duration: 500.ms,
-    );
+      );
+      
+      return file.$id;
+    } catch (e) {
+      rethrow;
+    }
   }
-  
-  Widget _buildSettingsCard(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: children,
-      ),
-    ).animate().fadeIn(duration: 500.ms);
-  }
-  
-  Widget _buildSettingsTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color iconColor,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right,
-              color: Colors.grey,
-              size: 20,
-            ),
-          ],
+
+  // Helper method to upload from path (useful for mobile)
+  Future<String?> uploadProfileImageFromPath(String filePath, String fileName) async {
+    try {
+      final file = await _storage.createFile(
+        bucketId: AppConfig.mainBucket,
+        fileId: ID.unique(),
+        file: InputFile.fromPath(
+          path: filePath,
+          filename: fileName,
         ),
-      ),
-    );
+      );
+      
+      return file.$id;
+    } catch (e) {
+      rethrow;
+    }
   }
-  
-  Widget _buildSwitchTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color iconColor,
-    required bool value,
-    required Function(bool)? onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch.adaptive(
-            value: value,
-            onChanged: onChanged,
-            activeColor: primaryColor,
-            activeTrackColor: primaryColor.withOpacity(0.3),
-          ),
-        ],
-      ),
-    );
+
+  // Update profile with new image ID
+  Future<models.Document> updateProfileImage({
+    required String profileId,
+    required String imageId,
+  }) async {
+    try {
+      // Delete old profile image if exists
+      final profile = await _databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+      );
+      
+      final oldImageId = profile.data['profileImageId'];
+      
+      if (oldImageId != null) {
+        try {
+          await _storage.deleteFile(
+            bucketId: AppConfig.mainBucket,
+            fileId: oldImageId,
+          );
+        } catch (e) {
+          // Ignore errors when deleting old images
+          print('Error deleting old image: $e');
+        }
+      }
+      
+      // Update profile with new image ID
+      return await _databases.updateDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+        data: {
+          'profileImageId': imageId,
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      rethrow;
+    }
   }
-  
-  void _showAboutDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Image.asset(
-                'assets/images/app_icon.png',
-                width: 30,
-                height: 30,
-              ),
-              const SizedBox(width: 10),
-              Text(_appName),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Version: $_appVersion'),
-              const SizedBox(height: 10),
-              const Text(
-                'DailyDime is a personal finance app designed to help you track your expenses, '
-                'set budgets, and achieve your financial goals.',
-              ),
-              const SizedBox(height: 10),
-              const Text('Developed with ❤️ using Flutter.'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'Close',
-                style: TextStyle(color: primaryColor),
-              ),
-            ),
-          ],
-        );
-      },
-    );
+
+  // Get profile image URL
+  Future<String> getProfileImageUrl(String imageId) async {
+    try {
+      return _storage.getFileView(
+        bucketId: AppConfig.mainBucket,
+        fileId: imageId,
+      ).toString();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Delete a profile
+  Future<void> deleteProfile(String profileId) async {
+    try {
+      // First, get the profile to check for profile image
+      final profile = await _databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+      );
+      
+      // Delete profile image if exists
+      final imageId = profile.data['profileImageId'];
+      if (imageId != null) {
+        try {
+          await _storage.deleteFile(
+            bucketId: AppConfig.mainBucket,
+            fileId: imageId,
+          );
+        } catch (e) {
+          print('Error deleting profile image: $e');
+        }
+      }
+      
+      // Delete the profile document
+      await _databases.deleteDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Check if profile exists
+  Future<bool> profileExists(String userId) async {
+    try {
+      final profile = await getUserProfile(userId);
+      return profile != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Get profile preference value
+  Future<T?> getProfilePreference<T>(String profileId, String preferenceKey) async {
+    try {
+      final profile = await getProfileById(profileId);
+      if (profile != null) {
+        return profile.data[preferenceKey] as T?;
+      }
+      return null;
+    } catch (e) {
+      rethrow;
+    }
   }
 }

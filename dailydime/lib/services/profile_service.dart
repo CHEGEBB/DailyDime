@@ -33,7 +33,7 @@ class ProfileService {
     try {
       return await _databases.createDocument(
         databaseId: AppConfig.databaseId,
-        collectionId: '68851a2d000ed1577872',
+        collectionId: '68851a2d000ed1577872', // We'll create this collection
         documentId: ID.unique(),
         data: {
           'userId': userId,
@@ -44,8 +44,6 @@ class ProfileService {
           'location': location,
           'profileImageId': null,
           'notificationsEnabled': true,
-          'darkModeEnabled': false,
-          'biometricsEnabled': false,
           'createdAt': DateTime.now().toIso8601String(),
           'updatedAt': DateTime.now().toIso8601String(),
         },
@@ -76,15 +74,13 @@ class ProfileService {
     }
   }
 
-  // Update a user's profile with expanded preferences
+  // Update a user's profile
   Future<models.Document> updateUserProfile({
     required String profileId,
     String? phone,
     String? occupation,
     String? location,
     bool? notificationsEnabled,
-    bool? darkModeEnabled,
-    bool? biometricsEnabled,
   }) async {
     try {
       Map<String, dynamic> data = {
@@ -95,8 +91,6 @@ class ProfileService {
       if (occupation != null) data['occupation'] = occupation;
       if (location != null) data['location'] = location;
       if (notificationsEnabled != null) data['notificationsEnabled'] = notificationsEnabled;
-      if (darkModeEnabled != null) data['darkModeEnabled'] = darkModeEnabled;
-      if (biometricsEnabled != null) data['biometricsEnabled'] = biometricsEnabled;
 
       return await _databases.updateDocument(
         databaseId: AppConfig.databaseId,
@@ -233,6 +227,136 @@ class ProfileService {
         bucketId: AppConfig.mainBucket,
         fileId: imageId,
       ).toString();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Delete a user's profile
+  Future<bool> deleteUserProfile(String profileId) async {
+    try {
+      // Get profile to check for image
+      final profile = await _databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+      );
+      
+      // Delete profile image if exists
+      final imageId = profile.data['profileImageId'];
+      if (imageId != null) {
+        try {
+          await _storage.deleteFile(
+            bucketId: AppConfig.mainBucket,
+            fileId: imageId,
+          );
+        } catch (e) {
+          print('Error deleting profile image: $e');
+        }
+      }
+      
+      // Delete the profile document
+      await _databases.deleteDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        documentId: profileId,
+      );
+      
+      return true;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Get all profiles (for admin purposes)
+  Future<List<models.Document>> getAllProfiles({
+    int limit = 25,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [
+          Query.limit(limit),
+          Query.offset(offset),
+          Query.orderDesc('createdAt'),
+        ],
+      );
+      
+      return response.documents;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Search profiles by name or email
+  Future<List<models.Document>> searchProfiles(String searchTerm) async {
+    try {
+      final response = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [
+          Query.or([
+            Query.search('name', searchTerm),
+            Query.search('email', searchTerm),
+          ]),
+          Query.limit(50),
+        ],
+      );
+      
+      return response.documents;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Check if profile exists for user
+  Future<bool> profileExists(String userId) async {
+    try {
+      final profile = await getUserProfile(userId);
+      return profile != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Get profile statistics
+  Future<Map<String, int>> getProfileStats() async {
+    try {
+      final response = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [Query.limit(1)],
+      );
+      
+      int totalProfiles = response.total;
+      
+      // Count profiles with images
+      final profilesWithImages = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [
+          Query.isNotNull('profileImageId'),
+          Query.limit(1),
+        ],
+      );
+      
+      // Count profiles with notifications enabled
+      final profilesWithNotifications = await _databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: '68851a2d000ed1577872',
+        queries: [
+          Query.equal('notificationsEnabled', true),
+          Query.limit(1),
+        ],
+      );
+      
+      return {
+        'totalProfiles': totalProfiles,
+        'profilesWithImages': profilesWithImages.total,
+        'profilesWithNotifications': profilesWithNotifications.total,
+      };
     } catch (e) {
       rethrow;
     }
