@@ -312,10 +312,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _navigateToSettings() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const SettingsScreen()));
-  }
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => const SettingsScreen(),
+    ),
+  );
+}
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
