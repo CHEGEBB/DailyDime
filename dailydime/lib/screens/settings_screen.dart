@@ -160,8 +160,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
       if (widget.profileId != null) {
         await _profileService.updateUserPreference(
           profileId: widget.profileId!,
-          key: key,
-          value: value, preferenceKey: '', preferenceValue: null,
+          preferenceKey: key,
+          preferenceValue: value,
         );
       }
     } catch (e) {

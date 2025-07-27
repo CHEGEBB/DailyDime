@@ -129,7 +129,7 @@ class ProfileService {
   Future<models.Document> updateUserPreference({
     required String profileId,
     required String preferenceKey,
-    required dynamic preferenceValue, required String key, required bool value,
+    required dynamic preferenceValue,
   }) async {
     try {
       // Validate preference keys
