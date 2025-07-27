@@ -1077,8 +1077,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _showChangePasswordDialog();
             },
             style: ElevatedButton.styleFrom(
-              foregroundColor: const Color.fromARGB(255, 30, 219, 172),
-              backgroundColor: const Color(0xFFFFF5F2),
+              foregroundColor: const Color.fromARGB(255, 231, 238, 236),
+              backgroundColor: const Color.fromARGB(255, 66, 238, 186),
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1110,8 +1110,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: ElevatedButton(
             onPressed: _confirmLogout,
             style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.red.shade700,
-              backgroundColor: const Color(0xFFFFF2F2),
+              foregroundColor: const Color.fromARGB(255, 231, 238, 236),
+              backgroundColor: const Color.fromARGB(255, 66, 238, 186),
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
