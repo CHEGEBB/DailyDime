@@ -14,7 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:glass_kit/glass_kit.dart';
+import 'package:dailydime/widgets/common/glass_kit.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:blurrycontainer/blurrycontainer.dart';
