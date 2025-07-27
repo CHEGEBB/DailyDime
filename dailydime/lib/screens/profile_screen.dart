@@ -1122,14 +1122,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.logout, color: Colors.red.shade700, size: 18),
+                Icon(Icons.logout, color: const Color.fromARGB(255, 231, 238, 236), size: 18),
                 const SizedBox(width: 8),
                 Text(
                   'Logout',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: Colors.red.shade700,
+                    color: const Color.fromARGB(255, 231, 238, 236),
                   ),
                 ),
               ],
