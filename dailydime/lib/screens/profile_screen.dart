@@ -71,6 +71,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -462,32 +464,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               // Settings button
               Positioned(
-                top: 50,
-                right: 20,
-                child: InkWell(
-                  onTap: _navigateToSettings,
-                  borderRadius: BorderRadius.circular(15),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: const Icon(
-                      Icons.settings,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
+  top: 50,
+  right: 20,
+  child: GestureDetector(
+    onTap: () {
+      print('Settings button tapped!'); // Debug print
+      _navigateToSettings();
+    },
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: const Icon(
+        Icons.settings,
+        color: Colors.white,
+        size: 22,
+      ),
+    ),
+  ),
+),
               // Back button if needed (uncomment if required)
               Positioned(
                 top: 50,
                 left: 20,
                 child: InkWell(
                   onTap: () => Navigator.of(context).pop(),
-                  borderRadius: BorderRadius.circular(50),
+                  borderRadius: BorderRadius.circular(15),
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
