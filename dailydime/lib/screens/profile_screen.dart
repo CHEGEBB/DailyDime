@@ -71,8 +71,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -312,12 +310,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _navigateToSettings() {
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (context) => const SettingsScreen(),
-    ),
-  );
-}
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const SettingsScreen()));
+  }
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -450,64 +446,92 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           child: Stack(
+            clipBehavior: Clip.none, // This is important
             children: [
               // Background pattern
-              Opacity(
-                opacity: 0.1,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage('assets/images/pattern8.png'),
-                      fit: BoxFit.cover,
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.1,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/pattern8.png'),
+                        fit: BoxFit.cover,
+                      ),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(30),
+                        bottomRight: Radius.circular(30),
+                      ),
                     ),
                   ),
                 ),
               ),
 
-              // Settings button
+              // Settings button - ABSOLUTE POSITIONING
               Positioned(
-  top: 50,
-  right: 20,
-  child: GestureDetector(
-    onTap: () {
-      print('Settings button tapped!'); // Debug print
-      _navigateToSettings();
-    },
-    child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: const Icon(
-        Icons.settings,
-        color: Colors.white,
-        size: 22,
-      ),
-    ),
-  ),
-),
-              // Back button if needed (uncomment if required)
-              Positioned(
-                top: 50,
-                left: 20,
-                child: InkWell(
-                  onTap: () => Navigator.of(context).pop(),
-                  borderRadius: BorderRadius.circular(15),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(15),
+                top:
+                    MediaQuery.of(context).padding.top +
+                    10, // Use MediaQuery for status bar
+                right: 20,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      print('Settings button clicked!');
+                      _navigateToSettings();
+                    },
+                    borderRadius: BorderRadius.circular(15),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.settings,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.chevron_left,
-                      color: Colors.white,
-                      size: 22,
+                  ),
+                ),
+              ),
+
+              // Back button - ABSOLUTE POSITIONING
+              Positioned(
+                top:
+                    MediaQuery.of(context).padding.top +
+                    10, // Use MediaQuery for status bar
+                left: 20,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      print('Back button clicked!');
+                      Navigator.of(context).pop();
+                    },
+                    borderRadius: BorderRadius.circular(15),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.chevron_left,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                   ),
                 ),
@@ -1053,7 +1077,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _showChangePasswordDialog();
             },
             style: ElevatedButton.styleFrom(
-              foregroundColor: const Color(0xFFFB6340),
+              foregroundColor: const Color.fromARGB(255, 30, 219, 172),
               backgroundColor: const Color(0xFFFFF5F2),
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(
@@ -1067,7 +1091,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Icon(
                   Icons.lock_outline,
-                  color: const Color(0xFFFB6340),
+                  color: const Color.fromARGB(255, 51, 245, 187),
                   size: 18,
                 ),
                 const SizedBox(width: 8),
