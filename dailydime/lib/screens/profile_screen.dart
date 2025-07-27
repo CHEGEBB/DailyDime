@@ -410,6 +410,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.height < 600;
     
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -429,79 +430,325 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : RefreshIndicator(
                 color: primaryColor,
                 onRefresh: _loadUserData,
-                child: _buildProfileContent(screenSize),
+                child: _buildProfileContent(screenSize, isSmallScreen),
               ),
       ),
     );
   }
   
-  Widget _buildProfileContent(Size screenSize) {
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(
-        parent: AlwaysScrollableScrollPhysics(),
-      ),
-      slivers: [
-        // Modern floating profile header
-        SliverPersistentHeader(
-          delegate: _ProfileHeaderDelegate(
-            expandedHeight: 300,
-            profileImageUrl: _profileImageUrl,
-            userName: _currentUser?.name ?? 'Loading...',
-            userEmail: _currentUser?.email ?? 'Loading...',
-            isEditing: _isEditing,
-            isSaving: _isSaving,
-            primaryColor: primaryColor,
-            secondaryColor: secondaryColor,
-            accentColor: accentColor,
-            onEditPressed: () {
-              if (_isEditing) {
-                // Save changes
-                _updateProfile();
-              } else {
-                // Enter edit mode
-                setState(() {
-                  _isEditing = true;
-                });
-              }
-            },
-            onSettingsPressed: _navigateToSettings,
-            onImageTap: _isEditing ? _pickImage : null,
-          ),
-          pinned: true,
-        ),
-        
-        // Profile form content
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+  Widget _buildProfileContent(Size screenSize, bool isSmallScreen) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        children: [
+          // Fixed header with back button
+          _buildFixedHeader(screenSize, isSmallScreen),
+          
+          // Content
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: screenSize.width < 360 ? 12.0 : 16.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 30),
+                SizedBox(height: isSmallScreen ? 16 : 24),
                 
                 // Personal Information section
                 _buildSectionHeader('Personal Information', Icons.person_outline),
-                const SizedBox(height: 16),
-                _buildProfileForm(),
+                const SizedBox(height: 12),
+                _buildProfileForm(screenSize, isSmallScreen),
                 
-                const SizedBox(height: 30),
+                SizedBox(height: isSmallScreen ? 16 : 24),
                 
                 // Account Statistics section
                 _buildSectionHeader('Account Statistics', Icons.bar_chart_outlined),
-                const SizedBox(height: 16),
-                _buildStatisticsSection(),
+                const SizedBox(height: 12),
+                _buildStatisticsSection(screenSize, isSmallScreen),
                 
-                const SizedBox(height: 30),
+                SizedBox(height: isSmallScreen ? 16 : 24),
                 
                 // Action buttons
-                _buildActionButtons(),
+                _buildActionButtons(screenSize, isSmallScreen),
                 
-                const SizedBox(height: 40),
+                SizedBox(height: isSmallScreen ? 20 : 40),
               ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildFixedHeader(Size screenSize, bool isSmallScreen) {
+    final headerHeight = isSmallScreen ? 280.0 : 320.0;
+    final avatarRadius = isSmallScreen ? 40.0 : 50.0;
+    
+    return Container(
+      height: headerHeight,
+      width: double.infinity,
+      child: Stack(
+        children: [
+          // Gradient background
+          Container(
+            height: headerHeight - 30,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [primaryColor, secondaryColor],
+              ),
+            ),
+          ),
+          
+          // Pattern overlay
+          Container(
+            height: headerHeight - 30,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/pattern8.png'),
+                fit: BoxFit.cover,
+                opacity: 0.2,
+              ),
+            ),
+          ),
+          
+          // Bottom curve
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 30,
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(25),
+                  topRight: Radius.circular(25),
+                ),
+              ),
+            ),
+          ),
+          
+          // Back button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 16,
+            child: Container(
+              height: 40,
+              width: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+          
+          // Action buttons
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 16,
+            child: Row(
+              children: [
+                // Edit button
+                Container(
+                  height: 40,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      _isEditing ? Icons.check : Icons.edit_outlined,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    onPressed: () {
+                      if (_isEditing) {
+                        _updateProfile();
+                      } else {
+                        setState(() => _isEditing = true);
+                      }
+                    },
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+                
+                const SizedBox(width: 12),
+                
+                // Settings button
+                Container(
+                  height: 40,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    onPressed: _navigateToSettings,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Profile content
+          Positioned(
+            bottom: 30,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                // Profile avatar
+                GestureDetector(
+                  onTap: _isEditing ? _pickImage : null,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryColor.withOpacity(0.3),
+                          blurRadius: 15,
+                          spreadRadius: 3,
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircleAvatar(
+                          radius: avatarRadius + 3,
+                          backgroundColor: Colors.white,
+                          child: CircleAvatar(
+                            radius: avatarRadius,
+                            backgroundColor: accentColor.withOpacity(0.2),
+                            backgroundImage: _profileImageUrl != null
+                                ? CachedNetworkImageProvider(_profileImageUrl!)
+                                : null,
+                            child: _profileImageUrl == null
+                                ? Icon(
+                                    Icons.person,
+                                    size: avatarRadius * 0.8,
+                                    color: primaryColor,
+                                  )
+                                : null,
+                          ),
+                        ),
+                        
+                        // Loading indicator
+                        if (_isSaving)
+                          Container(
+                            width: (avatarRadius + 3) * 2,
+                            height: (avatarRadius + 3) * 2,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                        
+                        // Edit icon
+                        if (_isEditing)
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: primaryColor,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: primaryColor.withOpacity(0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                SizedBox(height: isSmallScreen ? 12 : 16),
+                
+                // User name
+                Container(
+                  width: screenSize.width - 40,
+                  child: Text(
+                    _currentUser?.name ?? 'Loading...',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 20 : 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                
+                const SizedBox(height: 4),
+                
+                // User email
+                Container(
+                  width: screenSize.width - 40,
+                  child: Text(
+                    _currentUser?.email ?? 'Loading...',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 12 : 14,
+                      color: Colors.white70,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
   
@@ -509,49 +756,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
             color: primaryColor,
-            size: 20,
+            size: 16,
           ),
         ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
-    ).animate().fadeIn(duration: 600.ms).slideX(
-      begin: -0.1,
-      end: 0,
-      curve: Curves.easeOutQuad,
-      duration: 800.ms,
     );
   }
   
-  Widget _buildProfileForm() {
+  Widget _buildProfileForm(Size screenSize, bool isSmallScreen) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isSmallScreen ? 14 : 16),
       child: Column(
         children: [
           // Name field
@@ -560,9 +806,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             labelText: 'Full Name',
             icon: Icons.person_outline,
             enabled: _isEditing,
+            isSmallScreen: isSmallScreen,
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: isSmallScreen ? 12 : 14),
           
           // Email field
           _buildProfileField(
@@ -570,21 +817,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             labelText: 'Email',
             icon: Icons.email_outlined,
             enabled: false,
+            isSmallScreen: isSmallScreen,
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: isSmallScreen ? 12 : 14),
           
           // Phone field
           _buildProfileField(
             controller: _phoneController,
-            labelText: 'Phone Number',
+            labelText: 'Phone',
             icon: Icons.phone_outlined,
             enabled: _isEditing,
             keyboardType: TextInputType.phone,
-            hintText: 'E.g., +254712345678',
+            hintText: '+254712345678',
+            isSmallScreen: isSmallScreen,
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: isSmallScreen ? 12 : 14),
           
           // Occupation field
           _buildProfileField(
@@ -592,9 +841,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             labelText: 'Occupation',
             icon: Icons.work_outline,
             enabled: _isEditing,
+            isSmallScreen: isSmallScreen,
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: isSmallScreen ? 12 : 14),
           
           // Location field
           _buildProfileField(
@@ -602,10 +852,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             labelText: 'Location',
             icon: FontAwesomeIcons.locationDot,
             enabled: _isEditing,
+            isSmallScreen: isSmallScreen,
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 100.ms, duration: 600.ms);
+    );
   }
   
   Widget _buildProfileField({
@@ -615,52 +866,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool enabled = true,
     TextInputType? keyboardType,
     String? hintText,
+    required bool isSmallScreen,
   }) {
-    return TextFormField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: keyboardType,
-      style: TextStyle(
-        color: Colors.grey[800],
-        fontWeight: FontWeight.w500,
-      ),
-      decoration: InputDecoration(
-        labelText: labelText,
-        hintText: hintText,
-        labelStyle: TextStyle(
-          color: Colors.grey[600],
+    return Container(
+      height: isSmallScreen ? 48 : 52,
+      child: TextFormField(
+        controller: controller,
+        enabled: enabled,
+        keyboardType: keyboardType,
+        style: TextStyle(
+          color: Colors.grey[800],
           fontWeight: FontWeight.w500,
+          fontSize: isSmallScreen ? 13 : 14,
         ),
-        prefixIcon: Icon(
-          icon,
-          color: enabled ? primaryColor : Colors.grey[400],
-          size: 20,
-        ),
-        filled: true,
-        fillColor: enabled ? Colors.grey[50] : Colors.grey[100],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: primaryColor,
-            width: 1.5,
+        decoration: InputDecoration(
+          labelText: labelText,
+          hintText: hintText,
+          labelStyle: TextStyle(
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+            fontSize: isSmallScreen ? 12 : 13,
+          ),
+          hintStyle: TextStyle(
+            color: Colors.grey[400],
+            fontSize: isSmallScreen ? 12 : 13,
+          ),
+          prefixIcon: Container(
+            width: 40,
+            child: Icon(
+              icon,
+              color: enabled ? primaryColor : Colors.grey[400],
+              size: isSmallScreen ? 16 : 18,
+            ),
+          ),
+          filled: true,
+          fillColor: enabled ? Colors.grey[50] : Colors.grey[100],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: isSmallScreen ? 12 : 14,
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: primaryColor,
+              width: 1,
+            ),
           ),
         ),
       ),
     );
   }
   
-  Widget _buildStatisticsSection() {
+  Widget _buildStatisticsSection(Size screenSize, bool isSmallScreen) {
+    final cardHeight = isSmallScreen ? 80.0 : 95.0;
+    final cardWidth = screenSize.width < 360 ? 120.0 : 140.0;
+    
     return Container(
-      height: 110,
+      height: cardHeight,
       child: ListView(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -670,24 +940,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
             value: '3',
             icon: FontAwesomeIcons.bullseye,
             color: const Color(0xFF5E72E4),
+            cardHeight: cardHeight,
+            cardWidth: cardWidth,
+            isSmallScreen: isSmallScreen,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           _buildStatCard(
             title: 'Transactions',
             value: '42',
             icon: FontAwesomeIcons.moneyBillTransfer,
             color: const Color(0xFFFAB027),
+            cardHeight: cardHeight,
+            cardWidth: cardWidth,
+            isSmallScreen: isSmallScreen,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           _buildStatCard(
             title: 'Savings',
             value: '2',
             icon: FontAwesomeIcons.piggyBank,
             color: const Color(0xFF11CDEF),
+            cardHeight: cardHeight,
+            cardWidth: cardWidth,
+            isSmallScreen: isSmallScreen,
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 200.ms, duration: 600.ms);
+    );
   }
   
   Widget _buildStatCard({
@@ -695,59 +974,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String value,
     required IconData icon,
     required Color color,
+    required double cardHeight,
+    required double cardWidth,
+    required bool isSmallScreen,
   }) {
     return Container(
-      width: 160,
+      width: cardWidth,
+      height: cardHeight,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(15),
+      padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
               color: color,
-              size: 16,
+              size: isSmallScreen ? 12 : 14,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isSmallScreen ? 4 : 6),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 20,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 16 : 18,
               fontWeight: FontWeight.bold,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: isSmallScreen ? 2 : 3),
           Text(
             title,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: isSmallScreen ? 10 : 11,
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
   }
   
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(Size screenSize, bool isSmallScreen) {
     return Column(
       children: [
         // Change Password Button
@@ -756,21 +1043,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: Icons.lock_outline,
           color: const Color(0xFFFB6340),
           onTap: () {
-            // Navigate to change password in settings
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => SettingsScreen(
                   profileId: _userProfile?.$id,
                   userId: _currentUser?.$id,
-                  initialTab: 2, // Navigate to Security tab
+                  initialTab: 2,
                 ),
               ),
             );
           },
+          isSmallScreen: isSmallScreen,
         ),
         
-        const SizedBox(height: 16),
+        SizedBox(height: isSmallScreen ? 12 : 16),
         
         // Logout Button
         _buildActionButton(
@@ -779,22 +1066,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           color: Colors.red.shade700,
           onTap: _confirmLogout,
           isOutlined: true,
+          isSmallScreen: isSmallScreen,
         ),
         
-        const SizedBox(height: 24),
+        SizedBox(height: isSmallScreen ? 16 : 20),
         
         // App Version
         Center(
           child: Text(
             'DailyDime v${AppConfig.appVersion}',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: isSmallScreen ? 10 : 11,
               color: Colors.grey.shade600,
             ),
           ),
         ),
       ],
-    ).animate().fadeIn(delay: 300.ms, duration: 600.ms);
+    );
   }
   
   Widget _buildActionButton({
@@ -803,12 +1091,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required Color color,
     required VoidCallback onTap,
     bool isOutlined = false,
+    required bool isSmallScreen,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        height: 56,
+        height: isSmallScreen ? 48 : 52,
         decoration: BoxDecoration(
           gradient: isOutlined 
               ? null 
@@ -821,17 +1110,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
           color: isOutlined ? Colors.transparent : null,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: isOutlined 
-              ? Border.all(color: color, width: 2) 
+              ? Border.all(color: color, width: 1.5) 
               : null,
           boxShadow: isOutlined
               ? null
               : [
                   BoxShadow(
-                    color: color.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                    color: color.withOpacity(0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
                   ),
                 ],
         ),
@@ -841,349 +1130,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Icon(
               icon,
               color: isOutlined ? color : Colors.white,
-              size: 20,
+              size: isSmallScreen ? 16 : 18,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Text(
               title,
               style: TextStyle(
                 color: isOutlined ? color : Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: isSmallScreen ? 14 : 15,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       ),
     );
   }
-}
-
-// Custom delegate for the profile header
-class _ProfileHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double expandedHeight;
-  final String? profileImageUrl;
-  final String userName;
-  final String userEmail;
-  final bool isEditing;
-  final bool isSaving;
-  final Color primaryColor;
-  final Color secondaryColor;
-  final Color accentColor;
-  final VoidCallback onEditPressed;
-  final VoidCallback onSettingsPressed;
-  final VoidCallback? onImageTap;
-
-  _ProfileHeaderDelegate({
-    required this.expandedHeight,
-    required this.profileImageUrl,
-    required this.userName,
-    required this.userEmail,
-    required this.isEditing,
-    required this.isSaving,
-    required this.primaryColor,
-    required this.secondaryColor,
-    required this.accentColor,
-    required this.onEditPressed,
-    required this.onSettingsPressed,
-    required this.onImageTap,
-  });
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    final double progress = shrinkOffset / expandedHeight;
-    final double opacity = 1 - progress * 1.5 < 0 ? 0 : 1 - progress * 1.5;
-    
-    return Container(
-      height: expandedHeight,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Gradient background with pattern
-          AnimatedOpacity(
-            opacity: 1.0 - progress,
-            duration: const Duration(milliseconds: 100),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    primaryColor,
-                    secondaryColor,
-                  ],
-                ),
-                image: const DecorationImage(
-                  image: AssetImage('assets/images/pattern8.png'),
-                  fit: BoxFit.cover,
-                  opacity: 0.3,
-                ),
-              ),
-            ),
-          ),
-          
-          // Collapsed app bar content (shown when scrolled)
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 150),
-            opacity: progress,
-            child: Container(
-              color: Colors.white,
-              child: AppBar(
-                backgroundColor: Colors.white,
-                elevation: 0,
-                centerTitle: true,
-                title: Text(
-                  userName,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                actions: [
-                  IconButton(
-                    icon: Icon(
-                      isEditing ? Icons.check : Icons.edit_outlined,
-                      color: primaryColor,
-                    ),
-                    onPressed: onEditPressed,
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.settings_outlined,
-                      color: Colors.grey[700],
-                    ),
-                    onPressed: onSettingsPressed,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Bottom curve
-          Positioned(
-            bottom: -1,
-            left: 0,
-            right: 0,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 150),
-              opacity: opacity,
-              child: Container(
-                height: 30,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          
-          // Expanded profile content
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 150),
-            opacity: opacity,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24.0, 60.0, 24.0, 24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // Profile avatar
-                  GestureDetector(
-                    onTap: onImageTap,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryColor.withOpacity(0.3),
-                            blurRadius: 20,
-                            spreadRadius: 5,
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Profile avatar
-                          CircleAvatar(
-                            radius: 55,
-                            backgroundColor: Colors.white,
-                            child: CircleAvatar(
-                              radius: 52,
-                              backgroundColor: accentColor.withOpacity(0.2),
-                              backgroundImage: profileImageUrl != null
-                                  ? CachedNetworkImageProvider(profileImageUrl!)
-                                  : null,
-                              child: profileImageUrl == null
-                                  ? Icon(
-                                      Icons.person,
-                                      size: 50,
-                                      color: primaryColor,
-                                    )
-                                  : null,
-                            ),
-                          ),
-                          
-                          // Loading indicator
-                          if (isSaving)
-                            Container(
-                              width: 110,
-                              height: 110,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.5),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 3,
-                                ),
-                              ),
-                            ),
-                          
-                          // Edit icon
-                          if (isEditing)
-                            Positioned(
-                              right: 0,
-                              bottom: 5,
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: primaryColor,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: primaryColor.withOpacity(0.3),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // User name
-                  Text(
-                    userName,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 4),
-                  
-                  // User email
-                  Text(
-                    userEmail,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // App bar actions
-          Positioned(
-            top: 50,
-            right: 16,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 150),
-              opacity: opacity,
-              child: Row(
-                children: [
-                  // Edit button
-                  Container(
-                    height: 45,
-                    width: 45,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        isEditing ? Icons.check : Icons.edit_outlined,
-                        color: Colors.white,
-                      ),
-                      onPressed: onEditPressed,
-                      tooltip: isEditing ? 'Save Changes' : 'Edit Profile',
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ),
-                  
-                  const SizedBox(width: 12),
-                  
-                  // Settings button
-                  Container(
-                    height: 45,
-                    width: 45,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.settings_outlined, color: Colors.white),
-                      onPressed: onSettingsPressed,
-                      tooltip: 'Settings',
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  double get maxExtent => expandedHeight;
-
-  @override
-  double get minExtent => kToolbarHeight + 30;
-
-  @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => true;
 }
