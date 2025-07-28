@@ -58,7 +58,7 @@ dev_dependencies:
   flutter_heatmap_calendar: ^1.0.0
   flutter_staggered_animations: ^1.1.1
   image_picker: ^0.8.4+4
-  file_picker: ^5.3.1
+  file_picker: ^10.2.0
   flutter_animate: ^4.2.0
   font_awesome_flutter: ^10.5.0
   glass_kit: ^3.0.0
