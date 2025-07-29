@@ -246,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           currentAmount: 5000,
           targetAmount: 45000,
           deadline: DateTime.now().add(Duration(days: 120)),
-          color: Colors.orange, title: '', targetDate: DateTime.now(), category: SavingsGoalCategory.other, iconAsset: '',
+          color: Colors.orange, title: '', targetDate: DateTime.now(), category: SavingsGoalCategory.other, iconAsset: '', icon: null,
         ),
       ];
     }
@@ -299,11 +299,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
         
         categories.add(BudgetCategory(
-          name: budget.categoryName,
+            name: budget.title,
           icon: icon,
           color: color,
-          spent: budget.spent.toInt(),
-          budget: budget.budgetAmount.toInt(),
+          spent: budget.spent.toDouble(),
+          budget: budget.amount.toDouble(),
           dailyData: dailyData.map((e) => e.toDouble()).toList(),
         ));
       }
