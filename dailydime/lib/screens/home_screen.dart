@@ -1323,29 +1323,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       
                       const SizedBox(height: 16),
                       
-                      // Savings Goal Cards
-                      _savingsGoals.isEmpty
-                          ? _buildEmptySavingsState()
-                          : SizedBox(
-                              height: 170,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                physics: BouncingScrollPhysics(),
-                                itemCount: _savingsGoals.length,
-                                itemBuilder: (context, index) {
-                                  final goal = _savingsGoals[index];
-                                  return _buildSavingsGoalCard(
-                                    context, 
-                                    title: '${goal.title.isNotEmpty ? goal.title : 'Goal ${index + 1}'}',
-                                    icon: _getSavingsIcon(goal.icon),
-                                    currentAmount: goal.currentAmount.toInt(),
-                                    targetAmount: goal.targetAmount.toInt(),
-                                    color: Color(goal.color as int),
-                                    progress: goal.currentAmount / goal.targetAmount,
-                                  );
-                                },
-                              ),
-                            ),
+                     _savingsGoals.isEmpty
+    ? _buildEmptySavingsState()
+    : SizedBox(
+        height: 170,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          physics: BouncingScrollPhysics(),
+          itemCount: _savingsGoals.length,
+          itemBuilder: (context, index) {
+            final goal = _savingsGoals[index];
+            return _buildSavingsGoalCard(
+              context, 
+              title: goal.title ?? 'Goal ${index + 1}', // Fixed: Handle null title
+              icon: goal.icon ?? Icons.savings, // Fixed: Handle null icon
+              currentAmount: goal.currentAmount.toInt(),
+              targetAmount: goal.targetAmount.toInt(),
+              color: goal.color != null ? Color(goal.color as int) : Colors.blue, // Fixed: Handle null color
+              progress: goal.currentAmount / goal.targetAmount,
+            );
+          },
+        ),
+      ),
                     ],
                   ),
                 ),
