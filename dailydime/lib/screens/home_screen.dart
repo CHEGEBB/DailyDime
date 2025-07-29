@@ -271,7 +271,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         IconData icon = Icons.category;
         Color color = Colors.grey;
         
-        switch (budget.categoryName.toLowerCase()) {
+        switch (budget.category.toLowerCase()) {
           case 'food':
           case 'food & dining':
           case 'dining':
@@ -371,13 +371,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _recentTransactions,
         _budgetCategories.map((b) => Budget(
           id: '',
-          userId: '',
-          categoryId: '',
-          categoryName: b.name,
-          budgetAmount: b.budget.toDouble(),
+          // userId: '',
+          // categoryId: '',
+          // categoryName: b.name,
+          // budgetAmount: b.budget.toDouble(),
           spent: b.spent.toDouble(),
-          period: 'monthly',
-          createdAt: DateTime.now(),
+          period: BudgetPeriod.monthly,
+          createdAt: DateTime.now(), title: '', category: '', amount: 0.0, startDate: DateTime.now(), endDate: DateTime.now(), color: Colors.transparent, icon: Icons.help,
         )).toList(),
       );
       
