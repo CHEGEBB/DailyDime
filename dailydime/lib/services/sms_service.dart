@@ -1237,29 +1237,33 @@ class SmsService {
     }
   }
   
-  Future<double> getTotalExpenses() async {
-    try {
-      final allTransactions = await StorageService.instance.getTransactions();
-      return allTransactions
-        .where((t) => t.isExpense)
-        .fold(0.0, (sum, transaction) => sum + transaction.amount);
-    } catch (e) {
-      debugPrint('Error calculating total expenses: $e');
-      return 0.0;
+Future<double> getTotalExpenses() async {
+  try {
+    final allTransactions = await StorageService.instance.getTransactions();
+    final expenses = allTransactions.where((t) => t.isExpense);
+    double total = 0.0;
+    for (final transaction in expenses) {
+      total += transaction.amount;
     }
+    return total;
+  } catch (e) {
+    debugPrint('Error calculating total expenses: $e');
+    return 0.0;
   }
+}
   
-  Future<double> getTotalIncome() async {
-    try {
-      final allTransactions = await StorageService.instance.getTransactions();
-      return allTransactions
+Future<double> getTotalIncome() async {
+  try {
+    final allTransactions = await StorageService.instance.getTransactions();
+    return allTransactions
         .where((t) => !t.isExpense)
-        .fold(0.0, (sum, transaction) => sum + transaction.amount);
-    } catch (e) {
-      debugPrint('Error calculating total income: $e');
-      return 0.0;
-    }
+        .toList()
+        .fold<double>(0.0, (sum, transaction) => sum + transaction.amount);
+  } catch (e) {
+    debugPrint('Error calculating total income: $e');
+    return 0.0;
   }
+}
   
   Future<Map<String, double>> getExpensesByCategory() async {
     try {
