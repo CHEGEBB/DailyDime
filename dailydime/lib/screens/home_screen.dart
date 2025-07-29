@@ -232,14 +232,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           currentAmount: 15000,
           targetAmount: 50000,
           deadline: DateTime.now().add(Duration(days: 365)),
-            color: Colors.blue, targetDate: DateTime.now().add(Duration(days: 365)), category: SavingsGoalCategory.other, iconAsset: '',
+            color: Colors.blue, targetDate: DateTime.now().add(Duration(days: 365)), category: SavingsGoalCategory.other, iconAsset: '', icon: null,
         ),
         SavingsGoal(
           id: '2',
           currentAmount: 25000,
           targetAmount: 80000,
           deadline: DateTime.now().add(Duration(days: 180)),
-          color: Color(0xFF26D07C), title: '', targetDate: DateTime.now(), category: SavingsGoalCategory.other, iconAsset: '',
+          color: Color(0xFF26D07C), title: '', targetDate: DateTime.now(), category: SavingsGoalCategory.other, iconAsset: '', icon: null,
         ),
         SavingsGoal(
           id: '3',
@@ -1322,11 +1322,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   final goal = _savingsGoals[index];
                                   return _buildSavingsGoalCard(
                                     context, 
-                                    title: goal.name,
+                                    title: '${goal.title.isNotEmpty ? goal.title : 'Goal ${index + 1}'}',
                                     icon: _getSavingsIcon(goal.icon),
-                                    currentAmount: goal.currentAmount,
-                                    targetAmount: goal.targetAmount,
-                                    color: Color(goal.color),
+                                    currentAmount: goal.currentAmount.toInt(),
+                                    targetAmount: goal.targetAmount.toInt(),
+                                    color: Color(goal.color as int),
                                     progress: goal.currentAmount / goal.targetAmount,
                                   );
                                 },
@@ -1388,7 +1388,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                       padding: const EdgeInsets.only(bottom: 12),
                                       child: _buildTransactionItem(
                                         context,
-                                        logo: transaction.iconPath,
+                                        logo: transaction.iconPath ?? 'default_icon_path.png',
                                         name: transaction.title,
                                         date: DateFormat('dd/MM/yyyy').format(transaction.date),
                                         amount: transaction.amount.toDouble(),

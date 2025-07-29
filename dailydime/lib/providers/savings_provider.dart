@@ -910,7 +910,7 @@ Future<bool> addSavingsGoalFromMap(Map<String, dynamic> goalData) async {
         ? (goalData['updatedAt'] is DateTime 
            ? goalData['updatedAt'] 
            : DateTime.parse(goalData['updatedAt'].toString()))
-        : DateTime.now(),
+        : DateTime.now(), icon: null,
     );
     
     print('Created SavingsGoal object: ${goal.title}'); // Debug log

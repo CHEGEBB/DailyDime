@@ -461,7 +461,7 @@ class _SavingsScreenState extends State<SavingsScreen>
               weeklyTarget: null,
               priority: 'medium',
               isRecurring: false,
-              reminderFrequency: 'weekly',
+              reminderFrequency: 'weekly', icon: null,
             ),
     );
 

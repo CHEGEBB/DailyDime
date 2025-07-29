@@ -51,6 +51,8 @@ class SavingsGoal {
   final String reminderFrequency;
   final DateTime createdAt;
   final DateTime updatedAt;
+  
+  var icon;
 
   SavingsGoal({
     String? id,
@@ -58,6 +60,7 @@ class SavingsGoal {
     this.description = '',
     required this.targetAmount,
     this.currentAmount = 0.0,
+    required this.icon,
     DateTime? startDate,
     required this.targetDate,
     this.status = SavingsGoalStatus.active,
@@ -216,7 +219,7 @@ class SavingsGoal {
           ? List<SavingsTransaction>.from(
               map['transactions'].map((t) => SavingsTransaction.fromMap(t))
             )
-          : [],
+          : [], icon: null,
     );
   }
   
@@ -270,7 +273,7 @@ class SavingsGoal {
       isRecurring: isRecurring ?? this.isRecurring,
       reminderFrequency: reminderFrequency ?? this.reminderFrequency,
       createdAt: this.createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now(), icon: null,
     );
   }
 }

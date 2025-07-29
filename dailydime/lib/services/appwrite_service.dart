@@ -605,7 +605,7 @@ Future<List<Transaction>> getRecentTransactions({
         forecastedCompletion: data['forecasted_completion'] != null 
             ? DateTime.parse(data['forecasted_completion']).millisecondsSinceEpoch.toDouble() 
             : null,
-        imageUrl: data['image_url'],
+        imageUrl: data['image_url'], icon: null,
       );
     } catch (e) {
       debugPrint('Error converting Appwrite data to SavingsGoal: $e');
@@ -642,7 +642,7 @@ Future<List<Transaction>> getRecentTransactions({
             ? DateTime.parse(goalData['updatedAt'])
             : (goalData['updatedAt'] ?? DateTime.now()),
         isRecurring: goalData['isRecurring'] ?? false,
-        reminderFrequency: goalData['reminderFrequency'] ?? 'weekly',
+        reminderFrequency: goalData['reminderFrequency'] ?? 'weekly', icon: null,
       );
       
       debugPrint('Created SavingsGoal object: ${goal.title}');

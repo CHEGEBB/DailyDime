@@ -26,38 +26,44 @@ class Transaction {
   final bool isExpense;
   
   @HiveField(6)
-  final IconData icon;
+  final int iconCodePoint;
   
   @HiveField(7)
-  final Color color;
+  final String? iconFontFamily;
   
   @HiveField(8)
-  final String? mpesaCode;
+  final int colorValue;
   
   @HiveField(9)
-  final bool isSms;
+  final String? mpesaCode;
   
   @HiveField(10)
-  final String? rawSms;
+  final bool isSms;
   
   @HiveField(11)
-  final String? sender;
+  final String? rawSms;
   
   @HiveField(12)
-  final String? recipient;
+  final String? sender;
   
   @HiveField(13)
-  final String? agent;
+  final String? recipient;
   
   @HiveField(14)
-  final String? business;
+  final String? agent;
   
   @HiveField(15)
-  final double? balance;
+  final String? business;
   
   @HiveField(16)
+  final double? balance;
+  
+  @HiveField(17)
   final String? description;
   
+  @HiveField(18)
+  final String? iconPath;
+
   Transaction({
     required this.id,
     required this.title,
@@ -65,10 +71,10 @@ class Transaction {
     required this.date,
     required this.category,
     required this.isExpense,
-    required this.icon,
-    required this.color,
+    IconData? icon,
+    Color? color,
     this.mpesaCode,
-    required this.isSms,
+    this.isSms = false,
     this.rawSms,
     this.sender,
     this.recipient,
@@ -76,7 +82,15 @@ class Transaction {
     this.business,
     this.balance,
     this.description,
-  });
+    this.iconPath,
+  }) : iconCodePoint = icon?.codePoint ?? Icons.category.codePoint,
+       iconFontFamily = icon?.fontFamily ?? Icons.category.fontFamily,
+       colorValue = color?.value ?? Colors.grey.value;
+
+  // Getters for convenience
+  IconData get icon => IconData(iconCodePoint, fontFamily: iconFontFamily);
+  Color get color => Color(colorValue);
+  String get type => isExpense ? 'expense' : 'income';
   
   // Create a copy with modified fields
   Transaction copyWith({
@@ -97,6 +111,7 @@ class Transaction {
     String? business,
     double? balance,
     String? description,
+    String? iconPath,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -116,6 +131,7 @@ class Transaction {
       business: business ?? this.business,
       balance: balance ?? this.balance,
       description: description ?? this.description,
+      iconPath: iconPath ?? this.iconPath,
     );
   }
   
@@ -128,9 +144,9 @@ class Transaction {
       'date': date.toIso8601String(),
       'category': category,
       'isExpense': isExpense,
-      'iconCodePoint': icon.codePoint,
-      'iconFontFamily': icon.fontFamily,
-      'colorValue': color.value,
+      'iconCodePoint': iconCodePoint,
+      'iconFontFamily': iconFontFamily,
+      'colorValue': colorValue,
       'mpesaCode': mpesaCode,
       'isSms': isSms,
       'rawSms': rawSms,
@@ -140,6 +156,7 @@ class Transaction {
       'business': business,
       'balance': balance,
       'description': description,
+      'iconPath': iconPath,
     };
   }
   
@@ -148,24 +165,25 @@ class Transaction {
     return Transaction(
       id: json['id'],
       title: json['title'],
-      amount: json['amount'],
+      amount: json['amount']?.toDouble() ?? 0.0,
       date: DateTime.parse(json['date']),
-      category: json['category'],
-      isExpense: json['isExpense'],
+      category: json['category'] ?? 'Other',
+      isExpense: json['isExpense'] ?? true,
       icon: IconData(
-        json['iconCodePoint'],
+        json['iconCodePoint'] ?? Icons.category.codePoint,
         fontFamily: json['iconFontFamily'],
       ),
-      color: Color(json['colorValue']),
+      color: Color(json['colorValue'] ?? Colors.grey.value),
       mpesaCode: json['mpesaCode'],
-      isSms: json['isSms'],
+      isSms: json['isSms'] ?? false,
       rawSms: json['rawSms'],
       sender: json['sender'],
       recipient: json['recipient'],
       agent: json['agent'],
       business: json['business'],
-      balance: json['balance'],
+      balance: json['balance']?.toDouble(),
       description: json['description'],
+      iconPath: json['iconPath'],
     );
   }
   
@@ -183,18 +201,7 @@ class Transaction {
         other.amount == amount &&
         other.date == date &&
         other.category == category &&
-        other.isExpense == isExpense &&
-        other.icon == icon &&
-        other.color == color &&
-        other.mpesaCode == mpesaCode &&
-        other.isSms == isSms &&
-        other.rawSms == rawSms &&
-        other.sender == sender &&
-        other.recipient == recipient &&
-        other.agent == agent &&
-        other.business == business &&
-        other.balance == balance &&
-        other.description == description;
+        other.isExpense == isExpense;
   }
   
   @override
@@ -206,19 +213,50 @@ class Transaction {
       date,
       category,
       isExpense,
-      icon,
-      color,
-      mpesaCode,
-      isSms,
-      rawSms,
-      sender,
-      recipient,
-      agent,
-      business,
-      balance,
-      description,
     );
   }
+}
 
-  get type => null;
+// Alternative simple class without Hive annotations if you're not using Hive
+class TransactionModel {
+  final String id;
+  final String title;
+  final double amount;
+  final DateTime date;
+  final String category;
+  final String iconPath;
+  
+  TransactionModel({
+    required this.id,
+    required this.title,
+    required this.amount,
+    required this.date,
+    required this.category,
+    required this.iconPath,
+  });
+  
+  bool get isExpense => amount < 0;
+  String get type => isExpense ? 'expense' : 'income';
+  
+  factory TransactionModel.fromJson(Map<String, dynamic> json) {
+    return TransactionModel(
+      id: json['id'],
+      title: json['title'],
+      amount: json['amount']?.toDouble() ?? 0.0,
+      date: DateTime.parse(json['date']),
+      category: json['category'] ?? 'Other',
+      iconPath: json['iconPath'] ?? 'assets/images/default.png',
+    );
+  }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'amount': amount,
+      'date': date.toIso8601String(),
+      'category': category,
+      'iconPath': iconPath,
+    };
+  }
 }
