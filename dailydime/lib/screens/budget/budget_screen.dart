@@ -553,6 +553,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                             getTitlesWidget: (value, meta) {
                               const style = TextStyle(
                                 color: Colors.grey,
+                                fontFamily: 'DMsans',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                               );
@@ -592,6 +593,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                                   '${(value / 1000).toInt()}K',
                                   style: const TextStyle(
                                     color: Colors.grey,
+                                    fontFamily: 'DMsans',
                                     fontSize: 10,
                                   ),
                                 ),
@@ -691,6 +693,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                           'AI Budget Insights',
                           style: TextStyle(
                             fontSize: 16,
+                            fontFamily: 'DMsans',
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
@@ -700,6 +703,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                           'Smart recommendations based on your spending',
                           style: TextStyle(
                             fontSize: 12,
+                            fontFamily: 'DMsans',
                             color: Colors.grey.shade600,
                           ),
                         ),
@@ -790,6 +794,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                     'View All Insights',
                     style: TextStyle(
                       color: accentColor,
+                      fontFamily: 'DMsans',
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -809,6 +814,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
               'Active Budgets',
               style: TextStyle(
                 fontSize: 18,
+                fontFamily: 'DMsans',
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
@@ -875,6 +881,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
               style: TextStyle(
                 color: accentColor,
                 fontWeight: FontWeight.w500,
+                fontFamily: 'DMsans',
               ),
             ),
           ),
@@ -930,6 +937,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                fontFamily: 'DMsans',
                 color: Colors.black87,
               ),
             ),
@@ -949,6 +957,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                fontFamily: 'DMsans',
                 color: Colors.black87,
               ),
             ),
@@ -968,6 +977,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                fontFamily: 'DMsans',
                 color: Colors.black87,
               ),
             ),
@@ -986,6 +996,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
               'Yearly Budgets',
               style: TextStyle(
                 fontSize: 18,
+                fontFamily: 'DMsans',
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
@@ -1060,6 +1071,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                       'Smart Budget Analysis',
                       style: TextStyle(
                         fontSize: 18,
+                        fontFamily: 'DMsans',
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
@@ -1069,6 +1081,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                       'AI-powered insights to help you manage your finances',
                       style: TextStyle(
                         fontSize: 12,
+                        fontFamily: 'DMsans',
                         color: Colors.grey.shade600,
                       ),
                     ),
@@ -1128,6 +1141,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                   'No insights available yet',
                   style: TextStyle(
                     fontSize: 16,
+                    fontFamily: 'DMsans',
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1137,6 +1151,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
+                    fontFamily: 'DMsans',
                     color: Colors.grey,
                   ),
                 ),
@@ -1187,6 +1202,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                             _getInsightTitle(insight),
                             style: const TextStyle(
                               fontSize: 16,
+                              fontFamily: 'DMsans',
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
                             ),
@@ -1196,6 +1212,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                             insight,
                             style: TextStyle(
                               fontSize: 14,
+                              fontFamily: 'DMsans',
                               height: 1.4,
                               color: Colors.grey.shade700,
                             ),
@@ -1245,6 +1262,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
             text,
             style: const TextStyle(
               fontSize: 14,
+              fontFamily: 'DMsans',
               height: 1.4,
               color: Colors.black87,
             ),
@@ -1359,6 +1377,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                             budget.title,
                             style: const TextStyle(
                               fontSize: 16,
+                              fontFamily: 'DMsans',
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
                             ),
@@ -1368,6 +1387,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                             _getPeriodText(budget.period),
                             style: TextStyle(
                               fontSize: 12,
+                              fontFamily: 'DMsans',
                               color: Colors.grey.shade600,
                             ),
                           ),
@@ -1396,6 +1416,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w500,
+                                    fontFamily: 'DMsans',
                                     color: Colors.red.shade700,
                                   ),
                                 ),
@@ -1469,6 +1490,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            fontFamily: 'DMsans',
                             color: isOverBudget ? Colors.red : Colors.black87,
                           ),
                         ),
@@ -1477,6 +1499,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                           'of KES ${budget.amount.toInt()}',
                           style: TextStyle(
                             fontSize: 14,
+                            fontFamily: 'DMsans',
                             color: Colors.grey.shade600,
                           ),
                         ),

@@ -47,8 +47,12 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'DailyDime',
             debugShowCheckedModeBanner: false,
-            theme: themeService.lightTheme,
-            darkTheme: themeService.darkTheme,
+            theme: themeService.lightTheme.copyWith(
+              textTheme: themeService.lightTheme.textTheme.apply(fontFamily: 'DMsans'),
+            ),
+            darkTheme: themeService.darkTheme.copyWith(
+              textTheme: themeService.darkTheme.textTheme.apply(fontFamily: 'DMsans'),
+            ),
             themeMode: themeService.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             home: const SplashScreen(),
             // Add these routes if you need them
