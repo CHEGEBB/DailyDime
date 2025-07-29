@@ -217,7 +217,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
             child: Opacity(
               opacity: 0.1,
               child: Image.asset(
-                'assets/images/pattern8.png',
+                'assets/images/pattern12.png',
                 fit: BoxFit.cover,
               ),
             ),
