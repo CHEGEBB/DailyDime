@@ -37,7 +37,7 @@ class Budget {
     this.notes = '',
     this.isActive = true,
     this.createdAt,
-    this.updatedAt, required name,
+    this.updatedAt,
   }) : id = id ?? const Uuid().v4();
 
   double get percentageUsed => amount > 0 ? spent / amount : 0;
@@ -76,6 +76,7 @@ class Budget {
       'endDate': endDate.millisecondsSinceEpoch,
       'color': color.value,
       'icon': icon.codePoint,
+      'iconFontFamily': icon.fontFamily,
       'tags': tags,
       'notes': notes,
       'isActive': isActive,
@@ -90,18 +91,25 @@ class Budget {
       id: map['id'],
       title: map['title'],
       category: map['category'],
-      amount: map['amount'],
-      spent: map['spent'] ?? 0.0,
-      period: BudgetPeriod.values[map['period']],
+      amount: map['amount']?.toDouble() ?? 0.0,
+      spent: map['spent']?.toDouble() ?? 0.0,
+      period: BudgetPeriod.values[map['period'] ?? 2], // Default to monthly
       startDate: DateTime.fromMillisecondsSinceEpoch(map['startDate']),
       endDate: DateTime.fromMillisecondsSinceEpoch(map['endDate']),
-      color: Color(map['color']),
-      icon: IconData(map['icon'], fontFamily: 'MaterialIcons'),
+      color: Color(map['color'] ?? Colors.blue.value),
+      icon: IconData(
+        map['icon'] ?? Icons.category.codePoint,
+        fontFamily: map['iconFontFamily'] ?? 'MaterialIcons',
+      ),
       tags: List<String>.from(map['tags'] ?? []),
       notes: map['notes'] ?? '',
       isActive: map['isActive'] ?? true,
-      createdAt: map['createdAt'] != null ? DateTime.fromMillisecondsSinceEpoch(map['createdAt']) : null,
-      updatedAt: map['updatedAt'] != null ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt']) : null, name: null,
+      createdAt: map['createdAt'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt']) 
+          : null,
+      updatedAt: map['updatedAt'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt']) 
+          : null,
     );
   }
 
@@ -138,7 +146,115 @@ class Budget {
       notes: notes ?? this.notes,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt, name: null,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  // Convert to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'category': category,
+      'amount': amount,
+      'spent': spent,
+      'period': period.name,
+      'startDate': startDate.toIso8601String(),
+      'endDate': endDate.toIso8601String(),
+      'color': color.value,
+      'iconCodePoint': icon.codePoint,
+      'iconFontFamily': icon.fontFamily,
+      'tags': tags,
+      'notes': notes,
+      'isActive': isActive,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+    };
+  }
+
+  // Create from JSON
+  factory Budget.fromJson(Map<String, dynamic> json) {
+    return Budget(
+      id: json['id'],
+      title: json['title'],
+      category: json['category'],
+      amount: json['amount']?.toDouble() ?? 0.0,
+      spent: json['spent']?.toDouble() ?? 0.0,
+      period: BudgetPeriod.values.firstWhere(
+        (e) => e.name == json['period'],
+        orElse: () => BudgetPeriod.monthly,
+      ),
+      startDate: DateTime.parse(json['startDate']),
+      endDate: DateTime.parse(json['endDate']),
+      color: Color(json['color'] ?? Colors.blue.value),
+      icon: IconData(
+        json['iconCodePoint'] ?? Icons.category.codePoint,
+        fontFamily: json['iconFontFamily'] ?? 'MaterialIcons',
+      ),
+      tags: List<String>.from(json['tags'] ?? []),
+      notes: json['notes'] ?? '',
+      isActive: json['isActive'] ?? true,
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt']) 
+          : null,
+      updatedAt: json['updatedAt'] != null 
+          ? DateTime.parse(json['updatedAt']) 
+          : null,
+    );
+  }
+}
+
+// Simple Budget Model for your app (matching your usage pattern)
+class BudgetModel {
+  final String id;
+  final String userId;
+  final String categoryId;
+  final String categoryName;
+  final double budgetAmount;
+  final double spent;
+  final String period;
+  final DateTime createdAt;
+
+  BudgetModel({
+    required this.id,
+    required this.userId,
+    required this.categoryId,
+    required this.categoryName,
+    required this.budgetAmount,
+    required this.spent,
+    required this.period,
+    required this.createdAt,
+  });
+
+  double get percentageUsed => budgetAmount > 0 ? spent / budgetAmount : 0;
+  double get remaining => budgetAmount - spent;
+  bool get isOverBudget => spent > budgetAmount;
+
+  factory BudgetModel.fromJson(Map<String, dynamic> json) {
+    return BudgetModel(
+      id: json['id'] ?? '',
+      userId: json['userId'] ?? '',
+      categoryId: json['categoryId'] ?? '',
+      categoryName: json['categoryName'] ?? '',
+      budgetAmount: json['budgetAmount']?.toDouble() ?? 0.0,
+      spent: json['spent']?.toDouble() ?? 0.0,
+      period: json['period'] ?? 'monthly',
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt']) 
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'categoryId': categoryId,
+      'categoryName': categoryName,
+      'budgetAmount': budgetAmount,
+      'spent': spent,
+      'period': period,
+      'createdAt': createdAt.toIso8601String(),
+    };
   }
 }

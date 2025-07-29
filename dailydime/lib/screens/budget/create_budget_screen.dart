@@ -614,7 +614,6 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
             color: _selectedColor,
             icon: _selectedIcon,
             tags: [_selectedCategory.toLowerCase()], 
-            name: null,
           );
           
           await budgetProvider.createBudget(newBudget);

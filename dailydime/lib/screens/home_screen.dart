@@ -239,16 +239,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           currentAmount: 25000,
           targetAmount: 80000,
           deadline: DateTime.now().add(Duration(days: 180)),
-          color: Color(0xFF26D07C), title: '', targetDate: null, category: null, iconAsset: '',
+          color: Color(0xFF26D07C), title: '', targetDate: DateTime.now(), category: SavingsGoalCategory.other, iconAsset: '',
         ),
-        SavingsGoalModel(
+        SavingsGoal(
           id: '3',
-          name: 'Holiday',
-          icon: 'beach',
           currentAmount: 5000,
           targetAmount: 45000,
           deadline: DateTime.now().add(Duration(days: 120)),
-          color: Colors.orange.value,
+          color: Colors.orange, title: '', targetDate: DateTime.now(), category: SavingsGoalCategory.other, iconAsset: '',
         ),
       ];
     }
@@ -371,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       // Generate savings opportunity
       final savingsInsight = await aiService.generateSavingsOpportunity(
         _recentTransactions,
-        _budgetCategories.map((b) => BudgetModel(
+        _budgetCategories.map((b) => Budget(
           id: '',
           userId: '',
           categoryId: '',

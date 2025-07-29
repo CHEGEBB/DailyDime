@@ -203,7 +203,7 @@ class AppwriteService {
       icon: Icons.account_balance_wallet, // Default icon
       tags: List<String>.from(categories),
       isActive: data['status'] == 'active',
-      name: data['title'] ?? 'Budget',
+      // name: data['title'] ?? 'Budget',
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
