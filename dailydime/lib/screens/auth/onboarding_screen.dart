@@ -52,7 +52,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     OnboardingItem(
       title: 'Smart Budgeting',
       description: 'Set personalized budgets with AI-powered recommendations based on your spending habits',
-      lottieAsset: 'assets/animations/lottie/budget_planning.json',
+      lottieAsset: 'assets/animations/budgeting.json',
       backgroundColor: const Color(0xFFEFF6FF),
       primaryColor: const Color(0xFF1E3A8A),
       secondaryColor: const Color(0xFF3B82F6),
@@ -66,7 +66,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     OnboardingItem(
       title: 'Achieve Your Goals',
       description: 'Set savings goals and track your progress with visual indicators and milestone celebrations',
-      lottieAsset: 'assets/animations/lottie/goals_achievement.json',
+      lottieAsset: 'assets/animations/goals.json',
       backgroundColor: const Color(0xFFF5F3FF),
       primaryColor: const Color(0xFF7C3AED),
       secondaryColor: const Color(0xFFA855F7),
@@ -80,7 +80,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     OnboardingItem(
       title: 'Seamless Payments',
       description: 'Connect with M-Pesa and other payment platforms for automatic transaction tracking',
-      lottieAsset: 'assets/animations/lottie/payment_sync.json',
+      lottieAsset: 'assets/animations/payment.json',
       backgroundColor: const Color(0xFFFEF2F2),
       primaryColor: const Color(0xFFEF4444),
       secondaryColor: const Color(0xFFF97316),
