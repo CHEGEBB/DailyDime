@@ -1,8 +1,18 @@
 // lib/screens/home_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:dailydime/screens/mpesa_screen.dart';
+import 'package:dailydime/services/balance_service.dart';
+import 'package:dailydime/services/sms_service.dart';
+import 'package:dailydime/services/home_ai_service.dart';
+import 'package:dailydime/services/appwrite_service.dart';
+import 'package:dailydime/models/transaction.dart';
+import 'package:dailydime/models/savings_goal.dart';
+import 'package:dailydime/models/budget.dart';
+import 'package:lottie/lottie.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -11,7 +21,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToBudget;
   final VoidCallback? onNavigateToSavings;
   final VoidCallback? onNavigateToAI;
-  final VoidCallback? onNavigateToProfile;
+  final VoidCallback? onNavigateToSettings;
   final VoidCallback? onAddTransaction;
 
   const HomeScreen({
@@ -20,7 +30,7 @@ class HomeScreen extends StatefulWidget {
     this.onNavigateToBudget,
     this.onNavigateToSavings,
     this.onNavigateToAI,
-    this.onNavigateToProfile,
+    this.onNavigateToSettings,
     this.onAddTransaction,
   }) : super(key: key);
 
@@ -29,63 +39,553 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  // Controllers
   late TabController _tabController;
+  final TextEditingController _balanceController = TextEditingController();
+  
+  // UI state variables
   final List<String> _timeFrames = ['Week', 'Month', '3 Month', '6 Month', 'Year'];
   int _selectedTimeFrame = 1; // Default to Month
-  bool _showChart = false; // Changed to false to show bar chart by default
+  bool _showChart = false; // Show bar chart by default
   bool _isExpanded = false;
-  TextEditingController _balanceController = TextEditingController(text: '24,550');
   bool _isEditingBalance = false;
+  bool _isLoading = true;
   
-  // Sample budget data
-  final List<BudgetCategory> budgetCategories = [
-    BudgetCategory(
-      name: 'Food & Dining',
-      icon: Icons.restaurant,
-      color: Colors.orange,
-      spent: 3430,
-      budget: 5000,
-      dailyData: [750, 620, 350, 800, 910, 0, 0],
-    ),
-    BudgetCategory(
-      name: 'Transportation',
-      icon: Icons.directions_car,
-      color: Colors.blue,
-      spent: 2800,
-      budget: 3000,
-      dailyData: [400, 350, 500, 420, 1130, 0, 0],
-    ),
-    BudgetCategory(
-      name: 'Entertainment',
-      icon: Icons.movie,
-      color: Colors.purple,
-      spent: 1200,
-      budget: 2000,
-      dailyData: [0, 300, 0, 450, 450, 0, 0],
-    ),
-    BudgetCategory(
-      name: 'Shopping',
-      icon: Icons.shopping_bag,
-      color: Colors.teal,
-      spent: 5600,
-      budget: 10000,
-      dailyData: [1200, 0, 1400, 0, 3000, 0, 0],
-    ),
-  ];
-  
+  // Budget data
   int _selectedBudgetCategoryIndex = 0;
+  
+  // Service data
+  double _currentBalance = 0.0;
+  String _lastUpdateTime = '';
+  List<Transaction> _recentTransactions = [];
+  List<SavingsGoal> _savingsGoals = [];
+  List<BudgetCategory> _budgetCategories = [];
+  Map<String, double> _categoryPercentages = {};
+  
+  // AI Insights
+  String _spendingAlertText = '';
+  String _savingsOpportunityText = '';
+  
+  // Subscription handlers
+  StreamSubscription? _balanceSubscription;
+  StreamSubscription? _transactionsSubscription;
   
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Initialize data
+    _initializeData();
   }
-
+  
+  Future<void> _initializeData() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      // Initialize balance service
+      await BalanceService.instance.initialize();
+      
+      // Listen to balance updates
+      _balanceSubscription = BalanceService.instance.balanceStream.listen((balance) {
+        setState(() {
+          _currentBalance = balance;
+          _balanceController.text = NumberFormat('#,##0', 'en_US').format(balance.round());
+          _lastUpdateTime = DateFormat('dd/MM/yyyy').format(BalanceService.instance.getLastUpdateTime());
+        });
+      });
+      
+      // Get initial balance
+      _currentBalance = BalanceService.instance.getCurrentBalance();
+      _balanceController.text = NumberFormat('#,##0', 'en_US').format(_currentBalance.round());
+      _lastUpdateTime = DateFormat('dd/MM/yyyy').format(BalanceService.instance.getLastUpdateTime());
+      
+      // Load recent transactions
+      await _loadRecentTransactions();
+      
+      // Load savings goals
+      await _loadSavingsGoals();
+      
+      // Load budget categories
+      await _loadBudgetCategories();
+      
+      // Calculate category percentages for pie chart
+      _calculateCategoryPercentages();
+      
+      // Generate AI Insights
+      await _generateAIInsights();
+      
+    } catch (e) {
+      print('Error initializing home screen data: $e');
+      // Use mock data as fallback
+      _loadMockData();
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+  
+  void _loadMockData() {
+    // Mock data for balance
+    _currentBalance = 24550;
+    _balanceController.text = '24,550';
+    _lastUpdateTime = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    
+    // Mock data for budget categories
+    _budgetCategories = [
+      BudgetCategory(
+        name: 'Food & Dining',
+        icon: Icons.restaurant,
+        color: Colors.orange,
+        spent: 3430,
+        budget: 5000,
+        dailyData: [750, 620, 350, 800, 910, 0, 0],
+      ),
+      BudgetCategory(
+        name: 'Transportation',
+        icon: Icons.directions_car,
+        color: Colors.blue,
+        spent: 2800,
+        budget: 3000,
+        dailyData: [400, 350, 500, 420, 1130, 0, 0],
+      ),
+      BudgetCategory(
+        name: 'Entertainment',
+        icon: Icons.movie,
+        color: Colors.purple,
+        spent: 1200,
+        budget: 2000,
+        dailyData: [0, 300, 0, 450, 450, 0, 0],
+      ),
+      BudgetCategory(
+        name: 'Shopping',
+        icon: Icons.shopping_bag,
+        color: Colors.teal,
+        spent: 5600,
+        budget: 10000,
+        dailyData: [1200, 0, 1400, 0, 3000, 0, 0],
+      ),
+    ];
+    
+    // Mock category percentages
+    _categoryPercentages = {
+      'Food': 38,
+      'Transport': 25,
+      'Shopping': 18,
+      'Bills': 12,
+      'Others': 7,
+    };
+    
+    // Mock AI insights
+    _spendingAlertText = "You've spent KES 2,500 on dining this month, which is 40% higher than last month. Consider setting a budget limit for this category.";
+    _savingsOpportunityText = "Based on your income pattern, you could save KES 3,000 more this month by reducing non-essential expenses. Would you like to try a savings challenge?";
+  }
+  
+  Future<void> _loadRecentTransactions() async {
+    try {
+      final AppwriteService appwrite = AppwriteService();
+      final transactionsList = await appwrite.getRecentTransactions(limit: 10);
+      
+      setState(() {
+        _recentTransactions = transactionsList;
+      });
+    } catch (e) {
+      print('Error loading transactions: $e');
+      // Mock transactions as fallback
+      _recentTransactions = [
+        Transaction(
+          id: '1',
+          title: 'KFC Restaurant',
+          amount: -1250,
+          date: DateTime.now().subtract(Duration(days: 1)),
+          category: 'Food', isExpense: true, icon: Icons.fastfood, color: Colors.transparent, isSms: true,
+        ),
+        Transaction(
+          id: '2',
+          title: 'M-Pesa Transfer',
+          amount: -500,
+          date: DateTime.now().subtract(Duration(days: 1)),
+          category: 'Transfer', isExpense: false, icon: Icons.transfer_within_a_station, color: Colors.grey, isSms: false,
+        ),
+      ];
+    }
+  }
+  
+  Future<void> _loadSavingsGoals() async {
+    try {
+      final AppwriteService appwrite = AppwriteService();
+      final goalsList = await appwrite.getSavingsGoals();
+      
+      setState(() {
+        _savingsGoals = goalsList;
+      });
+    } catch (e) {
+      print('Error loading savings goals: $e');
+      // Mock savings goals as fallback
+      _savingsGoals = [
+        SavingsGoal(
+          id: '1',
+          title: 'bank',
+          currentAmount: 15000,
+          targetAmount: 50000,
+          deadline: DateTime.now().add(Duration(days: 365)),
+            color: Colors.blue, targetDate: DateTime.now().add(Duration(days: 365)), category: SavingsGoalCategory.other, iconAsset: '',
+        ),
+        SavingsGoal(
+          id: '2',
+          currentAmount: 25000,
+          targetAmount: 80000,
+          deadline: DateTime.now().add(Duration(days: 180)),
+          color: Color(0xFF26D07C), title: '', targetDate: null, category: null, iconAsset: '',
+        ),
+        SavingsGoalModel(
+          id: '3',
+          name: 'Holiday',
+          icon: 'beach',
+          currentAmount: 5000,
+          targetAmount: 45000,
+          deadline: DateTime.now().add(Duration(days: 120)),
+          color: Colors.orange.value,
+        ),
+      ];
+    }
+  }
+  
+  Future<void> _loadBudgetCategories() async {
+    try {
+      final AppwriteService appwrite = AppwriteService();
+      final budgetsList = await appwrite.getBudgets();
+      
+      final List<BudgetCategory> categories = [];
+      
+      for (final budget in budgetsList) {
+        // Get daily data for this budget (from transactions)
+        List<double> dailyData = await appwrite.getDailySpendingForBudget(
+          budget.categoryId, 
+          DateTime.now().subtract(Duration(days: 7)), 
+          DateTime.now()
+        );
+        
+        // Map icon based on category
+        IconData icon = Icons.category;
+        Color color = Colors.grey;
+        
+        switch (budget.categoryName.toLowerCase()) {
+          case 'food':
+          case 'food & dining':
+          case 'dining':
+            icon = Icons.restaurant;
+            color = Colors.orange;
+            break;
+          case 'transport':
+          case 'transportation':
+            icon = Icons.directions_car;
+            color = Colors.blue;
+            break;
+          case 'entertainment':
+            icon = Icons.movie;
+            color = Colors.purple;
+            break;
+          case 'shopping':
+            icon = Icons.shopping_bag;
+            color = Colors.teal;
+            break;
+          case 'bills':
+          case 'utilities':
+            icon = Icons.receipt;
+            color = Colors.red;
+            break;
+        }
+        
+        categories.add(BudgetCategory(
+          name: budget.categoryName,
+          icon: icon,
+          color: color,
+          spent: budget.spent.toInt(),
+          budget: budget.budgetAmount.toInt(),
+          dailyData: dailyData.map((e) => e.toDouble()).toList(),
+        ));
+      }
+      
+      if (categories.isNotEmpty) {
+        setState(() {
+          _budgetCategories = categories;
+        });
+      } else {
+        // Use mock data if no budgets
+        _loadMockData();
+      }
+    } catch (e) {
+      print('Error loading budgets: $e');
+      // Use mock data as fallback
+      _loadMockData();
+    }
+  }
+  
+  void _calculateCategoryPercentages() {
+    Map<String, double> totals = {};
+    double overallTotal = 0;
+    
+    // Calculate totals per category
+    for (final transaction in _recentTransactions) {
+      if (transaction.amount < 0) { // Only include expenses
+        final amount = transaction.amount.abs();
+        totals[transaction.category] = (totals[transaction.category] ?? 0) + amount;
+        overallTotal += amount;
+      }
+    }
+    
+    // Calculate percentages
+    Map<String, double> percentages = {};
+    
+    if (overallTotal > 0) {
+      totals.forEach((category, total) {
+        percentages[category] = (total / overallTotal) * 100;
+      });
+    } else {
+      // Fallback to mock data
+      percentages = {
+        'Food': 38,
+        'Transport': 25,
+        'Shopping': 18,
+        'Bills': 12,
+        'Others': 7,
+      };
+    }
+    
+    setState(() {
+      _categoryPercentages = percentages;
+    });
+  }
+  
+  Future<void> _generateAIInsights() async {
+    try {
+      final HomeAIService aiService = HomeAIService();
+      
+      // Analyze spending patterns
+      final spendingInsight = await aiService.analyzeSpendingPattern(_recentTransactions);
+      
+      // Generate savings opportunity
+      final savingsInsight = await aiService.generateSavingsOpportunity(
+        _recentTransactions,
+        _budgetCategories.map((b) => BudgetModel(
+          id: '',
+          userId: '',
+          categoryId: '',
+          categoryName: b.name,
+          budgetAmount: b.budget.toDouble(),
+          spent: b.spent.toDouble(),
+          period: 'monthly',
+          createdAt: DateTime.now(),
+        )).toList(),
+      );
+      
+      setState(() {
+        _spendingAlertText = spendingInsight;
+        _savingsOpportunityText = savingsInsight;
+      });
+    } catch (e) {
+      print('Error generating AI insights: $e');
+      // Use mock insights as fallback
+      setState(() {
+        _spendingAlertText = "You've spent KES 2,500 on dining this month, which is 40% higher than last month. Consider setting a budget limit for this category.";
+        _savingsOpportunityText = "Based on your income pattern, you could save KES 3,000 more this month by reducing non-essential expenses. Would you like to try a savings challenge?";
+      });
+    }
+  }
+  
   @override
   void dispose() {
     _tabController.dispose();
     _balanceController.dispose();
+    _balanceSubscription?.cancel();
+    _transactionsSubscription?.cancel();
     super.dispose();
+  }
+  
+  void _showAddMoneyBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Sheet handle
+            Center(
+              child: Container(
+                margin: EdgeInsets.only(top: 16),
+                width: 60,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+            ),
+            
+            Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Add Money',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                children: [
+                  _buildTopUpOption(
+                    icon: Icons.phone_android,
+                    title: 'M-PESA',
+                    subtitle: 'Direct deposit from M-PESA',
+                    iconColor: Colors.green,
+                  ),
+                  
+                  _buildTopUpOption(
+                    icon: Icons.credit_card,
+                    title: 'Debit/Credit Card',
+                    subtitle: 'Link your bank card',
+                    iconColor: Colors.blue,
+                  ),
+                  
+                  _buildTopUpOption(
+                    icon: Icons.account_balance,
+                    title: 'Bank Transfer',
+                    subtitle: 'Direct bank deposit',
+                    iconColor: Colors.purple,
+                  ),
+                  
+                  SizedBox(height: 24),
+                  
+                  Text(
+                    'Manual Entry',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  
+                  SizedBox(height: 16),
+                  
+                  TextField(
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Amount (KES)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: Icon(Icons.attach_money),
+                    ),
+                  ),
+                  
+                  SizedBox(height: 16),
+                  
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: 'Description (Optional)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                  ),
+                  
+                  SizedBox(height: 24),
+                  
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF26D07C),
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Add Funds',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildTopUpOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color iconColor,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.all(16),
+        leading: Container(
+          padding: EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: iconColor,
+            size: 24,
+          ),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+          ),
+        ),
+        trailing: Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () {},
+      ),
+    );
   }
 
   @override
@@ -101,1562 +601,1610 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       statusBarIconBrightness: Brightness.dark,
     ));
     
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // You can use Lottie animation here instead
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+              ),
+              SizedBox(height: 20),
+              Text(
+                'Loading your financial data...',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top Header - White bar
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // App Name/Logo instead of hamburger
-                    Text(
-                      'Daily Dime',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    
-                    Row(
-                      children: [
-                        // Notification Icon
-                        Container(
-                          margin: const EdgeInsets.only(right: 16),
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.03),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Stack(
-                            children: [
-                              Icon(
-                                Icons.notifications_outlined,
-                                size: 24,
-                                color: Colors.black,
-                              ),
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 1.5),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        // Profile Image
-                        GestureDetector(
-                          onTap: widget.onNavigateToProfile,
-                          child: Container(
-                            width: 40,
-                            height: 40,
+        child: RefreshIndicator(
+          color: accentColor,
+          onRefresh: _initializeData,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Header - White bar
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // App Logo instead of text
+                      Row(
+                        children: [
+                          Container(
+                            height: 32,
+                            width: 32,
                             decoration: BoxDecoration(
+                              color: accentColor,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.account_balance_wallet,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'DailyDime',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      Row(
+                        children: [
+                          // Notification Icon
+                          Container(
+                            margin: const EdgeInsets.only(right: 16),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
+                                  color: Colors.black.withOpacity(0.03),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
                                 ),
                               ],
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(
-                                'assets/images/profile.jpg',
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => 
-                                  Container(
+                            child: Stack(
+                              children: [
+                                Icon(
+                                  Icons.notifications_outlined,
+                                  size: 24,
+                                  color: Colors.black,
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
                                     decoration: BoxDecoration(
-                                      color: Colors.grey.shade200,
-                                      borderRadius: BorderRadius.circular(12),
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 1.5),
                                     ),
-                                    child: Icon(Icons.person, color: Colors.grey.shade600),
                                   ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Settings Icon (replacing profile)
+                          GestureDetector(
+                            onTap: widget.onNavigateToSettings,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.03),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.settings_outlined,
+                                size: 24,
+                                color: Colors.black,
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 5),
-              
-              // Wallet Balance Card with pattern background
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        accentColor,
-                        accentColor.withOpacity(0.8),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: accentColor.withOpacity(0.3),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
+                        ],
                       ),
                     ],
-                    image: DecorationImage(
-                      image: AssetImage('assets/images/pattern2.png'),
-                      fit: BoxFit.cover,
-                      opacity: 0.1,
-                    ),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Wallet Balance',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'KES',
+                ),
+                
+                const SizedBox(height: 5),
+                
+                // Wallet Balance Card with pattern background
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          accentColor,
+                          accentColor.withOpacity(0.8),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentColor.withOpacity(0.3),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/pattern2.png'),
+                        fit: BoxFit.cover,
+                        opacity: 0.1,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Wallet Balance',
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Editable balance
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _isEditingBalance = true;
-                            });
-                          },
-                          child: _isEditingBalance 
-                              ? Container(
-                                  height: 46,
-                                  padding: EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'KES',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          // Editable balance
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isEditingBalance = true;
+                              });
+                            },
+                            child: _isEditingBalance 
+                                ? Container(
+                                    height: 46,
+                                    padding: EdgeInsets.symmetric(horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'KES ',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: TextField(
+                                            controller: _balanceController,
+                                            keyboardType: TextInputType.number,
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            decoration: InputDecoration(
+                                              border: InputBorder.none,
+                                              contentPadding: EdgeInsets.zero,
+                                            ),
+                                            autofocus: true,
+                                            onSubmitted: (value) {
+                                              _updateManualBalance(value);
+                                            },
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(Icons.check, color: Colors.white),
+                                          onPressed: () {
+                                            _updateManualBalance(_balanceController.text);
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : Row(
                                     children: [
                                       Text(
                                         'KES ',
                                         style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 20,
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        _balanceController.text,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 32,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       SizedBox(width: 8),
-                                      Expanded(
-                                        child: TextField(
-                                          controller: _balanceController,
-                                          keyboardType: TextInputType.number,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          decoration: InputDecoration(
-                                            border: InputBorder.none,
-                                            contentPadding: EdgeInsets.zero,
-                                          ),
-                                          autofocus: true,
-                                          onSubmitted: (value) {
-                                            setState(() {
-                                              _isEditingBalance = false;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: Icon(Icons.check, color: Colors.white),
-                                        onPressed: () {
-                                          setState(() {
-                                            _isEditingBalance = false;
-                                          });
-                                        },
-                                      ),
+                                      Icon(
+                                        Icons.edit,
+                                        color: Colors.white.withOpacity(0.7),
+                                        size: 18,
+                                      )
                                     ],
                                   ),
-                                )
-                              : Row(
+                          ),
+                          
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Text(
+                                'Updated: $_lastUpdateTime',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                child: Row(
                                   children: [
-                                    Text(
-                                      'KES ',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 32,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      _balanceController.text,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 32,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    SizedBox(width: 8),
                                     Icon(
-                                      Icons.edit,
-                                      color: Colors.white.withOpacity(0.7),
-                                      size: 18,
-                                    )
+                                      Icons.trending_up,
+                                      color: Colors.white,
+                                      size: 14,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '+8.2%',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ],
                                 ),
-                        ),
-                        
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Text(
-                              'Updated: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 12,
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              child: Row(
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          // Income & Expense Stats
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              if (constraints.maxWidth < 300) {
+                                // Stack vertically on very small screens
+                                return Column(
+                                  children: [
+                                    _buildWalletStatItem(
+                                      icon: Icons.arrow_upward_rounded,
+                                      iconColor: Colors.red,
+                                      bgColor: Colors.white.withOpacity(0.2),
+                                      iconBgColor: Colors.red.withOpacity(0.2),
+                                      title: 'Expense',
+                                      amount: 'KES ${_calculateTotalExpenses()}',
+                                      isFullWidth: true,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildWalletStatItem(
+                                      icon: Icons.arrow_downward_rounded,
+                                      iconColor: Colors.white,
+                                      bgColor: Colors.white.withOpacity(0.2),
+                                      iconBgColor: Colors.white.withOpacity(0.2),
+                                      title: 'Income',
+                                      amount: 'KES ${_calculateTotalIncome()}',
+                                      isFullWidth: true,
+                                    ),
+                                  ],
+                                );
+                              }
+                              
+                              // Side by side for normal screens
+                              return Row(
                                 children: [
-                                  Icon(
-                                    Icons.trending_up,
-                                    color: Colors.white,
-                                    size: 14,
+                                  Expanded(
+                                    child: _buildWalletStatItem(
+                                      icon: Icons.arrow_upward_rounded,
+                                      iconColor: Colors.red,
+                                      bgColor: Colors.white.withOpacity(0.2),
+                                      iconBgColor: Colors.red.withOpacity(0.2),
+                                      title: 'Expense',
+                                      amount: 'KES ${_calculateTotalExpenses()}',
+                                    ),
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '+8.2%',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildWalletStatItem(
+                                      icon: Icons.arrow_downward_rounded,
+                                      iconColor: Colors.white,
+                                      bgColor: Colors.white.withOpacity(0.2),
+                                      iconBgColor: Colors.white.withOpacity(0.2),
+                                      title: 'Income',
+                                      amount: 'KES ${_calculateTotalIncome()}',
                                     ),
                                   ),
                                 ],
-                              ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Quick Action Icons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Quick Actions',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.02),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 24),
-                        
-                        // Income & Expense Stats
-                        LayoutBuilder(
+                        child: LayoutBuilder(
                           builder: (context, constraints) {
-                            if (constraints.maxWidth < 300) {
-                              // Stack vertically on very small screens
-                              return Column(
+                            final bool useCompactLayout = constraints.maxWidth < 350;
+                            
+                            if (useCompactLayout) {
+                              // Compact layout with Wrap for very small screens
+                              return Wrap(
+                                alignment: WrapAlignment.spaceAround,
+                                spacing: 8,
+                                runSpacing: 12,
                                 children: [
-                                  _buildWalletStatItem(
-                                    icon: Icons.arrow_upward_rounded,
-                                    iconColor: Colors.red,
-                                    bgColor: Colors.white.withOpacity(0.2),
-                                    iconBgColor: Colors.red.withOpacity(0.2),
-                                    title: 'Expense',
-                                    amount: 'KES 3,430',
-                                    isFullWidth: true,
+                                  _buildQuickAction(
+                                    context,
+                                    iconData: Icons.add,
+                                    iconColor: accentColor,
+                                    label: 'Top up',
+                                    onTap: () {
+                                      _showAddMoneyBottomSheet(context);
+                                    },
                                   ),
-                                  const SizedBox(height: 8),
-                                  _buildWalletStatItem(
-                                    icon: Icons.arrow_downward_rounded,
-                                    iconColor: Colors.white,
-                                    bgColor: Colors.white.withOpacity(0.2),
-                                    iconBgColor: Colors.white.withOpacity(0.2),
-                                    title: 'Income',
-                                    amount: 'KES 15,000',
-                                    isFullWidth: true,
+                                  _buildQuickAction(
+                                    context,
+                                    iconData: Icons.phone_android,
+                                    iconColor: Colors.green,
+                                    label: 'M-PESA',
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => MpesaScreen()),
+                                      );
+                                    },
+                                  ),
+                                  _buildQuickAction(
+                                    context,
+                                    iconData: Icons.savings,
+                                    iconColor: Colors.orange,
+                                    label: 'Savings',
+                                    onTap: widget.onNavigateToSavings ?? () {},
+                                  ),
+                                  _buildQuickAction(
+                                    context,
+                                    iconData: Icons.pie_chart,
+                                    iconColor: Colors.red,
+                                    label: 'Budget',
+                                    onTap: widget.onNavigateToBudget ?? () {},
+                                  ),
+                                  _buildQuickAction(
+                                    context,
+                                    iconData: Icons.auto_awesome,
+                                    iconColor: Colors.purple,
+                                    label: 'AI Insights',
+                                    onTap: widget.onNavigateToAI ?? () {},
                                   ),
                                 ],
                               );
                             }
                             
-                            // Side by side for normal screens
+                            // Default layout with Row
                             return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                Expanded(
-                                  child: _buildWalletStatItem(
-                                    icon: Icons.arrow_upward_rounded,
-                                    iconColor: Colors.red,
-                                    bgColor: Colors.white.withOpacity(0.2),
-                                    iconBgColor: Colors.red.withOpacity(0.2),
-                                    title: 'Expense',
-                                    amount: 'KES 3,430',
-                                  ),
+                                _buildQuickAction(
+                                  context,
+                                  iconData: Icons.add,
+                                  iconColor: accentColor,
+                                  label: 'Top up',
+                                  onTap: () {
+                                    _showAddMoneyBottomSheet(context);
+                                  },
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildWalletStatItem(
-                                    icon: Icons.arrow_downward_rounded,
-                                    iconColor: Colors.white,
-                                    bgColor: Colors.white.withOpacity(0.2),
-                                    iconBgColor: Colors.white.withOpacity(0.2),
-                                    title: 'Income',
-                                    amount: 'KES 15,000',
-                                  ),
+                                _buildQuickAction(
+                                  context,
+                                  iconData: Icons.phone_android,
+                                  iconColor: Colors.green,
+                                  label: 'M-PESA',
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => MpesaScreen()),
+                                    );
+                                  },
+                                ),
+                                _buildQuickAction(
+                                  context,
+                                  iconData: Icons.savings,
+                                  iconColor: Colors.orange,
+                                  label: 'Savings',
+                                  onTap: widget.onNavigateToSavings ?? () {},
+                                ),
+                                _buildQuickAction(
+                                  context,
+                                  iconData: Icons.pie_chart,
+                                  iconColor: Colors.red,
+                                  label: 'Budget',
+                                  onTap: widget.onNavigateToBudget ?? () {},
+                                ),
+                                _buildQuickAction(
+                                  context,
+                                  iconData: Icons.auto_awesome,
+                                  iconColor: Colors.purple,
+                                  label: 'AI Insights',
+                                  onTap: widget.onNavigateToAI ?? () {},
                                 ),
                               ],
                             );
                           },
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              
-             // Quick Action Icons
-Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        'Quick Actions',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      const SizedBox(height: 16),
-      Container(
-        padding: const EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final bool useCompactLayout = constraints.maxWidth < 350;
-            
-            if (useCompactLayout) {
-              // Compact layout with Wrap for very small screens
-              return Wrap(
-                alignment: WrapAlignment.spaceAround,
-                spacing: 8,
-                runSpacing: 12,
-                children: [
-                  _buildQuickAction(
-                    context,
-                    iconData: Icons.add,
-                    iconColor: accentColor,
-                    label: 'Top up',
-                    onTap: () {
-                      _showAddMoneyBottomSheet(context);
-                    },
-                  ),
-                  _buildQuickAction(
-                    context,
-                    iconData: Icons.phone_android,
-                    iconColor: Colors.green,
-                    label: 'M-PESA',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => MpesaScreen()),
-                      );
-                    },
-                  ),
-                  _buildQuickAction(
-                    context,
-                    iconData: Icons.savings,
-                    iconColor: Colors.orange,
-                    label: 'Savings',
-                    onTap: widget.onNavigateToSavings ?? () {},
-                  ),
-                  _buildQuickAction(
-                    context,
-                    iconData: Icons.pie_chart,
-                    iconColor: Colors.red,
-                    label: 'Budget',
-                    onTap: widget.onNavigateToBudget ?? () {},
-                  ),
-                  _buildQuickAction(
-                    context,
-                    iconData: Icons.auto_awesome,
-                    iconColor: Colors.purple,
-                    label: 'AI Insights',
-                    onTap: widget.onNavigateToAI ?? () {},
-                  ),
-                ],
-              );
-            }
-            
-            // Default layout with Row
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildQuickAction(
-                  context,
-                  iconData: Icons.add,
-                  iconColor: accentColor,
-                  label: 'Top up',
-                  onTap: () {
-                    _showAddMoneyBottomSheet(context);
-                  },
-                ),
-                _buildQuickAction(
-                  context,
-                  iconData: Icons.phone_android,
-                  iconColor: Colors.green,
-                  label: 'M-PESA',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => MpesaScreen()),
-                    );
-                  },
-                ),
-                _buildQuickAction(
-                  context,
-                  iconData: Icons.savings,
-                  iconColor: Colors.orange,
-                  label: 'Savings',
-                  onTap: widget.onNavigateToSavings ?? () {},
-                ),
-                _buildQuickAction(
-                  context,
-                  iconData: Icons.pie_chart,
-                  iconColor: Colors.red,
-                  label: 'Budget',
-                  onTap: widget.onNavigateToBudget ?? () {},
-                ),
-                _buildQuickAction(
-                  context,
-                  iconData: Icons.auto_awesome,
-                  iconColor: Colors.purple,
-                  label: 'AI Insights',
-                  onTap: widget.onNavigateToAI ?? () {},
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    ],
-  ),
-),
-              
-              // Spending Overview
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Spending Overview',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _showChart = !_showChart;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.03),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  _showChart ? Icons.bar_chart : Icons.pie_chart,
-                                  size: 18,
-                                  color: accentColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Chart container with shadow
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
                       ),
-                      child: Column(
+                    ],
+                  ),
+                ),
+                
+                // Spending Overview
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Chart view
-                          if (_showChart)
-                            SizedBox(
-                              height: 220,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  SizedBox(
-                                    height: 200,
-                                    width: 200,
-                                    child: CustomPaint(
-                                      painter: PieChartPainter(),
-                                      child: Container(),
-                                    ),
-                                  ),
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'KES 24,550',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Total',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
-                                        ),
+                          Text(
+                            'Spending Overview',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _showChart = !_showChart;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.03),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            )
-                          else
-                            Container(
-                              height: 220,
-                              child: SpendingBarChart(),
-                            ),
-                            
-                          const SizedBox(height: 20),
-                          
-                          // Expense Categories - Responsive grid/wrap
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            alignment: WrapAlignment.center,
-                            children: [
-                              _buildCategoryLegend('Food', Colors.orange, '38%'),
-                              _buildCategoryLegend('Transport', Colors.blue, '25%'),
-                              _buildCategoryLegend('Shopping', Colors.green, '18%'),
-                              _buildCategoryLegend('Bills', Colors.red, '12%'),
-                              _buildCategoryLegend('Others', Colors.purple, '7%'),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 30),
-              
-              // Savings Goals
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Savings Goals',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: widget.onNavigateToSavings,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: accentColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'See all',
-                              style: TextStyle(
-                                color: accentColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Savings Goal Cards
-                    SizedBox(
-                      height: 170,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        physics: BouncingScrollPhysics(),
-                        children: [
-                          _buildSavingsGoalCard(
-                            context, 
-                            title: 'Emergency Fund',
-                            icon: Icons.account_balance,
-                            currentAmount: 15000,
-                            targetAmount: 50000,
-                            color: Colors.blue,
-                            progress: 0.3,
-                          ),
-                          _buildSavingsGoalCard(
-                            context, 
-                            title: 'New Laptop',
-                            icon: Icons.laptop_mac,
-                            currentAmount: 25000,
-                            targetAmount: 80000,
-                            color: accentColor,
-                            progress: 0.31,
-                          ),
-                          _buildSavingsGoalCard(
-                            context, 
-                            title: 'Holiday',
-                            icon: Icons.beach_access,
-                            currentAmount: 5000,
-                            targetAmount: 45000,
-                            color: Colors.orange,
-                            progress: 0.11,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 30),
-              
-              // Recent Transactions
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Recent Transactions',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: widget.onNavigateToTransactions,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: accentColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'See all',
-                              style: TextStyle(
-                                color: accentColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Transactions list
-                    Column(
-                      children: [
-                        _buildTransactionItem(
-                          context,
-                          logo: 'assets/images/kfc.png',
-                          name: 'KFC Restaurant',
-                          date: '18/07/2025',
-                          amount: -1250.0,
-                          logoPlaceholder: Icons.fastfood,
-                          logoColor: Colors.red,
-                          category: 'Food',
-                        ),
-                        const SizedBox(height: 12),
-                        _buildTransactionItem(
-                          context,
-                          logo: 'assets/images/mpesa.png',
-                          name: 'M-Pesa Transfer',
-                          date: '18/07/2025',
-                          amount: -500.0,
-                          logoPlaceholder: Icons.swap_horiz,
-                          logoColor: Colors.green,
-                          category: 'Transfer',
-                        ),
-                        
-                        // Show expanded transactions
-                        if (_isExpanded) ...[
-                          const SizedBox(height: 12),
-                          _buildTransactionItem(
-                            context,
-                            logo: 'assets/images/salary.png',
-                            name: 'Salary',
-                            date: '15/07/2025',
-                            amount: 45000.0,
-                            logoPlaceholder: Icons.work,
-                            logoColor: Colors.blue,
-                            category: 'Income',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildTransactionItem(
-                            context,
-                            logo: 'assets/images/safaricom.png',
-                            name: 'Safaricom',
-                            date: '14/07/2025',
-                            amount: -1000.0,
-                            logoPlaceholder: Icons.phone_android,
-                            logoColor: Colors.green,
-                            category: 'Bills',
-                          ),
-                        ],
-                      ],
-                    ),
-                    
-                    // Show more/less button
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _isExpanded = !_isExpanded;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  _isExpanded ? 'Show less' : 'Show more',
-                                  style: TextStyle(
-                                    color: Colors.grey[800],
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                  child: Icon(
+                                    _showChart ? Icons.bar_chart : Icons.pie_chart,
+                                    size: 18,
+                                    color: accentColor,
                                   ),
                                 ),
-                                Icon(
-                                  _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                                  size: 16,
-                                  color: Colors.grey[800],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 30),
-              
-              // Budget Status with interactive bar graph
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Budget Status',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: widget.onNavigateToBudget,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: accentColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'See all',
-                              style: TextStyle(
-                                color: accentColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Budget visualization
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Budget Period Selector
-                          Row(
-                            children: [
-                              Text(
-                                'Budget Period:',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Container(
-                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: accentColor.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'July 2025',
-                                      style: TextStyle(
-                                        color: accentColor,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    SizedBox(width: 4),
-                                    Icon(
-                                      Icons.keyboard_arrow_down,
-                                      size: 16,
-                                      color: accentColor,
-                                    ),
-                                  ],
-                                ),
                               ),
                             ],
                           ),
-                          
-                          SizedBox(height: 24),
-                          
-                          // Category selector for the chart
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            physics: BouncingScrollPhysics(),
-                            child: Row(
-                              children: List.generate(
-                                budgetCategories.length,
-                                (index) => GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedBudgetCategoryIndex = index;
-                                    });
-                                  },
-                                  child: Container(
-                                    margin: EdgeInsets.only(right: 10),
-                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: _selectedBudgetCategoryIndex == index
-                                          ? budgetCategories[index].color
-                                          : budgetCategories[index].color.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          budgetCategories[index].icon,
-                                          color: _selectedBudgetCategoryIndex == index
-                                              ? Colors.white
-                                              : budgetCategories[index].color,
-                                          size: 16,
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Chart container with shadow
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            // Chart view
+                            if (_showChart)
+                              SizedBox(
+                                height: 220,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    SizedBox(
+                                      height: 200,
+                                      width: 200,
+                                      child: CustomPaint(
+                                        painter: PieChartPainter(
+                                          categoryPercentages: _categoryPercentages,
                                         ),
-                                        SizedBox(width: 6),
+                                        child: Container(),
+                                      ),
+                                    ),
+                                    Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
                                         Text(
-                                          budgetCategories[index].name,
+                                          'KES ${NumberFormat('#,##0', 'en_US').format(_currentBalance.round())}',
                                           style: TextStyle(
-                                            color: _selectedBudgetCategoryIndex == index
-                                                ? Colors.white
-                                                : budgetCategories[index].color,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Total',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey[600],
                                           ),
                                         ),
                                       ],
                                     ),
-                                  ),
+                                  ],
+                                ),
+                              )
+                            else
+                              Container(
+                                height: 220,
+                                child: SpendingBarChart(
+                                  weeklyData: _getWeeklySpendingData(),
+                                ),
+                              ),
+                              
+                            const SizedBox(height: 20),
+                            
+                            // Expense Categories - Responsive grid/wrap
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              alignment: WrapAlignment.center,
+                              children: _categoryPercentages.entries.map((entry) {
+                                Color color = _getCategoryColor(entry.key);
+                                return _buildCategoryLegend(
+                                  entry.key, 
+                                  color, 
+                                  '${entry.value.round()}%'
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 30),
+                
+                // Savings Goals
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Savings Goals',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: widget.onNavigateToSavings,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: accentColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'See all',
+                                style: TextStyle(
+                                  color: accentColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                           ),
-                          
-                          SizedBox(height: 20),
-                          
-                          // Budget overview interactive bar chart
-                          Container(
-                            height: 220,
-                            width: double.infinity,
-                            child: BudgetBarChart(
-                              dailyData: budgetCategories[_selectedBudgetCategoryIndex].dailyData,
-                              color: budgetCategories[_selectedBudgetCategoryIndex].color,
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Savings Goal Cards
+                      _savingsGoals.isEmpty
+                          ? _buildEmptySavingsState()
+                          : SizedBox(
+                              height: 170,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                physics: BouncingScrollPhysics(),
+                                itemCount: _savingsGoals.length,
+                                itemBuilder: (context, index) {
+                                  final goal = _savingsGoals[index];
+                                  return _buildSavingsGoalCard(
+                                    context, 
+                                    title: goal.name,
+                                    icon: _getSavingsIcon(goal.icon),
+                                    currentAmount: goal.currentAmount,
+                                    targetAmount: goal.targetAmount,
+                                    color: Color(goal.color),
+                                    progress: goal.currentAmount / goal.targetAmount,
+                                  );
+                                },
+                              ),
+                            ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 30),
+                
+                // Recent Transactions
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Recent Transactions',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          
-                          SizedBox(height: 20),
-                          
-                          // Budget category total summary
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  padding: EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.05),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Spent',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
+                          GestureDetector(
+                            onTap: widget.onNavigateToTransactions,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: accentColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'See all',
+                                style: TextStyle(
+                                  color: accentColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Transactions list
+                      _recentTransactions.isEmpty
+                          ? _buildEmptyTransactionsState()
+                          : Column(
+                              children: [
+                                ..._recentTransactions
+                                    .take(_isExpanded ? 4 : 2)
+                                    .map((transaction) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 12),
+                                      child: _buildTransactionItem(
+                                        context,
+                                        logo: transaction.iconPath,
+                                        name: transaction.title,
+                                        date: DateFormat('dd/MM/yyyy').format(transaction.date),
+                                        amount: transaction.amount.toDouble(),
+                                        logoPlaceholder: _getCategoryIcon(transaction.category),
+                                        logoColor: _getCategoryColor(transaction.category),
+                                        category: transaction.category,
+                                      ),
+                                    ))
+                                    .toList(),
+                                
+                                // Show more/less button if we have enough transactions
+                                if (_recentTransactions.length > 2)
+                                  Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _isExpanded = !_isExpanded;
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                _isExpanded ? 'Show less' : 'Show more',
+                                                style: TextStyle(
+                                                  color: Colors.grey[800],
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              Icon(
+                                                _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                                                size: 16,
+                                                color: Colors.grey[800],
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                      SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            'KES ',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.grey[700],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 30),
+                
+                // Budget Status with interactive bar graph
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Budget Status',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: widget.onNavigateToBudget,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: accentColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'See all',
+                                style: TextStyle(
+                                  color: accentColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Budget visualization
+                      _budgetCategories.isEmpty
+                          ? _buildEmptyBudgetState()
+                          : Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Budget Period Selector
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Budget Period:',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: accentColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              DateFormat('MMMM yyyy').format(DateTime.now()),
+                                              style: TextStyle(
+                                                color: accentColor,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
-                                          ),
-                                          Text(
-                                            '${budgetCategories[_selectedBudgetCategoryIndex].spent.toStringAsFixed(0)}',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: budgetCategories[_selectedBudgetCategoryIndex].color,
+                                            SizedBox(width: 4),
+                                            Icon(
+                                              Icons.keyboard_arrow_down,
+                                              size: 16,
+                                              color: accentColor,
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Container(
-                                  padding: EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.05),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Budget',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
+                                  
+                                  SizedBox(height: 24),
+                                  
+                                  // Category selector for the chart
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    physics: BouncingScrollPhysics(),
+                                    child: Row(
+                                      children: List.generate(
+                                        _budgetCategories.length,
+                                        (index) => GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              _selectedBudgetCategoryIndex = index;
+                                            });
+                                          },
+                                          child: Container(
+                                            margin: EdgeInsets.only(right: 10),
+                                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: _selectedBudgetCategoryIndex == index
+                                                  ? _budgetCategories[index].color
+                                                  : _budgetCategories[index].color.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  _budgetCategories[index].icon,
+                                                  color: _selectedBudgetCategoryIndex == index
+                                                      ? Colors.white
+                                                      : _budgetCategories[index].color,
+                                                  size: 16,
+                                                ),
+                                                SizedBox(width: 6),
+                                                Text(
+                                                  _budgetCategories[index].name,
+                                                  style: TextStyle(
+                                                    color: _selectedBudgetCategoryIndex == index
+                                                        ? Colors.white
+                                                        : _budgetCategories[index].color,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                      SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            'KES ',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.grey[700],
-                                            ),
+                                    ),
+                                  ),
+                                  
+                                  SizedBox(height: 20),
+                                  
+                                  // Budget overview interactive bar chart
+                                  Container(
+                                    height: 220,
+                                    width: double.infinity,
+                                    child: BudgetBarChart(
+                                      dailyData: _budgetCategories[_selectedBudgetCategoryIndex].dailyData,
+                                      color: _budgetCategories[_selectedBudgetCategoryIndex].color,
+                                    ),
+                                  ),
+                                  
+                                  SizedBox(height: 20),
+                                  
+                                  // Budget category total summary
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Container(
+                                          padding: EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.withOpacity(0.05),
+                                            borderRadius: BorderRadius.circular(12),
                                           ),
-                                          Text(
-                                            '${budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Spent',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    'KES ',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '${_budgetCategories[_selectedBudgetCategoryIndex].spent.toStringAsFixed(0)}',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: _budgetCategories[_selectedBudgetCategoryIndex].color,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
                                           ),
-                                        ],
+                                        ),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Expanded(
+                                        child: Container(
+                                          padding: EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.withOpacity(0.05),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Budget',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    'KES ',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '${_budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.black87,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Expanded(
+                                        child: Container(
+                                          padding: EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.withOpacity(0.05),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Remaining',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    'KES ',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '${(_budgetCategories[_selectedBudgetCategoryIndex].budget - _budgetCategories[_selectedBudgetCategoryIndex].spent).toStringAsFixed(0)}',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: accentColor,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Container(
-                                  padding: EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.05),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
+                                  
+                                  SizedBox(height: 16),
+                                  
+                                  // Monthly progress bar
+                                  Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Remaining',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      SizedBox(height: 4),
                                       Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            'KES ',
+                                            'Monthly Progress',
                                             style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 14,
                                               fontWeight: FontWeight.w600,
                                               color: Colors.grey[700],
                                             ),
                                           ),
                                           Text(
-                                            '${(budgetCategories[_selectedBudgetCategoryIndex].budget - budgetCategories[_selectedBudgetCategoryIndex].spent).toStringAsFixed(0)}',
+                                            '${(_budgetCategories[_selectedBudgetCategoryIndex].spent / _budgetCategories[_selectedBudgetCategoryIndex].budget * 100).toStringAsFixed(0)}%',
                                             style: TextStyle(
-                                              fontSize: 16,
+                                              fontSize: 14,
                                               fontWeight: FontWeight.bold,
                                               color: accentColor,
                                             ),
                                           ),
                                         ],
                                       ),
+                                      SizedBox(height: 8),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: LinearProgressIndicator(
+                                          value: _budgetCategories[_selectedBudgetCategoryIndex].spent / _budgetCategories[_selectedBudgetCategoryIndex].budget,
+                                          backgroundColor: Colors.grey.withOpacity(0.1),
+                                          valueColor: AlwaysStoppedAnimation<Color>(_budgetCategories[_selectedBudgetCategoryIndex].color),
+                                          minHeight: 8,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            '0',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          Text(
+                                            'KES ${_budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ],
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          
-                          SizedBox(height: 24),
-                          
-                          // Budget Progress Bar
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Monthly Progress',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${(budgetCategories[_selectedBudgetCategoryIndex].spent / budgetCategories[_selectedBudgetCategoryIndex].budget * 100).toStringAsFixed(0)}%',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: _getBudgetStatusColor(budgetCategories[_selectedBudgetCategoryIndex].spent / budgetCategories[_selectedBudgetCategoryIndex].budget),
-                                    ),
-                                  ),
                                 ],
                               ),
-                              SizedBox(height: 8),
-                              Container(
-                                height: 8,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      height: 8,
-                                      width: (MediaQuery.of(context).size.width - 80) * (budgetCategories[_selectedBudgetCategoryIndex].spent / budgetCategories[_selectedBudgetCategoryIndex].budget),
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            budgetCategories[_selectedBudgetCategoryIndex].color.withOpacity(0.7),
-                                            budgetCategories[_selectedBudgetCategoryIndex].color,
-                                          ],
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                        ),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '0',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  Text(
-                                    'KES ${budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 30),
-              
-              // AI Insights Card
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        accentColor.withOpacity(0.9),
-                        accentColor.withOpacity(0.7),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: accentColor.withOpacity(0.3),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
-                      ),
+                            ),
                     ],
-                    image: DecorationImage(
-                      image: AssetImage('assets/images/pattern.png'),
-                      fit: BoxFit.cover,
-                      opacity: 0.05,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                Icons.auto_awesome,
-                                size: 20,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'AI Insights',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            GestureDetector(
-                              onTap: widget.onNavigateToAI,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  'More',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        
-                        // AI Insight Card
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.lightbulb_outline,
-                                      size: 16,
-                                      color: Colors.amber,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      'Spending Alert',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'You\'ve spent KES 2,500 on dining this month, which is 40% higher than last month. Consider setting a budget limit for this category.',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      'Set Budget',
-                                      style: TextStyle(
-                                        color: accentColor,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        
-                        // Second AI Insight Card
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.savings_outlined,
-                                      size: 16,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      'Savings Opportunity',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Based on your income pattern, you could save KES 3,000 more this month by reducing non-essential expenses. Would you like to try a savings challenge?',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      'Start Challenge',
-                                      style: TextStyle(
-                                        color: accentColor,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
-              ),
-              
-              const SizedBox(height: 30),
-              
-              // Financial Tips
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Smart Money Tips',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: accentColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'AI',
+                
+                const SizedBox(height: 30),
+                
+                // AI Insights
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'AI Insights',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Financial tips carousel
-                    SizedBox(
-                      height: 170,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        physics: BouncingScrollPhysics(),
-                        children: [
-                          _buildFinancialTipCard(
-                            context,
-                            title: 'Save 20% of your income',
-                            icon: Icons.savings,
-                            description: 'The 50/30/20 rule suggests saving 20% of your income for financial goals.',
-                            color: accentColor,
-                          ),
-                          _buildFinancialTipCard(
-                            context,
-                            title: 'Track all expenses',
-                            icon: Icons.track_changes,
-                            description: 'People who track expenses save 15% more than those who don\'t.',
-                            color: Colors.purple,
-                          ),
-                          _buildFinancialTipCard(
-                            context,
-                            title: 'Build emergency fund',
-                            icon: Icons.health_and_safety,
-                            description: 'Aim for 3-6 months of expenses in your emergency fund.',
-                            color: Colors.blue,
+                          GestureDetector(
+                            onTap: widget.onNavigateToAI,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: accentColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'More',
+                                style: TextStyle(
+                                  color: accentColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                      
+                      const SizedBox(height: 16),
+                      
+                      // AI Insights container
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: accentColor,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: accentColor.withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            // Spending Alert
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.yellow.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    Icons.warning_rounded,
+                                    color: Colors.yellow,
+                                    size: 24,
+                                  ),
+                                ),
+                                SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Spending Alert',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        _spendingAlertText,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.white.withOpacity(0.9),
+                                        ),
+                                      ),
+                                      SizedBox(height: 12),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: ElevatedButton(
+                                          onPressed: widget.onNavigateToBudget,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                            foregroundColor: accentColor,
+                                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                          ),
+                                          child: Text('Set Budget'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            
+                            SizedBox(height: 24),
+                            Divider(color: Colors.white.withOpacity(0.2), height: 1),
+                            SizedBox(height: 24),
+                            
+                            // Savings Opportunity
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    Icons.lightbulb_outline,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                                SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Savings Opportunity',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        _savingsOpportunityText,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.white.withOpacity(0.9),
+                                        ),
+                                      ),
+                                      SizedBox(height: 12),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            // Start savings challenge
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                            foregroundColor: accentColor,
+                                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                          ),
+                                          child: Text('Start Challenge'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Smart Money Tips
+                      Text(
+                        'Smart Money Tips',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Smart Money Tips Cards - Horizontal scroll
+                      SizedBox(
+                        height: 180,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          physics: BouncingScrollPhysics(),
+                          children: [
+                            _buildSmartTipCard(
+                              icon: Icons.savings,
+                              title: 'Save 20% of your income',
+                              content: 'The 50/30/20 rule suggests saving 20% of your income for financial goals.',
+                              color: accentColor,
+                            ),
+                            _buildSmartTipCard(
+                              icon: Icons.track_changes,
+                              title: 'Track all expenses',
+                              content: 'People who track expenses save 15% more than those who don\'t.',
+                              color: Colors.purple,
+                            ),
+                            _buildSmartTipCard(
+                              icon: Icons.credit_card,
+                              title: 'Pay off high-interest debt first',
+                              content: 'Focus on clearing debts with the highest interest rates to save money long-term.',
+                              color: Colors.orange,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              
-              const SizedBox(height: 80), // Extra space for FAB
-            ],
+                
+                const SizedBox(height: 100), // Bottom padding for navigation bar
+              ],
+            ),
           ),
         ),
       ),
-      floatingActionButton: widget.onAddTransaction != null ? FloatingActionButton(
-        onPressed: widget.onAddTransaction,
-        backgroundColor: accentColor,
-        elevation: 4,
-        child: Icon(Icons.add, color: Colors.white),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ) : null,
     );
   }
   
-  // Helper method to determine budget status color
-  Color _getBudgetStatusColor(double ratio) {
-    if (ratio > 0.9) return Colors.red;
-    if (ratio > 0.7) return Colors.orange;
-    return Color(0xFF26D07C);
+  void _updateManualBalance(String value) {
+    setState(() {
+      _isEditingBalance = false;
+    });
+    
+    // Parse the input and update balance service
+    try {
+      // Remove commas and convert to double
+      final cleanValue = value.replaceAll(',', '');
+      final newBalance = double.parse(cleanValue);
+      
+      if (newBalance > 0) {
+        BalanceService.instance.setBalance(
+          newBalance, 
+          DateTime.now()
+        );
+      }
+    } catch (e) {
+      print('Error updating manual balance: $e');
+      // Reset to previous value
+      _balanceController.text = NumberFormat('#,##0', 'en_US').format(_currentBalance.round());
+    }
   }
   
-  // Wallet stat item widget
+  String _calculateTotalExpenses() {
+    double total = 0;
+    for (final transaction in _recentTransactions) {
+      if (transaction.amount < 0) {
+        total += transaction.amount.abs();
+      }
+    }
+    return NumberFormat('#,##0', 'en_US').format(total.round());
+  }
+  
+  String _calculateTotalIncome() {
+    double total = 0;
+    for (final transaction in _recentTransactions) {
+      if (transaction.amount > 0) {
+        total += transaction.amount;
+      }
+    }
+    return NumberFormat('#,##0', 'en_US').format(total.round());
+  }
+  
+  List<double> _getWeeklySpendingData() {
+    // Get data for the last 7 days
+    final List<double> data = List.generate(7, (index) => 0);
+    final now = DateTime.now();
+    
+    for (final transaction in _recentTransactions) {
+      if (transaction.amount < 0) { // Only expenses
+        final daysDifference = now.difference(transaction.date).inDays;
+        if (daysDifference < 7) {
+          data[6 - daysDifference] += transaction.amount.abs();
+        }
+      }
+    }
+    
+    return data;
+  }
+  
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'food':
+      case 'dining':
+      case 'restaurant':
+        return Icons.restaurant;
+      case 'transport':
+      case 'transportation':
+        return Icons.directions_car;
+      case 'shopping':
+        return Icons.shopping_bag;
+      case 'bills':
+      case 'utilities':
+        return Icons.receipt;
+      case 'entertainment':
+        return Icons.movie;
+      case 'health':
+        return Icons.medical_services;
+      case 'education':
+        return Icons.school;
+      case 'travel':
+        return Icons.flight;
+      case 'transfer':
+        return Icons.swap_horiz;
+      case 'income':
+        return Icons.work;
+      default:
+        return Icons.category;
+    }
+  }
+  
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'food':
+      case 'dining':
+      case 'restaurant':
+        return Colors.orange;
+      case 'transport':
+      case 'transportation':
+        return Colors.blue;
+      case 'shopping':
+        return Colors.teal;
+      case 'bills':
+      case 'utilities':
+        return Colors.red;
+      case 'entertainment':
+        return Colors.purple;
+      case 'health':
+        return Colors.pink;
+      case 'education':
+        return Colors.indigo;
+      case 'travel':
+        return Colors.amber;
+      case 'transfer':
+        return Colors.green;
+      case 'income':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+  
+  IconData _getSavingsIcon(String iconName) {
+    switch (iconName.toLowerCase()) {
+      case 'bank':
+      case 'account_balance':
+        return Icons.account_balance;
+      case 'laptop':
+      case 'computer':
+        return Icons.laptop_mac;
+      case 'car':
+      case 'vehicle':
+        return Icons.directions_car;
+      case 'house':
+      case 'home':
+        return Icons.home;
+      case 'beach':
+      case 'holiday':
+      case 'vacation':
+        return Icons.beach_access;
+      case 'education':
+      case 'school':
+        return Icons.school;
+      case 'wedding':
+      case 'ring':
+        return Icons.favorite;
+      case 'baby':
+      case 'child':
+        return Icons.child_care;
+      default:
+        return Icons.savings;
+    }
+  }
+
   Widget _buildWalletStatItem({
     required IconData icon,
     required Color iconColor,
@@ -1667,7 +2215,8 @@ Padding(
     bool isFullWidth = false,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      width: isFullWidth ? double.infinity : null,
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
@@ -1675,18 +2224,18 @@ Padding(
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: iconBgColor,
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
               color: iconColor,
-              size: 16,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1697,12 +2246,12 @@ Padding(
                   fontSize: 12,
                 ),
               ),
-              const SizedBox(height: 3),
+              SizedBox(height: 4),
               Text(
                 amount,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1713,7 +2262,6 @@ Padding(
     );
   }
   
-  // Updated quick action widget with colored icons
   Widget _buildQuickAction(
     BuildContext context, {
     required IconData iconData,
@@ -1724,35 +2272,29 @@ Padding(
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 5,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
                 iconData,
-                size: 22,
                 color: iconColor,
+                size: 24,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[800],
                 fontWeight: FontWeight.w500,
+                color: Colors.grey[800],
               ),
             ),
           ],
@@ -1761,7 +2303,150 @@ Padding(
     );
   }
   
-  // Updated transaction item with elevation
+  Widget _buildCategoryLegend(String category, Color color, String percentage) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          SizedBox(width: 6),
+          Text(
+            category,
+            style: TextStyle(
+              color: Colors.grey[800],
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(width: 4),
+          Text(
+            percentage,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSavingsGoalCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required int currentAmount,
+    required int targetAmount,
+    required Color color,
+    required double progress,
+  }) {
+    final formattedCurrentAmount = NumberFormat('#,##0', 'en_US').format(currentAmount);
+    final formattedTargetAmount = NumberFormat('#,##0', 'en_US').format(targetAmount);
+    final percentComplete = (progress * 100).toStringAsFixed(0);
+    
+    return Container(
+      width: 230,
+      margin: EdgeInsets.only(right: 16),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                'KES $formattedCurrentAmount',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                ' / $formattedTargetAmount',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: color.withOpacity(0.1),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              minHeight: 6,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            '$percentComplete% completed',
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
   Widget _buildTransactionItem(
     BuildContext context, {
     required String logo,
@@ -1772,8 +2457,11 @@ Padding(
     required Color logoColor,
     required String category,
   }) {
+    bool isExpense = amount < 0;
+    final formattedAmount = NumberFormat('#,##0', 'en_US').format(amount.abs());
+    
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1781,33 +2469,39 @@ Padding(
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
-            offset: const Offset(0, 5),
+            offset: Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
+          // Logo/Icon
           Container(
-            width: 50,
-            height: 50,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: logoColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                logo,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Icon(
-                  logoPlaceholder,
-                  color: logoColor,
-                  size: 24,
+            child: Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  logo,
+                  width: 32,
+                  height: 32,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Icon(
+                    logoPlaceholder,
+                    color: logoColor,
+                    size: 24,
+                  ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16),
+          // Transaction details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1816,11 +2510,12 @@ Padding(
                   name,
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Row(
                   children: [
                     Text(
@@ -1830,12 +2525,12 @@ Padding(
                         color: Colors.grey[600],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: logoColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         category,
@@ -1851,34 +2546,23 @@ Padding(
               ],
             ),
           ),
+          // Amount
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Row(
-                children: [
-                  Text(
-                    'KES ',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: amount > 0 ? Color(0xFF26D07C) : Colors.red,
-                    ),
-                  ),
-                  Text(
-                    '${amount.abs().toStringAsFixed(0)}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: amount > 0 ? Color(0xFF26D07C) : Colors.red,
-                    ),
-                  ),
-                ],
+              Text(
+                '${isExpense ? '-' : '+'} KES $formattedAmount',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isExpense ? Colors.red : Colors.green,
+                ),
               ),
               SizedBox(height: 4),
               Text(
-                amount > 0 ? "Income" : "Expense",
+                isExpense ? 'Expense' : 'Income',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   color: Colors.grey[600],
                 ),
               ),
@@ -1889,69 +2573,16 @@ Padding(
     );
   }
   
-  // Updated category legend with better contrast
-  Widget _buildCategoryLegend(String title, Color color, String percentage) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.3),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[800],
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            percentage,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  // Updated savings goal card with better shadow
-  Widget _buildSavingsGoalCard(
-    BuildContext context, {
-    required String title,
+  Widget _buildSmartTipCard({
     required IconData icon,
-    required double currentAmount,
-    required double targetAmount,
+    required String title,
+    required String content,
     required Color color,
-    required double progress,
   }) {
     return Container(
-      width: MediaQuery.of(context).size.width * 0.7 > 250 ? 250 : MediaQuery.of(context).size.width * 0.7,
-      margin: const EdgeInsets.only(right: 16),
-      padding: const EdgeInsets.all(16),
+      width: 240,
+      margin: EdgeInsets.only(right: 16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1959,7 +2590,7 @@ Padding(
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
-            offset: const Offset(0, 5),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -1969,155 +2600,18 @@ Padding(
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
-                  size: 18,
                   color: color,
+                  size: 24,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Text(
-                'KES ',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
-                ),
-              ),
-              Text(
-                '${currentAmount.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                ' / ${targetAmount.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          
-          // Updated modern progress indicator
-          Container(
-            height: 8,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Row(
-                  children: [
-                    Container(
-                      height: 8,
-                      width: constraints.maxWidth * progress,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [color.withOpacity(0.7), color],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withOpacity(0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          
-          const SizedBox(height: 10),
-          Text(
-            '${(progress * 100).toStringAsFixed(0)}% completed',
-            style: TextStyle(
-              fontSize: 12,
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  // Improved financial tip card
-  Widget _buildFinancialTipCard(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required String description,
-    required Color color,
-  }) {
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.7 > 260 ? 260 : MediaQuery.of(context).size.width * 0.7,
-      margin: const EdgeInsets.only(right: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  icon,
-                  size: 18,
-                  color: color,
-                ),
-              ),
-              const SizedBox(width: 12),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
                   title,
@@ -2126,37 +2620,39 @@ Padding(
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Expanded(
             child: Text(
-              description,
+              content,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 14,
                 color: Colors.grey[800],
                 height: 1.4,
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Icon(
-                Icons.tips_and_updates,
+                Icons.auto_awesome,
                 size: 14,
                 color: color,
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: 4),
               Text(
                 'AI Generated',
                 style: TextStyle(
                   fontSize: 10,
-                  fontWeight: FontWeight.w500,
                   color: color,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -2166,338 +2662,134 @@ Padding(
     );
   }
   
-  // Add Money Bottom Sheet
-  void _showAddMoneyBottomSheet(BuildContext context) {
-    final accentColor = Color(0xFF26D07C);
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
+  Widget _buildEmptyTransactionsState() {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // You can use Lottie animation here
+          Icon(
+            Icons.receipt_long,
+            size: 48,
+            color: Colors.grey[400],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 10,
-              offset: Offset(0, -5),
+          SizedBox(height: 16),
+          Text(
+            'No transactions yet',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
             ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Top Up Wallet',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.close),
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 30),
-              
-              Text(
-                'Select Amount',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Amount Field
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: accentColor.withOpacity(0.3),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Amount',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          'KES',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '1,000.00',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Container(
-                          height: 24,
-                          width: 2,
-                          color: accentColor,
-                          margin: const EdgeInsets.only(left: 4, bottom: 4),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 30),
-              
-              Text(
-                'Quick Amounts',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Quick Amount Selection
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildQuickAmountButton('500', accentColor),
-                  _buildQuickAmountButton('1,000', accentColor, isSelected: true),
-                  _buildQuickAmountButton('2,000', accentColor),
-                  _buildQuickAmountButton('5,000', accentColor),
-                ],
-              ),
-              
-              const SizedBox(height: 30),
-              
-              Text(
-                'Payment Method',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Payment Methods
-              _buildPaymentMethodItem(
-                iconData: Icons.phone_android,
-                iconColor: Colors.green,
-                title: 'M-Pesa',
-                subtitle: 'Connected: +254 7XX XXX XXX',
-                accentColor: accentColor,
-                isSelected: true,
-              ),
-              
-              const SizedBox(height: 12),
-              
-              _buildPaymentMethodItem(
-                iconData: Icons.credit_card,
-                iconColor: Colors.blue,
-                title: 'Credit/Debit Card',
-                subtitle: 'Visa, Mastercard, etc.',
-                accentColor: accentColor,
-              ),
-              
-              const SizedBox(height: 12),
-              
-              _buildPaymentMethodItem(
-                iconData: Icons.account_balance,
-                iconColor: Colors.purple,
-                title: 'Bank Transfer',
-                subtitle: 'Direct bank deposit',
-                accentColor: accentColor,
-              ),
-              
-              const Spacer(),
-              
-              // Confirm Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accentColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: Text(
-                    'Continue',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
-        ),
+          SizedBox(height: 8),
+          Text(
+            'Your transactions will appear here',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       ),
     );
   }
   
-  // Quick amount button
-  Widget _buildQuickAmountButton(String amount, Color accentColor, {bool isSelected = false}) {
+  Widget _buildEmptySavingsState() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: isSelected ? accentColor : Colors.grey.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: isSelected ? [
-          BoxShadow(
-            color: accentColor.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+      height: 170,
+      width: double.infinity,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // You can use Lottie animation here
+          Icon(
+            Icons.savings,
+            size: 48,
+            color: Colors.grey[400],
           ),
-        ] : null,
-      ),
-      child: Text(
-        amount,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          color: isSelected ? Colors.white : Colors.grey[800],
-        ),
+          SizedBox(height: 16),
+          Text(
+            'No savings goals yet',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Create a savings goal to get started',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       ),
     );
   }
   
-  // Payment method item
-  Widget _buildPaymentMethodItem({
-    required IconData iconData,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required Color accentColor,
-    bool isSelected = false,
-  }) {
+  Widget _buildEmptyBudgetState() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      height: 200,
+      width: double.infinity,
+      padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSelected ? accentColor : Colors.grey.withOpacity(0.1),
-          width: isSelected ? 2 : 1,
-        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
             offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: Row(
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              iconData,
-              color: iconColor,
-              size: 24,
+          // You can use Lottie animation here
+          Icon(
+            Icons.pie_chart,
+            size: 48,
+            color: Colors.grey[400],
+          ),
+          SizedBox(height: 16),
+          Text(
+            'No budgets yet',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
+          SizedBox(height: 8),
+          Text(
+            'Create a budget to track your spending',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
             ),
+            textAlign: TextAlign.center,
           ),
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isSelected ? accentColor : Colors.grey.withOpacity(0.1),
-              border: Border.all(
-                color: isSelected ? Colors.transparent : Colors.grey.withOpacity(0.3),
-                width: 1,
+          SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: widget.onNavigateToBudget,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF26D07C),
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: isSelected
-                ? Icon(
-                    Icons.check,
-                    size: 16,
-                    color: Colors.white,
-                  )
-                : null,
+            child: Text('Create Budget'),
           ),
         ],
       ),
@@ -2505,15 +2797,325 @@ Padding(
   }
 }
 
-// Budget Category Data Model
+// ============================ CUSTOM WIDGETS ============================
+
+class PieChartPainter extends CustomPainter {
+  final Map<String, double> categoryPercentages;
+  
+  PieChartPainter({required this.categoryPercentages});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2.2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    
+    // Define the list of categories with their colors
+    final List<MapEntry<String, double>> sortedCategories = categoryPercentages.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    // Calculate the total if not 100%
+    final totalPercentage = sortedCategories.fold(0.0, (sum, entry) => sum + entry.value);
+    
+    double startAngle = 0;
+    double sweepAngle;
+    
+    for (int i = 0; i < sortedCategories.length; i++) {
+      final entry = sortedCategories[i];
+      final Color color = _getCategoryColor(entry.key);
+      
+      // Calculate the sweep angle based on the percentage
+      sweepAngle = (entry.value / totalPercentage) * 2 * math.pi;
+      
+      final paint = Paint()
+        ..style = PaintingStyle.fill
+        ..color = color;
+      
+      // Draw the pie slice
+      canvas.drawArc(rect, startAngle, sweepAngle, true, paint);
+      
+      // Update the start angle for the next slice
+      startAngle += sweepAngle;
+    }
+    
+    // Draw a smaller white circle in the center for the donut effect
+    final innerCirclePaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = Colors.white;
+    
+    canvas.drawCircle(center, radius * 0.6, innerCirclePaint);
+  }
+  
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'food':
+        return Colors.orange;
+      case 'transport':
+        return Colors.blue;
+      case 'shopping':
+        return Colors.teal;
+      case 'bills':
+        return Colors.red;
+      case 'others':
+        return Colors.purple;
+      case 'entertainment':
+        return Colors.pink;
+      case 'health':
+        return Colors.indigo;
+      case 'education':
+        return Colors.amber;
+      default:
+        return Colors.grey;
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
+  }
+}
+
+class SpendingBarChart extends StatelessWidget {
+  final List<double> weeklyData;
+  
+  const SpendingBarChart({
+    Key? key,
+    required this.weeklyData,
+  }) : super(key: key);
+  
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final barWidth = constraints.maxWidth / 12;
+        final spacing = (constraints.maxWidth - (barWidth * 7)) / 8;
+        
+        // Find the maximum value for scaling
+        final maxValue = weeklyData.reduce((curr, next) => curr > next ? curr : next);
+        
+        return Column(
+          children: [
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  for (int i = 0; i < 7; i++)
+                    _buildDayBar(
+                      value: weeklyData[i],
+                      maxValue: maxValue,
+                      barWidth: barWidth,
+                      maxHeight: constraints.maxHeight * 0.7,
+                      isHighlighted: i == 4, // Friday is highlighted
+                      highlightedValue: i == 4 ? 'KES 2,500' : null,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildDayLabel('Mon'),
+                _buildDayLabel('Tue'),
+                _buildDayLabel('Wed'),
+                _buildDayLabel('Thu'),
+                _buildDayLabel('Fri'),
+                _buildDayLabel('Sat'),
+                _buildDayLabel('Sun'),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  Widget _buildDayBar({
+    required double value,
+    required double maxValue,
+    required double barWidth,
+    required double maxHeight,
+    required bool isHighlighted,
+    String? highlightedValue,
+  }) {
+    double heightPercentage = maxValue > 0 ? value / maxValue : 0;
+    double height = maxHeight * heightPercentage;
+    
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (isHighlighted && highlightedValue != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: Text(
+              highlightedValue,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF26D07C),
+              ),
+            ),
+          ),
+        Container(
+          width: barWidth,
+          height: height > 0 ? height : 5,
+          decoration: BoxDecoration(
+            color: isHighlighted ? Color(0xFF26D07C) : Colors.grey.withOpacity(0.2),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(6),
+              bottom: Radius.circular(value > 0 ? 0 : 6),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildDayLabel(String day) {
+    return Text(
+      day,
+      style: TextStyle(
+        fontSize: 12,
+        color: Colors.grey[600],
+      ),
+    );
+  }
+}
+
+class BudgetBarChart extends StatelessWidget {
+  final List<double> dailyData;
+  final Color color;
+  
+  const BudgetBarChart({
+    Key? key,
+    required this.dailyData,
+    required this.color,
+  }) : super(key: key);
+  
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final barWidth = constraints.maxWidth / 14;
+        
+        // Find the maximum value for scaling
+        final maxValue = dailyData.reduce((curr, next) => curr > next ? curr : next);
+        
+        return Column(
+          children: [
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  for (int i = 0; i < dailyData.length; i++)
+                    _buildBudgetBar(
+                      value: dailyData[i],
+                      maxValue: maxValue,
+                      barWidth: barWidth,
+                      maxHeight: constraints.maxHeight * 0.7,
+                      color: color,
+                      displayValue: 'KES ${dailyData[i].toInt()}',
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildDayLabel('Mon'),
+                _buildDayLabel('Tue'),
+                _buildDayLabel('Wed'),
+                _buildDayLabel('Thu'),
+                _buildDayLabel('Fri'),
+                _buildDayLabel('Sat'),
+                _buildDayLabel('Sun'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Daily Spending label
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Daily Spending - This Week',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  Widget _buildBudgetBar({
+    required double value,
+    required double maxValue,
+    required double barWidth,
+    required double maxHeight,
+    required Color color,
+    required String displayValue,
+  }) {
+    // Ensure we have a minimum bar height for aesthetic purposes
+    double heightPercentage = maxValue > 0 ? value / maxValue : 0;
+    double height = maxHeight * heightPercentage;
+    
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (value > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: Text(
+              displayValue,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        Container(
+          width: barWidth,
+          height: height > 0 ? height : 5,
+          decoration: BoxDecoration(
+            color: value > 0 ? color : Colors.grey.withOpacity(0.2),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(6),
+              bottom: Radius.circular(value > 0 ? 0 : 6),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildDayLabel(String day) {
+    return Text(
+      day,
+      style: TextStyle(
+        fontSize: 12,
+        color: Colors.grey[600],
+      ),
+    );
+  }
+}
+
+// ============================ MODELS ============================
+
 class BudgetCategory {
   final String name;
   final IconData icon;
   final Color color;
   final double spent;
   final double budget;
-  final List<double> dailyData; // Daily spending data for the chart
-
+  final List<double> dailyData;
+  
   BudgetCategory({
     required this.name,
     required this.icon,
@@ -2522,422 +3124,4 @@ class BudgetCategory {
     required this.budget,
     required this.dailyData,
   });
-}
-
-// Pie Chart Painter with improved shadow effects
-class PieChartPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-    
-    // Categories with colors and percentages
-    final categories = [
-      {'color': Colors.orange, 'percent': 0.38},
-      {'color': Colors.blue, 'percent': 0.25},
-      {'color': Colors.green, 'percent': 0.18},
-      {'color': Colors.red, 'percent': 0.12},
-      {'color': Colors.purple, 'percent': 0.07},
-    ];
-    
-    double startAngle = 0;
-    
-    // Draw shadows first
-    for (var category in categories) {
-      final sweepAngle = 2 * math.pi * (category['percent'] as double);
-      final shadowPaint = Paint()
-        ..color = (category['color'] as Color).withOpacity(0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 28
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
-      
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius - 14),
-        startAngle,
-        sweepAngle,
-        false,
-        shadowPaint,
-      );
-      
-      startAngle += sweepAngle;
-    }
-    
-    // Reset angle for actual segments
-    startAngle = 0;
-    
-    // Draw segments
-    for (var category in categories) {
-      final sweepAngle = 2 * math.pi * (category['percent'] as double);
-      final paint = Paint()
-        ..color = category['color'] as Color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 24
-        ..strokeCap = StrokeCap.round;
-      
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius - 12),
-        startAngle,
-        sweepAngle,
-        false,
-        paint,
-      );
-      
-      startAngle += sweepAngle;
-    }
-    
-    // Inner circle with shadow
-    final innerShadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.1)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
-    
-    canvas.drawCircle(center, radius - 30, innerShadowPaint);
-    
-    // Inner circle
-    final innerCirclePaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    
-    canvas.drawCircle(center, radius - 30, innerCirclePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
-}
-
-// Enhanced Bar Chart for Spending
-class SpendingBarChart extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: BarChartPainter(),
-      child: Container(),
-    );
-  }
-}
-
-class BarChartPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final barWidth = 40.0;
-    final spacing = (size.width - (7 * barWidth)) / 8;
-    final maxBarHeight = size.height - 60;
-    final accentColor = Color(0xFF26D07C);
-    
-    // Draw horizontal gridlines
-    final gridPaint = Paint()
-      ..color = Colors.grey.withOpacity(0.1)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    
-    for (int i = 1; i <= 4; i++) {
-      final y = size.height - 40 - (maxBarHeight / 4 * i);
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        gridPaint,
-      );
-    }
-    
-    // Days and heights
-    final List<Map<String, dynamic>> data = [
-      {'label': 'Mon', 'height': 0.6, 'color': Colors.grey[300]},
-      {'label': 'Tue', 'height': 0.8, 'color': Colors.grey[300]},
-      {'label': 'Wed', 'height': 0.4, 'color': Colors.grey[300]},
-      {'label': 'Thu', 'height': 0.9, 'color': Colors.grey[300]},
-      {'label': 'Fri', 'height': 0.7, 'color': accentColor},
-      {'label': 'Sat', 'height': 0.5, 'color': Colors.grey[300]},
-      {'label': 'Sun', 'height': 0.3, 'color': Colors.grey[300]},
-    ];
-    
-    // Draw bars with shadows
-    for (int i = 0; i < data.length; i++) {
-      final item = data[i];
-      final barHeight = maxBarHeight * (item['height'] as double);
-      final left = spacing + i * (barWidth + spacing);
-      final top = size.height - 40 - barHeight;
-      final right = left + barWidth;
-      final bottom = size.height - 40;
-      
-      // Draw shadow
-      final shadowPaint = Paint()
-        ..color = (item['color'] as Color?)?.withOpacity(0.3) ?? Colors.grey.withOpacity(0.3)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3);
-      
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(left, top + 3, right, bottom + 3),
-          Radius.circular(8),
-        ),
-        shadowPaint,
-      );
-      
-      // Draw bar
-      final paint = Paint()
-        ..color = item['color'] as Color? ?? Colors.grey
-        ..style = PaintingStyle.fill;
-      
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(left, top, right, bottom),
-          Radius.circular(8),
-        ),
-        paint,
-      );
-      
-      // Draw label
-      final textSpan = TextSpan(
-        text: item['label'] as String,
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-      );
-      
-      final textPainter = TextPainter(
-        text: textSpan,
-        textDirection: ui.TextDirection.ltr,
-      );
-      
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(left + (barWidth - textPainter.width) / 2, bottom + 10),
-      );
-      
-      // Draw amount for current day (Friday)
-      if (item['label'] == 'Fri') {
-        final amountSpan = TextSpan(
-          text: 'KES 2,500',
-          style: TextStyle(
-            color: accentColor,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        );
-        
-        final amountPainter = TextPainter(
-          text: amountSpan,
-          textDirection: ui.TextDirection.ltr,
-        );
-        
-        amountPainter.layout();
-        amountPainter.paint(
-          canvas,
-          Offset(left + (barWidth - amountPainter.width) / 2, top - 20),
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
-}
-
-// Budget Bar Chart with animation capabilities
-class BudgetBarChart extends StatelessWidget {
-  final List<double> dailyData;
-  final Color color;
-
-  const BudgetBarChart({
-    Key? key,
-    required this.dailyData,
-    required this.color,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: BudgetBarChartPainter(
-        dailyData: dailyData,
-        color: color,
-      ),
-      child: Container(),
-    );
-  }
-}
-
-class BudgetBarChartPainter extends CustomPainter {
-  final List<double> dailyData;
-  final Color color;
-
-  BudgetBarChartPainter({
-    required this.dailyData,
-    required this.color,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final barWidth = 32.0;
-    final double maxValue = dailyData.reduce((curr, next) => curr > next ? curr : next);
-    final maxBarHeight = size.height - 80;
-    
-    // Draw horizontal gridlines
-    final gridPaint = Paint()
-      ..color = Colors.grey.withOpacity(0.1)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    
-    for (int i = 1; i <= 4; i++) {
-      final y = size.height - 50 - (maxBarHeight / 4 * i);
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        gridPaint,
-      );
-      
-      // Draw grid labels
-      final labelSpan = TextSpan(
-        text: 'KES ${((maxValue / 4) * i).toInt()}',
-        style: TextStyle(
-          color: Colors.grey[500],
-          fontSize: 10,
-        ),
-      );
-      
-      final labelPainter = TextPainter(
-        text: labelSpan,
-        textDirection: ui.TextDirection.ltr,
-      );
-      
-      labelPainter.layout();
-      labelPainter.paint(
-        canvas,
-        Offset(0, y - labelPainter.height - 2),
-      );
-    }
-    
-    // Day labels
-    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    
-    // Calculate spacing
-    final totalWidth = barWidth * dailyData.length;
-    final spacing = (size.width - totalWidth) / (dailyData.length + 1);
-    
-    // Draw bars
-    for (int i = 0; i < dailyData.length; i++) {
-      final value = dailyData[i];
-      if (value <= 0) continue; // Skip days with no spending
-      
-      final normalizedHeight = value / maxValue * maxBarHeight;
-      final left = spacing + i * (barWidth + spacing);
-      final top = size.height - 50 - normalizedHeight;
-      final right = left + barWidth;
-      final bottom = size.height - 50;
-      
-      // Draw shadow
-      final shadowPaint = Paint()
-        ..color = color.withOpacity(0.3)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3);
-      
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(left, top + 3, right, bottom + 3),
-          Radius.circular(10),
-        ),
-        shadowPaint,
-      );
-      
-      // Create gradient for bar
-      final gradient = LinearGradient(
-        begin: Alignment.bottomCenter,
-        end: Alignment.topCenter,
-        colors: [
-          color,
-          color.withOpacity(0.7),
-        ],
-      );
-      
-      final rect = Rect.fromLTRB(left, top, right, bottom);
-      
-      // Draw bar with gradient
-      final barPaint = Paint()
-        ..shader = gradient.createShader(rect)
-        ..style = PaintingStyle.fill;
-      
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          rect,
-          Radius.circular(10),
-        ),
-        barPaint,
-      );
-      
-      // Draw value on top of bar
-      if (value > 0) {
-        final valueSpan = TextSpan(
-          text: 'KES ${value.toInt()}',
-          style: TextStyle(
-            color: color,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        );
-        
-        final valuePainter = TextPainter(
-          text: valueSpan,
-          textDirection: ui.TextDirection.ltr,
-        );
-        
-        valuePainter.layout();
-        valuePainter.paint(
-          canvas,
-          Offset(left + (barWidth - valuePainter.width) / 2, top - valuePainter.height - 4),
-        );
-      }
-      
-      // Draw day label
-      final daySpan = TextSpan(
-        text: days[i],
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-      );
-      
-      final dayPainter = TextPainter(
-        text: daySpan,
-        textDirection: ui.TextDirection.ltr,
-      );
-      
-      dayPainter.layout();
-      dayPainter.paint(
-        canvas,
-        Offset(left + (barWidth - dayPainter.width) / 2, bottom + 8),
-      );
-    }
-    
-final titleSpan = TextSpan(
-  text: 'Daily Spending - This Week',
-  style: TextStyle(
-    color: Colors.grey[800],
-    fontSize: 12,
-    fontWeight: FontWeight.w600,
-  ),
-);
-
-// Keep only ONE TextPainter
-final titlePainter = TextPainter(
-  text: titleSpan,
-  textDirection: ui.TextDirection.ltr,
-);
-
-titlePainter.layout();
-
-// Choose which position you want - centered and moved up:
-titlePainter.paint(
-  canvas,
-  Offset((size.width - titlePainter.width) / 2, -8), // Centered horizontally, moved up to y=5
-);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
 }
