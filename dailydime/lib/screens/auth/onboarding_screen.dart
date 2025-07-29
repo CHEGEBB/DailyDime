@@ -95,11 +95,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   
   // For returning users - more elaborate welcome back screen
   final ReturningUserContent _returningUserContent = ReturningUserContent(
-    mainLottieAsset: 'assets/animations/lottie/welcome_back.json',
+    mainLottieAsset: 'assets/animations/Login.json',
     secondaryLottieAssets: [
-      'assets/animations/lottie/financial_growth.json',
-      'assets/animations/lottie/money_management.json',
-      'assets/animations/lottie/savings.json',
+      'assets/animations/growth.json',
+      'assets/animations/management.json',
+      'assets/animations/savings_goals.json',
     ],
     welcomeText: 'Welcome Back!',
     subtitle: 'Continue your journey to financial freedom',
