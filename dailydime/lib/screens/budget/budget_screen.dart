@@ -215,7 +215,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
           // Background pattern
           Positioned.fill(
             child: Opacity(
-              opacity: 0.1,
+              opacity: 0.7,
               child: Image.asset(
                 'assets/images/pattern11.png',
                 fit: BoxFit.cover,
