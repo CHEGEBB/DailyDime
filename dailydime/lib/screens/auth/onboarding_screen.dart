@@ -38,7 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     OnboardingItem(
       title: 'Track Your Expenses',
       description: 'Monitor your spending habits and get insights into where your money goes with powerful analytics',
-      lottieAsset: 'animations/lottie/money_coins.json',
+      lottieAsset: 'assets/animations/tracker.json',
       backgroundColor: const Color(0xFFF0FDF4),
       primaryColor: const Color(0xFF10B981),
       secondaryColor: const Color(0xFF059669),
