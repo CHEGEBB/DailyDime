@@ -218,9 +218,9 @@ class _SavingsScreenState extends State<SavingsScreen>
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
                 image: const DecorationImage(
-                  image: AssetImage('assets/images/pattern12.png'),
+                  image: AssetImage('assets/images/patter12.png'),
                   fit: BoxFit.cover,
-                  opacity: 0.4,
+                  opacity: 0.2,
                 ),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
