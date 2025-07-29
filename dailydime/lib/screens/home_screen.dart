@@ -1,5 +1,6 @@
 // lib/screens/home_screen.dart
 import 'dart:async';
+import 'package:dailydime/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -16,6 +17,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToTransactions;
   final VoidCallback? onNavigateToBudget;
@@ -31,8 +33,7 @@ class HomeScreen extends StatefulWidget {
     this.onNavigateToSavings,
     this.onNavigateToAI,
     this.onNavigateToSettings,
-    this.onAddTransaction,
-    required void Function() onNavigateToProfile,
+    this.onAddTransaction, required void Function() onNavigateToProfile,
   }) : super(key: key);
 
   @override
@@ -691,11 +692,15 @@ class _HomeScreenState extends State<HomeScreen>
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
       // Profile Icon on the left
-      GestureDetector(
-        onTap: () {
-          // Navigate to profile screen
-          Navigator.of(context).pushNamed('/profile');
-        },
+     GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfileScreen(),
+        ),
+      );
+    },
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
