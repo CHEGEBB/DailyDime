@@ -38,7 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     OnboardingItem(
       title: 'Track Your Expenses',
       description: 'Monitor your spending habits and get insights into where your money goes with powerful analytics',
-      lottieAsset: 'assets/animations/tracker.json',
+      lottieAsset: 'assets/animations/money_coins.json',
       backgroundColor: const Color(0xFFF0FDF4),
       primaryColor: const Color(0xFF10B981),
       secondaryColor: const Color(0xFF059669),
@@ -270,7 +270,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       return Scaffold(
         body: Center(
           child: Lottie.asset(
-            'assets/animations/lottie/loading.json',
+            'assets/animations/loading2.json',
             width: 120,
             height: 120,
           ),
