@@ -12,6 +12,7 @@ import 'package:dailydime/services/notification_service.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:dailydime/services/balance_service.dart'; 
 
 // Background handler for Workmanager
 @pragma('vm:entry-point')
@@ -36,6 +37,11 @@ void backgroundMessageHandler(SmsMessage message) async {
     if (transaction != null) {
       await StorageService.instance.initialize();
       await StorageService.instance.saveTransaction(transaction);
+      
+      // Extract and save balance if present
+      if (transaction.balance != null && transaction.balance! > 0) {
+        await BalanceService.instance.updateBalance(transaction.balance ?? 0.0, transaction.date);
+      }
       
       final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
       const androidPlatformChannelSpecifics = AndroidNotificationDetails(
@@ -90,6 +96,7 @@ class SmsService {
     }
     
     await NotificationService().init();
+    await BalanceService.instance.initialize(); // Initialize balance service
     
     try {
       _telephony.listenIncomingSms(
@@ -199,6 +206,12 @@ class SmsService {
         
         _transactionStreamController.add(transaction);
         
+        // Update balance if present
+        if (transaction.balance != null && transaction.balance! > 0) {
+          BalanceService.instance.updateBalance(transaction.balance ?? 0.0, transaction.date);
+          debugPrint('Balance updated: ${transaction.balance}');
+        }
+        
         StorageService.instance.saveTransaction(transaction).then((_) {
           debugPrint('Transaction saved locally');
         }).catchError((e) {
@@ -249,6 +262,11 @@ class SmsService {
               final transaction = _parseMpesaMessage(message);
               if (transaction != null) {
                 transactions.add(transaction);
+                
+                // Update balance if present
+                if (transaction.balance != null && transaction.balance! > 0) {
+                  await BalanceService.instance.updateBalance(transaction.balance ?? 0.0, transaction.date);
+                }
               }
             }
           }
@@ -272,6 +290,11 @@ class SmsService {
               final transaction = _parseMpesaMessage(message);
               if (transaction != null) {
                 transactions.add(transaction);
+                
+                // Update balance if present
+                if (transaction.balance != null && transaction.balance > 0) {
+                  await BalanceService.instance.updateBalance(transaction.balance, transaction.date);
+                }
               }
             }
           }
@@ -476,6 +499,7 @@ class SmsService {
     final amount = _extractAmount(body);
     final recipient = _extractRecipient(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     return Transaction(
       id: code,
@@ -490,6 +514,7 @@ class SmsService {
       isSms: true,
       rawSms: body,
       recipient: recipient,
+      balance: balance, // Include the balance
     );
   }
   
@@ -498,6 +523,7 @@ class SmsService {
     final amount = _extractAmount(body);
     final sender = _extractSender(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     return Transaction(
       id: code,
@@ -512,6 +538,7 @@ class SmsService {
       isSms: true,
       rawSms: body,
       sender: sender,
+      balance: balance, // Include the balance
     );
   }
   
@@ -521,6 +548,7 @@ class SmsService {
     final business = _extractPaybillBusiness(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final categoryInfo = _categorizePaybillBusiness(business);
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     return Transaction(
       id: code,
@@ -535,6 +563,7 @@ class SmsService {
       isSms: true,
       rawSms: body,
       business: business,
+      balance: balance, // Include the balance
     );
   }
   
@@ -544,6 +573,7 @@ class SmsService {
     final business = _extractTillBusiness(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final categoryInfo = _categorizeTillBusiness(business);
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     return Transaction(
       id: code,
@@ -558,6 +588,7 @@ class SmsService {
       isSms: true,
       rawSms: body,
       business: business,
+      balance: balance, // Include the balance
     );
   }
   
@@ -566,6 +597,7 @@ class SmsService {
     final amount = _extractAmount(body);
     final agent = _extractAgent(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     return Transaction(
       id: code,
@@ -580,6 +612,7 @@ class SmsService {
       isSms: true,
       rawSms: body,
       agent: agent,
+      balance: balance, // Include the balance
     );
   }
   
@@ -588,6 +621,7 @@ class SmsService {
     final amount = _extractAmount(body);
     final agent = _extractAgent(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     return Transaction(
       id: code,
@@ -602,6 +636,7 @@ class SmsService {
       isSms: true,
       rawSms: body,
       agent: agent,
+      balance: balance, // Include the balance
     );
   }
   
@@ -612,7 +647,7 @@ class SmsService {
     return Transaction(
       id: 'balance-${timestamp}',
       title: 'M-Pesa Balance',
-      amount: balance,
+      amount: 0.0, // No amount for balance check
       date: dateTime,
       category: 'Balance',
       isExpense: false,
@@ -621,7 +656,7 @@ class SmsService {
       mpesaCode: null,
       isSms: true,
       rawSms: body,
-      balance: balance,
+      balance: balance, // Set the balance
     );
   }
   
@@ -630,6 +665,7 @@ class SmsService {
     final amount = _extractAmount(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final phoneNumber = _extractPhoneNumber(body);
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     return Transaction(
       id: code,
@@ -643,6 +679,7 @@ class SmsService {
       mpesaCode: code,
       isSms: true,
       rawSms: body,
+      balance: balance, // Include the balance
     );
   }
   
@@ -650,6 +687,7 @@ class SmsService {
     final code = _extractTransactionCode(body);
     final amount = _extractAmount(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     return Transaction(
       id: code,
@@ -663,6 +701,7 @@ class SmsService {
       mpesaCode: code,
       isSms: true,
       rawSms: body,
+      balance: balance, // Include the balance
     );
   }
   
@@ -671,6 +710,7 @@ class SmsService {
     final amount = _extractAmount(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final bodyUpper = body.toUpperCase();
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     String service = 'Loan Service';
     String category = 'Loan';
@@ -701,6 +741,7 @@ class SmsService {
       mpesaCode: code,
       isSms: true,
       rawSms: body,
+      balance: balance, // Include the balance
     );
   }
   
@@ -709,6 +750,7 @@ class SmsService {
     final amount = _extractAmount(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final utility = _extractUtility(body);
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     return Transaction(
       id: code,
@@ -723,6 +765,7 @@ class SmsService {
       isSms: true,
       rawSms: body,
       business: utility,
+      balance: balance, // Include the balance
     );
   }
   
@@ -731,6 +774,7 @@ class SmsService {
     final amount = _extractAmount(body);
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final bodyUpper = body.toUpperCase();
+    final balance = _extractBalanceAfterTransaction(body); // Extract balance if available
     
     bool isExpense = true;
     String category = 'Other';
@@ -765,6 +809,7 @@ class SmsService {
       mpesaCode: code,
       isSms: true,
       rawSms: body,
+      balance: balance, // Include the balance
     );
   }
   
@@ -899,6 +944,8 @@ class SmsService {
       RegExp(r'balance is Ksh\.?([0-9,]+\.?[0-9]*)', caseSensitive: false),
       RegExp(r'balance Ksh\.?([0-9,]+\.?[0-9]*)', caseSensitive: false),
       RegExp(r'your balance is Ksh\.?([0-9,]+\.?[0-9]*)', caseSensitive: false),
+      RegExp(r'New M-PESA balance is Ksh\.?([0-9,]+\.?[0-9]*)', caseSensitive: false),
+      RegExp(r'New balance is Ksh\.?([0-9,]+\.?[0-9]*)', caseSensitive: false),
     ];
     
     for (var pattern in patterns) {
@@ -910,6 +957,26 @@ class SmsService {
     }
     
     return 0.0;
+  }
+  
+  // NEW METHOD: Extract balance after transaction
+  static double _extractBalanceAfterTransaction(String body) {
+    final patterns = [
+      RegExp(r'New M-PESA balance is Ksh\.?([0-9,]+\.?[0-9]*)', caseSensitive: false),
+      RegExp(r'New balance is Ksh\.?([0-9,]+\.?[0-9]*)', caseSensitive: false),
+      RegExp(r'Balance is Ksh\.?([0-9,]+\.?[0-9]*)', caseSensitive: false),
+      RegExp(r'balance: Ksh\.?([0-9,]+\.?[0-9]*)', caseSensitive: false),
+    ];
+    
+    for (var pattern in patterns) {
+      final match = pattern.firstMatch(body);
+      if (match != null) {
+        final balanceString = match.group(1)?.replaceAll(',', '') ?? '0';
+        return double.tryParse(balanceString) ?? 0.0;
+      }
+    }
+    
+    return 0.0; // Return 0 if no balance found
   }
   
   static String _extractPhoneNumber(String body) {
@@ -1108,6 +1175,27 @@ class SmsService {
     };
   }
   
+  // NEW METHODS: Get current balance
+  Future<double> getCurrentBalance() async {
+    return BalanceService.instance.getCurrentBalance();
+  }
+  
+  // Stream for balance updates
+  Stream<double> get balanceStream {
+    return BalanceService.instance.balanceStream;
+  }
+  
+  // NEW METHOD: Force balance update
+  Future<double> forceBalanceUpdate() async {
+    try {
+      await loadHistoricalMpesaMessages();
+      return BalanceService.instance.getCurrentBalance();
+    } catch (e) {
+      debugPrint('Error updating balance: $e');
+      return 0.0;
+    }
+  }
+  
   Future<bool> refreshTransactions() async {
     try {
       await loadHistoricalMpesaMessages();
@@ -1149,33 +1237,42 @@ class SmsService {
     }
   }
   
-  double getTotalExpenses() {
+  Future<double> getTotalExpenses() async {
     try {
-      // This would ideally come from stored transactions
-      // For now, return 0 as a placeholder
-      return 0.0;
+      final allTransactions = await StorageService.instance.getTransactions();
+      return allTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, transaction) => sum + transaction.amount);
     } catch (e) {
       debugPrint('Error calculating total expenses: $e');
       return 0.0;
     }
   }
   
-  double getTotalIncome() {
+  Future<double> getTotalIncome() async {
     try {
-      // This would ideally come from stored transactions
-      // For now, return 0 as a placeholder
-      return 0.0;
+      final allTransactions = await StorageService.instance.getTransactions();
+      return allTransactions
+        .where((t) => !t.isExpense)
+        .fold(0.0, (sum, transaction) => sum + transaction.amount);
     } catch (e) {
       debugPrint('Error calculating total income: $e');
       return 0.0;
     }
   }
   
-  Map<String, double> getExpensesByCategory() {
+  Future<Map<String, double>> getExpensesByCategory() async {
     try {
-      // This would ideally come from stored transactions
-      // For now, return empty map as a placeholder
-      return {};
+      final allTransactions = await StorageService.instance.getTransactions();
+      final expenseTransactions = allTransactions.where((t) => t.isExpense).toList();
+      
+      final Map<String, double> categoryExpenses = {};
+      for (var transaction in expenseTransactions) {
+        final category = transaction.category;
+        categoryExpenses[category] = (categoryExpenses[category] ?? 0.0) + transaction.amount;
+      }
+      
+      return categoryExpenses;
     } catch (e) {
       debugPrint('Error getting expenses by category: $e');
       return {};
