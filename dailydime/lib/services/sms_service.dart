@@ -292,7 +292,7 @@ class SmsService {
                 transactions.add(transaction);
                 
                 // Update balance if present
-                if (transaction.balance != null && transaction.balance > 0) {
+                if (transaction.balance != null && transaction.balance! > 0) {
                   await BalanceService.instance.updateBalance(transaction.balance, transaction.date);
                 }
               }
