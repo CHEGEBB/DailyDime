@@ -407,6 +407,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
+                                    fontFamily: 'DMsans',
                                   ),
                                 ),
                               ),
@@ -516,6 +517,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                               color: Colors.white,
                                               fontSize: 16,
                                               fontWeight: FontWeight.w600,
+                                              fontFamily: 'DMsans',
                                               letterSpacing: 0.5,
                                             ),
                                           ),
@@ -553,6 +555,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                     style: TextStyle(
                                       color: Color(0xFF6B7280),
                                       fontSize: 14,
+                                      fontFamily: 'DMsans',
                                     ),
                                   ),
                                   GestureDetector(
@@ -563,6 +566,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                         color: primaryColor,
                                         fontWeight: FontWeight.w600,
                                         fontSize: 14,
+                                        fontFamily: 'DMsans',
                                       ),
                                     ),
                                   ),
@@ -595,6 +599,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                         color: primaryColor,
                                         fontWeight: FontWeight.w600,
                                         fontSize: 14,
+                                        fontFamily: 'DMsans',
                                       ),
                                     ),
                                   ),
@@ -664,6 +669,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
+                      fontFamily: 'DMsans',
                       color: Color(0xFF1F2937),
                       letterSpacing: -0.5,
                     ),
@@ -678,6 +684,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     style: const TextStyle(
                       fontSize: 16,
                       color: Color(0xFF6B7280),
+                      fontFamily: 'DMsans',
                       height: 1.5,
                     ),
                     textAlign: TextAlign.center,
@@ -711,6 +718,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                   feature,
                                   style: const TextStyle(
                                     fontSize: 14,
+                                    fontFamily: 'DMsans',
                                     color: Color(0xFF4B5563),
                                   ),
                                 ),
@@ -769,6 +777,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
+                        fontFamily: 'DMsans',
                         color: Colors.white,
                         letterSpacing: -0.5,
                       ),
@@ -784,6 +793,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
+                      fontFamily: 'DMsans',
                       color: Color(0xFF1F2937),
                     ),
                     textAlign: TextAlign.center,
@@ -797,6 +807,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     style: const TextStyle(
                       fontSize: 16,
                       color: Color(0xFF6B7280),
+                      fontFamily: 'DMsans',
                       height: 1.5,
                     ),
                     textAlign: TextAlign.center,
@@ -833,6 +844,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
+                                fontFamily: 'DMsans',
                                 color: _returningUserContent.primaryColor,
                               ),
                             ),
@@ -861,6 +873,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                       update,
                                       style: const TextStyle(
                                         fontSize: 14,
+                                        fontFamily: 'DMsans',
                                         color: Color(0xFF4B5563),
                                       ),
                                     ),

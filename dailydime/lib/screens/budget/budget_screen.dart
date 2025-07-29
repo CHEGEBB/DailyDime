@@ -217,7 +217,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
             child: Opacity(
               opacity: 0.1,
               child: Image.asset(
-                'assets/images/pattern12.png',
+                'assets/images/pattern11.png',
                 fit: BoxFit.cover,
               ),
             ),
@@ -237,6 +237,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                       'Budget Overview',
                       style: TextStyle(
                         fontSize: 20,
+                        fontFamily: 'DMsans',
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -308,6 +309,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                         style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
+                          fontFamily: 'DMsans',
                           color: Colors.white,
                         ),
                       ),
@@ -318,6 +320,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                           'spent of KES ${totalBudget.toInt()}',
                           style: TextStyle(
                             fontSize: 14,
+                            fontFamily: 'DMsans',
                             color: Colors.white.withOpacity(0.8),
                           ),
                         ),
@@ -378,6 +381,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                             '${(percentageUsed * 100).toInt()}% used',
                             style: const TextStyle(
                               fontSize: 12,
+                              fontFamily: 'DMsans',
                               color: Colors.white,
                             ),
                           ),
@@ -385,6 +389,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                             'KES ${(totalBudget - totalSpent).toInt()} left',
                             style: const TextStyle(
                               fontSize: 12,
+                              fontFamily: 'DMsans',
                               color: Colors.white,
                             ),
                           ),
@@ -455,6 +460,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
           value,
           style: TextStyle(
             fontSize: 14,
+            fontFamily: 'DMsans',
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -497,6 +503,7 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
                 'See how your spending changes over time',
                 style: TextStyle(
                   fontSize: 12,
+                  fontFamily: 'DMsans',
                   color: Colors.grey.shade600,
                 ),
               ),
