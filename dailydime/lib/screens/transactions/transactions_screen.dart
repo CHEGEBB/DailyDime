@@ -399,7 +399,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       decoration: BoxDecoration(
         color: Colors.white,
         image: const DecorationImage(
-          image: AssetImage('assets/images/pattern2.png'),
+          image: AssetImage('assets/images/patter10.png'),
           fit: BoxFit.cover,
           opacity: 0.05,
         ),
@@ -558,7 +558,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
           ],
         ),
         image: const DecorationImage(
-          image: AssetImage('assets/images/pattern2.png'),
+          image: AssetImage('assets/images/pattern10.png'),
           fit: BoxFit.cover,
           opacity: 0.1,
         ),
