@@ -215,42 +215,56 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
   
   Future<void> _loadSavingsGoals() async {
-    try {
-      final AppwriteService appwrite = AppwriteService();
-      final goalsList = await appwrite.getSavingsGoals();
-      
-      setState(() {
-        _savingsGoals = goalsList;
-      });
-    } catch (e) {
-      print('Error loading savings goals: $e');
-      // Mock savings goals as fallback
-      _savingsGoals = [
-        SavingsGoal(
-          id: '1',
-          title: 'bank',
-          currentAmount: 15000,
-          targetAmount: 50000,
-          deadline: DateTime.now().add(Duration(days: 365)),
-            color: Colors.blue, targetDate: DateTime.now().add(Duration(days: 365)), category: SavingsGoalCategory.other, iconAsset: '', icon: null,
-        ),
-        SavingsGoal(
-          id: '2',
-          currentAmount: 25000,
-          targetAmount: 80000,
-          deadline: DateTime.now().add(Duration(days: 180)),
-          color: Color(0xFF26D07C), title: '', targetDate: DateTime.now(), category: SavingsGoalCategory.other, iconAsset: '', icon: null,
-        ),
-        SavingsGoal(
-          id: '3',
-          currentAmount: 5000,
-          targetAmount: 45000,
-          deadline: DateTime.now().add(Duration(days: 120)),
-          color: Colors.orange, title: '', targetDate: DateTime.now(), category: SavingsGoalCategory.other, iconAsset: '', icon: null,
-        ),
-      ];
-    }
+  try {
+    final AppwriteService appwrite = AppwriteService();
+    final goalsList = await appwrite.getSavingsGoals();
+    
+    setState(() {
+      _savingsGoals = goalsList;
+    });
+  } catch (e) {
+    print('Error loading savings goals: $e');
+    // Mock savings goals as fallback - Fixed version
+    _savingsGoals = [
+      SavingsGoal(
+        id: '1',
+        title: 'Emergency Fund', // Fixed: Added proper title
+        currentAmount: 15000,
+        targetAmount: 50000,
+        deadline: DateTime.now().add(Duration(days: 365)),
+        color: Colors.blue, // Use Color directly
+        targetDate: DateTime.now().add(Duration(days: 365)),
+        category: SavingsGoalCategory.other,
+        iconAsset: 'assets/icons/bank.png', // Fixed: Added proper icon asset
+        icon: Icons.account_balance, // Fixed: Added fallback icon
+      ),
+      SavingsGoal(
+        id: '2',
+        title: 'Laptop Fund', // Fixed: Added proper title
+        currentAmount: 25000,
+        targetAmount: 80000,
+        deadline: DateTime.now().add(Duration(days: 180)),
+        color: Color(0xFF26D07C).value, // Fixed: Use .value for color
+        targetDate: DateTime.now().add(Duration(days: 180)),
+        category: SavingsGoalCategory.other,
+        iconAsset: 'assets/icons/laptop.png', // Fixed: Added proper icon asset
+        icon: Icons.laptop_mac, // Fixed: Added fallback icon
+      ),
+      SavingsGoal(
+        id: '3',
+        title: 'Vacation Fund', // Fixed: Added proper title
+        currentAmount: 5000,
+        targetAmount: 45000,
+        deadline: DateTime.now().add(Duration(days: 120)),
+        color: Colors.orange.value, // Fixed: Use .value for color
+        targetDate: DateTime.now().add(Duration(days: 120)),
+        category: SavingsGoalCategory.other,
+        iconAsset: 'assets/icons/vacation.png', // Fixed: Added proper icon asset
+        icon: Icons.beach_access, // Fixed: Added fallback icon
+      ),
+    ];
   }
+}
   
   Future<void> _loadBudgetCategories() async {
     try {
