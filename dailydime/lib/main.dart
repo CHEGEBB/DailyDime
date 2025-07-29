@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:dailydime/screens/splash_screen.dart';
-import 'package:dailydime/config/theme.dart';
+import 'package:dailydime/services/theme_service.dart';
 import 'package:dailydime/providers/transaction_provider.dart';
 import 'package:dailydime/providers/budget_provider.dart'; 
 import 'package:dailydime/providers/savings_provider.dart';
@@ -25,25 +25,39 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Theme service - should be first so other providers can use it
+        ChangeNotifierProvider(
+          create: (context) => ThemeService(),
+        ),
         ChangeNotifierProvider(
           create: (context) => TransactionProvider(),
         ),
         ChangeNotifierProvider(
-          create: (context) => BudgetProvider(), // Add BudgetProvider here
+          create: (context) => BudgetProvider(),
         ),
         ChangeNotifierProvider(
-          create: (context) => SavingsProvider(), // Add SavingsProvider here
+          create: (context) => SavingsProvider(),
         ),
         ChangeNotifierProvider(
-          create: (context) => InsightProvider(), // Add InsightProvider here
+          create: (context) => InsightProvider(),
         ),
-        // Add other providers here if you have them
       ],
-      child: MaterialApp(
-        title: 'DailyDime',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme(),
-        home: const SplashScreen(),
+      child: Consumer<ThemeService>(
+        builder: (context, themeService, child) {
+          return MaterialApp(
+            title: 'DailyDime',
+            debugShowCheckedModeBanner: false,
+            theme: themeService.lightTheme,
+            darkTheme: themeService.darkTheme,
+            themeMode: themeService.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            home: const SplashScreen(),
+            // Add these routes if you need them
+            routes: {
+              '/login': (context) => const SplashScreen(), // Replace with your login screen
+              // Add other routes here
+            },
+          );
+        },
       ),
     );
   }
