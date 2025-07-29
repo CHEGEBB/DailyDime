@@ -31,7 +31,7 @@ class HomeScreen extends StatefulWidget {
     this.onNavigateToSavings,
     this.onNavigateToAI,
     this.onNavigateToSettings,
-    this.onAddTransaction,
+    this.onAddTransaction, required void Function() onNavigateToProfile,
   }) : super(key: key);
 
   @override
@@ -262,7 +262,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       for (final budget in budgetsList) {
         // Get daily data for this budget (from transactions)
         List<double> dailyData = await appwrite.getDailySpendingForBudget(
-          budget.categoryId, 
+          budget.category, 
           DateTime.now().subtract(Duration(days: 7)), 
           DateTime.now()
         );

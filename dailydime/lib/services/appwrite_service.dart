@@ -25,8 +25,8 @@ class AppwriteService {
   
   void _initializeAppwrite() {
     client = Client()
-      .setEndpoint(AppConfig.appwriteEndpoint)
-      .setProject(AppConfig.appwriteProjectId);
+      ..setEndpoint(AppConfig.appwriteEndpoint)
+      ..setProject(AppConfig.appwriteProjectId);
     
     account = Account(client);
     databases = Databases(client);
@@ -54,29 +54,42 @@ class AppwriteService {
   // BUDGET METHODS
   
   // Get all budgets from Appwrite
-  // Future<List<Budget>> getBudgets() async {
-  //   try {
-  //     if (currentUserId == null) {
-  //       return [];
-  //     }
+  Future<List<Budget>> getBudgets({int? limit, String? cursor}) async {
+    try {
+      if (currentUserId == null) {
+        return [];
+      }
       
-  //     final response = await databases.listDocuments(
-  //       databaseId: AppConfig.databaseId,
-  //       collectionId: AppConfig.budgetsCollection,
-  //       queries: [
-  //         Query.equal('user_id', currentUserId!),
-  //       ],
-  //     );
+      final queries = [
+        Query.equal('user_id', currentUserId!),
+        Query.orderDesc('\$createdAt'),
+      ];
       
-  //     return response.documents.map((doc) {
-  //       final data = doc.data;
-  //       return _convertAppwriteToBudget(data, doc.$id);
-  //     }).toList();
-  //   } catch (e) {
-  //     debugPrint('Error fetching budgets: $e');
-  //     return [];
-  //   }
-  // }
+      // Add limit if provided
+      if (limit != null) {
+        queries.add(Query.limit(limit));
+      }
+      
+      // Add cursor for pagination if provided
+      if (cursor != null) {
+        queries.add(Query.cursorAfter(cursor));
+      }
+      
+      final response = await databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.budgetsCollection,
+        queries: queries,
+      );
+      
+      return response.documents.map((doc) {
+        final data = doc.data;
+        return _convertAppwriteToBudget(data, doc.$id);
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching budgets: $e');
+      return [];
+    }
+  }
   
   // Create a new budget in Appwrite
   Future<void> createBudget(Budget budget) async {
@@ -134,6 +147,103 @@ class AppwriteService {
     } catch (e) {
       debugPrint('Error deleting budget: $e');
       throw Exception('Failed to delete budget from Appwrite: $e');
+    }
+  }
+
+  // Get daily spending data for a specific budget category
+  Future<List<double>> getDailySpendingForBudget(
+    String categoryId, 
+    DateTime startDate, 
+    DateTime endDate
+  ) async {
+    try {
+      if (currentUserId == null) {
+        return List.filled(7, 0.0); // Return 7 days of zero spending
+      }
+
+      // Calculate the number of days between start and end dates
+      final int daysDifference = endDate.difference(startDate).inDays + 1;
+      final List<double> dailySpending = List.filled(daysDifference, 0.0);
+
+      // Get transactions for the date range and category
+      final queries = [
+        Query.equal('user_id', currentUserId!),
+        Query.greaterThanEqual('date', startDate.toIso8601String()),
+        Query.lessThanEqual('date', endDate.toIso8601String()),
+        Query.equal('category', categoryId),
+        Query.orderAsc('date'),
+      ];
+
+      final response = await databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.transactionsCollection,
+        queries: queries,
+      );
+
+      // Process transactions and group by day
+      for (final doc in response.documents) {
+        final data = doc.data;
+        final transaction = Transaction.fromJson(data);
+        
+        // Calculate the day index from start date
+        final transactionDate = DateTime.parse(transaction.date as String);
+        final dayIndex = transactionDate.difference(startDate).inDays;
+        
+        // Only include expenses (negative amounts)
+        if (dayIndex >= 0 && dayIndex < daysDifference && transaction.amount < 0) {
+          dailySpending[dayIndex] += transaction.amount.abs();
+        }
+      }
+
+      return dailySpending;
+    } catch (e) {
+      debugPrint('Error fetching daily spending for budget: $e');
+      // Return array filled with zeros as fallback
+      final int daysDifference = endDate.difference(startDate).inDays + 1;
+      return List.filled(daysDifference, 0.0);
+    }
+  }
+
+  // Get spending by category for a date range
+  Future<Map<String, double>> getSpendingByCategory(
+    DateTime startDate, 
+    DateTime endDate
+  ) async {
+    try {
+      if (currentUserId == null) {
+        return {};
+      }
+
+      final queries = [
+        Query.equal('user_id', currentUserId!),
+        Query.greaterThanEqual('date', startDate.toIso8601String()),
+        Query.lessThanEqual('date', endDate.toIso8601String()),
+        Query.orderDesc('date'),
+      ];
+
+      final response = await databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.transactionsCollection,
+        queries: queries,
+      );
+
+      final Map<String, double> categorySpending = {};
+
+      for (final doc in response.documents) {
+        final data = doc.data;
+        final transaction = Transaction.fromJson(data);
+        
+        // Only include expenses (negative amounts)
+        if (transaction.amount < 0) {
+          final category = transaction.category ?? 'Other';
+          categorySpending[category] = (categorySpending[category] ?? 0.0) + transaction.amount.abs();
+        }
+      }
+
+      return categorySpending;
+    } catch (e) {
+      debugPrint('Error fetching spending by category: $e');
+      return {};
     }
   }
   
@@ -203,7 +313,6 @@ class AppwriteService {
       icon: Icons.account_balance_wallet, // Default icon
       tags: List<String>.from(categories),
       isActive: data['status'] == 'active',
-      // name: data['title'] ?? 'Budget',
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -239,7 +348,9 @@ class AppwriteService {
     }
   }
   
-  // Transaction methods
+  // TRANSACTION METHODS
+  
+  // Sync transaction to Appwrite
   Future<void> syncTransaction(Transaction transaction) async {
     try {
       if (currentUserId == null) {
@@ -260,184 +371,106 @@ class AppwriteService {
       debugPrint('Error syncing transaction: $e');
     }
   }
-  // Updated getTransactions method with limit parameter
-Future<List<Transaction>> getTransactions({int? limit, String? cursor}) async {
-  try {
-    if (currentUserId == null) {
+
+  // Get transactions with optional parameters
+  Future<List<Transaction>> getTransactions({int? limit, String? cursor}) async {
+    try {
+      if (currentUserId == null) {
+        return [];
+      }
+      
+      final queries = [
+        Query.equal('user_id', currentUserId!),
+        Query.orderDesc('date'),
+      ];
+      
+      // Add limit if provided
+      if (limit != null) {
+        queries.add(Query.limit(limit));
+      }
+      
+      // Add cursor for pagination if provided
+      if (cursor != null) {
+        queries.add(Query.cursorAfter(cursor));
+      }
+      
+      final response = await databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.transactionsCollection,
+        queries: queries,
+      );
+      
+      return response.documents.map((doc) {
+        final data = doc.data;
+        return Transaction.fromJson(data);
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching transactions: $e');
       return [];
     }
-    
-    final queries = [
-      Query.equal('user_id', currentUserId!),
-      Query.orderDesc('date'),
-    ];
-    
-    // Add limit if provided
-    if (limit != null) {
-      queries.add(Query.limit(limit));
-    }
-    
-    // Add cursor for pagination if provided
-    if (cursor != null) {
-      queries.add(Query.cursorAfter(cursor));
-    }
-    
-    final response = await databases.listDocuments(
-      databaseId: AppConfig.databaseId,
-      collectionId: AppConfig.transactionsCollection,
-      queries: queries,
-    );
-    
-    return response.documents.map((doc) {
-      final data = doc.data;
-      return Transaction.fromJson(data);
-    }).toList();
-  } catch (e) {
-    debugPrint('Error fetching transactions: $e');
-    return [];
   }
-}
 
-// Add getSavingsGoals method (alias for fetchSavingsGoals for backward compatibility)
-Future<List<SavingsGoal>> getSavingsGoals() async {
-  return await fetchSavingsGoals();
-}
-
-// // Updated fetchSavingsGoals method with optional parameters
-// Future<List<SavingsGoal>> fetchSavingsGoals({int? limit, String? cursor}) async {
-//   try {
-//     if (currentUserId == null) {
-//       return [];
-//     }
-    
-//     final queries = [
-//       Query.equal('user_id', currentUserId!),
-//       Query.orderDesc('\$createdAt'),
-//     ];
-    
-//     // Add limit if provided
-//     if (limit != null) {
-//       queries.add(Query.limit(limit));
-//     }
-    
-//     // Add cursor for pagination if provided
-//     if (cursor != null) {
-//       queries.add(Query.cursorAfter(cursor));
-//     }
-    
-//     final response = await databases.listDocuments(
-//       databaseId: AppConfig.databaseId,
-//       collectionId: AppConfig.savingsGoalsCollection,
-//       queries: queries,
-//     );
-    
-//     return response.documents.map((doc) {
-//       final data = doc.data;
-//       return _convertAppwriteToSavingsGoal(data, doc.$id);
-//     }).toList();
-//   } catch (e) {
-//     debugPrint('Error fetching savings goals: $e');
-//     return [];
-//   }
-// }
-
-// Updated getBudgets method with optional parameters for consistency
-Future<List<Budget>> getBudgets({int? limit, String? cursor}) async {
-  try {
-    if (currentUserId == null) {
+  // Helper method to get transactions by date range
+  Future<List<Transaction>> getTransactionsByDateRange({
+    required DateTime startDate,
+    required DateTime endDate,
+    int? limit,
+    String? cursor,
+  }) async {
+    try {
+      if (currentUserId == null) {
+        return [];
+      }
+      
+      final queries = [
+        Query.equal('user_id', currentUserId!),
+        Query.greaterThanEqual('date', startDate.toIso8601String()),
+        Query.lessThanEqual('date', endDate.toIso8601String()),
+        Query.orderDesc('date'),
+      ];
+      
+      // Add limit if provided
+      if (limit != null) {
+        queries.add(Query.limit(limit));
+      }
+      
+      // Add cursor for pagination if provided
+      if (cursor != null) {
+        queries.add(Query.cursorAfter(cursor));
+      }
+      
+      final response = await databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.transactionsCollection,
+        queries: queries,
+      );
+      
+      return response.documents.map((doc) {
+        final data = doc.data;
+        return Transaction.fromJson(data);
+      }).toList();
+    } catch (e) {
+      debugPrint('Error fetching transactions by date range: $e');
       return [];
     }
-    
-    final queries = [
-      Query.equal('user_id', currentUserId!),
-      Query.orderDesc('\$createdAt'),
-    ];
-    
-    // Add limit if provided
-    if (limit != null) {
-      queries.add(Query.limit(limit));
-    }
-    
-    // Add cursor for pagination if provided
-    if (cursor != null) {
-      queries.add(Query.cursorAfter(cursor));
-    }
-    
-    final response = await databases.listDocuments(
-      databaseId: AppConfig.databaseId,
-      collectionId: AppConfig.budgetsCollection,
-      queries: queries,
-    );
-    
-    return response.documents.map((doc) {
-      final data = doc.data;
-      return _convertAppwriteToBudget(data, doc.$id);
-    }).toList();
-  } catch (e) {
-    debugPrint('Error fetching budgets: $e');
-    return [];
   }
-}
 
-// Helper method to get transactions by date range
-Future<List<Transaction>> getTransactionsByDateRange({
-  required DateTime startDate,
-  required DateTime endDate,
-  int? limit,
-  String? cursor,
-}) async {
-  try {
-    if (currentUserId == null) {
-      return [];
-    }
+  // Helper method to get recent transactions (last N days)
+  Future<List<Transaction>> getRecentTransactions({
+    int days = 90,
+    int? limit,
+  }) async {
+    final endDate = DateTime.now();
+    final startDate = endDate.subtract(Duration(days: days));
     
-    final queries = [
-      Query.equal('user_id', currentUserId!),
-      Query.greaterThanEqual('date', startDate.toIso8601String()),
-      Query.lessThanEqual('date', endDate.toIso8601String()),
-      Query.orderDesc('date'),
-    ];
-    
-    // Add limit if provided
-    if (limit != null) {
-      queries.add(Query.limit(limit));
-    }
-    
-    // Add cursor for pagination if provided
-    if (cursor != null) {
-      queries.add(Query.cursorAfter(cursor));
-    }
-    
-    final response = await databases.listDocuments(
-      databaseId: AppConfig.databaseId,
-      collectionId: AppConfig.transactionsCollection,
-      queries: queries,
+    return await getTransactionsByDateRange(
+      startDate: startDate,
+      endDate: endDate,
+      limit: limit,
     );
-    
-    return response.documents.map((doc) {
-      final data = doc.data;
-      return Transaction.fromJson(data);
-    }).toList();
-  } catch (e) {
-    debugPrint('Error fetching transactions by date range: $e');
-    return [];
   }
-}
 
-// Helper method to get recent transactions (last N days)
-Future<List<Transaction>> getRecentTransactions({
-  int days = 90,
-  int? limit,
-}) async {
-  final endDate = DateTime.now();
-  final startDate = endDate.subtract(Duration(days: days));
-  
-  return await getTransactionsByDateRange(
-    startDate: startDate,
-    endDate: endDate,
-    limit: limit,
-  );
-}
+  // Delete transaction
   Future<void> deleteTransaction(String id) async {
     try {
       await databases.deleteDocument(
@@ -569,7 +602,7 @@ Future<List<Transaction>> getRecentTransactions({
           ? (goal.recommendedWeeklySaving! * 100).toInt() 
           : null,
       'is_automatic_saving': goal.isAutomaticSaving ?? false,
-      'forecasted_completion': goal.forecastedCompletion?.toIso8601String(),
+      'forecasted_completion': goal.forecastedCompletion?.toInt(),
       'image_url': goal.imageUrl,
     };
   }
@@ -602,16 +635,20 @@ Future<List<Transaction>> getRecentTransactions({
             ? data['recommended_weekly_saving'] / 100.0 
             : null,
         isAutomaticSaving: data['is_automatic_saving'] ?? false,
-        forecastedCompletion: data['forecasted_completion'] != null 
-            ? DateTime.parse(data['forecasted_completion']).millisecondsSinceEpoch.toDouble() 
-            : null,
-        imageUrl: data['image_url'], icon: null,
+        forecastedCompletion: data['forecasted_completion']?.toDouble(),
+        imageUrl: data['image_url'], 
+        icon: null,
       );
     } catch (e) {
       debugPrint('Error converting Appwrite data to SavingsGoal: $e');
       debugPrint('Data: $data');
       rethrow;
     }
+  }
+
+  // Add getSavingsGoals method (alias for fetchSavingsGoals for backward compatibility)
+  Future<List<SavingsGoal>> getSavingsGoals() async {
+    return await fetchSavingsGoals();
   }
 
   // Create a new savings goal from map data (for debugging purposes)
@@ -642,7 +679,8 @@ Future<List<Transaction>> getRecentTransactions({
             ? DateTime.parse(goalData['updatedAt'])
             : (goalData['updatedAt'] ?? DateTime.now()),
         isRecurring: goalData['isRecurring'] ?? false,
-        reminderFrequency: goalData['reminderFrequency'] ?? 'weekly', icon: null,
+        reminderFrequency: goalData['reminderFrequency'] ?? 'weekly', 
+        icon: null,
       );
       
       debugPrint('Created SavingsGoal object: ${goal.title}');
@@ -1059,8 +1097,4 @@ Future<List<Transaction>> getRecentTransactions({
       throw Exception('Failed to delete savings challenge: $e');
     }
   }
-}
-
-extension on double? {
-  toIso8601String() {}
 }
