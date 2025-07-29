@@ -244,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         currentAmount: 25000,
         targetAmount: 80000,
         deadline: DateTime.now().add(Duration(days: 180)),
-        color: Color(0xFF26D07C).value, // Fixed: Use .value for color
+        color: Color(0xFF26D07C), // Fixed: Use Color directly
         targetDate: DateTime.now().add(Duration(days: 180)),
         category: SavingsGoalCategory.other,
         iconAsset: 'assets/icons/laptop.png', // Fixed: Added proper icon asset
@@ -256,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         currentAmount: 5000,
         targetAmount: 45000,
         deadline: DateTime.now().add(Duration(days: 120)),
-        color: Colors.orange.value, // Fixed: Use .value for color
+        color: Colors.orange, // Use Colors.orange directly
         targetDate: DateTime.now().add(Duration(days: 120)),
         category: SavingsGoalCategory.other,
         iconAsset: 'assets/icons/vacation.png', // Fixed: Added proper icon asset
