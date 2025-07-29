@@ -99,7 +99,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     secondaryLottieAssets: [
       'assets/animations/growth.json',
       'assets/animations/management.json',
-      'assets/animations/savings_goals.json',
+      'assets/animations/savings_goal.json',
     ],
     welcomeText: 'Welcome Back!',
     subtitle: 'Continue your journey to financial freedom',
