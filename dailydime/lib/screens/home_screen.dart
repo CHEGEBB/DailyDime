@@ -151,8 +151,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _loadMockData() {
     // Mock data for balance
-    _currentBalance = 24550;
-    _balanceController.text = '24,550';
+    _currentBalance = 0.0;
+    _balanceController.text = '00';
     _lastUpdateTime = DateFormat('dd/MM/yyyy').format(DateTime.now());
 
     // Mock data for budget categories
