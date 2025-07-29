@@ -1,6 +1,7 @@
 // lib/screens/home_screen.dart
 import 'dart:async';
 import 'package:dailydime/screens/profile_screen.dart';
+import 'package:dailydime/screens/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -768,26 +769,33 @@ class _HomeScreenState extends State<HomeScreen>
           ),
 
           // Settings Icon
-          GestureDetector(
-            onTap: widget.onNavigateToSettings,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.settings_outlined,
-                size: 24,
-                color: Colors.black,
-              ),
+         GestureDetector(
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(),
+      ),
+    );
+  },
+  child: Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: Colors.grey.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.03),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Icon(
+      Icons.settings_outlined,
+      size: 24,
+      color: Colors.black,
+    ),
             ),
           ),
         ],
