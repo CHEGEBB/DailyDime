@@ -1,4 +1,6 @@
 // lib/screens/budget/budget_screen.dart
+import 'dart:async' show StreamSubscription;
+
 import 'package:dailydime/models/budget.dart';
 import 'package:dailydime/providers/budget_provider.dart';
 import 'package:dailydime/screens/budget/create_budget_screen.dart';
@@ -10,6 +12,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:lottie/lottie.dart';
+import 'package:dailydime/services/balance_service.dart';
+
 
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({Key? key}) : super(key: key);
@@ -24,6 +28,9 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
   
   late TabController _tabController;
   final List<String> _tabTitles = ['Overview', 'Categories', 'Insights'];
+  double _currentBalance = 0.0;
+DateTime _lastBalanceUpdate = DateTime(2000);
+StreamSubscription<double>? _balanceSubscription;
   
   List<String> _aiInsights = [];
   bool _loadingInsights = true;
@@ -39,20 +46,49 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
     const FlSpot(7, 11800),
   ];
   
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: _tabTitles.length, vsync: this);
-    
-    // Initialize budget provider
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
-      budgetProvider.initialize().then((_) {
-        _loadAIInsights();
-      });
-    });
-  }
+@override
+void initState() {
+  super.initState();
+  _tabController = TabController(length: _tabTitles.length, vsync: this);
   
+  // Initialize budget provider
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+    budgetProvider.initialize().then((_) {
+      _loadAIInsights();
+    });
+    
+    // Initialize balance service and listen to balance updates
+    _initializeBalance();
+  });
+}
+  Future<void> _initializeBalance() async {
+  try {
+    await BalanceService.instance.initialize();
+    
+    // Get current balance
+    setState(() {
+      _currentBalance = BalanceService.instance.getCurrentBalance();
+      _lastBalanceUpdate = BalanceService.instance.getLastUpdateTime();
+    });
+    
+    // Listen to balance updates
+    _balanceSubscription = BalanceService.instance.balanceStream.listen((newBalance) {
+      if (mounted) {
+        setState(() {
+          _currentBalance = newBalance;
+          _lastBalanceUpdate = BalanceService.instance.getLastUpdateTime();
+        });
+      }
+    });
+    
+    debugPrint('Balance initialized: $_currentBalance');
+  } catch (e) {
+    debugPrint('Error initializing balance: $e');
+  }
+}
+
+
   Future<void> _loadAIInsights() async {
     setState(() {
       _loadingInsights = true;
@@ -78,11 +114,495 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
     }
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  Widget _buildBalanceMetric() {
+  final bool isStale = BalanceService.instance.isBalanceStale();
+  
+  return GestureDetector(
+    onTap: () {
+      // Show balance details
+      _showBalanceDetails();
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.account_balance_wallet,
+                color: Colors.white,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'KES ${_currentBalance.toInt()}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontFamily: 'DMsans',
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              if (isStale) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.warning,
+                  color: Colors.orange.shade300,
+                  size: 12,
+                ),
+              ],
+            ],
+          ),
+          Text(
+            'M-Pesa Balance',
+            style: TextStyle(
+              fontSize: 10,
+              fontFamily: 'DMsans',
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+void _showBalanceDetails() {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              height: 4,
+              width: 40,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF26D07C).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet,
+                  color: Color(0xFF26D07C),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'M-Pesa Balance',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'Last updated: ${_formatLastUpdate()}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF26D07C).withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'KES ${_currentBalance.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF26D07C),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Available Balance',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                if (BalanceService.instance.isBalanceStale()) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.warning,
+                          color: Colors.orange.shade700,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Balance may be outdated',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Note: Balance is automatically updated from M-Pesa transaction messages. Make a transaction to refresh your balance.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+String _formatLastUpdate() {
+  final now = DateTime.now();
+  final difference = now.difference(_lastBalanceUpdate);
+  
+  if (difference.inMinutes < 1) {
+    return 'Just now';
+  } else if (difference.inHours < 1) {
+    return '${difference.inMinutes}m ago';
+  } else if (difference.inDays < 1) {
+    return '${difference.inHours}h ago';
+  } else if (difference.inDays < 7) {
+    return '${difference.inDays}d ago';
+  } else {
+    return DateFormat('MMM dd, yyyy').format(_lastBalanceUpdate);
   }
+}
+
+@override
+void dispose() {
+  _tabController.dispose();
+  _balanceSubscription?.cancel(); 
+  super.dispose();
+}
+
+Widget _buildBudgetOverviewCard({
+  required bool isLoading,
+  required double totalBudget,
+  required double totalSpent,
+  required double percentageUsed,
+  required Color accentColor,
+  required String highestCategory,
+}) {
+  return Container(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(8),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          accentColor,
+          accentColor.withOpacity(0.8),
+          accentColor.withOpacity(0.6),
+        ],
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: accentColor.withOpacity(0.3),
+          blurRadius: 20,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    ),
+    child: Stack(
+      children: [
+        // Background pattern
+        Positioned.fill(
+          child: Opacity(
+            opacity: 0.2,
+            child: Image.asset(
+              'assets/images/pattern11.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        
+        // Content
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with title and dropdown
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Budget Overview',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontFamily: 'DMsans',
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _selectedTimeframe,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 18),
+                          offset: const Offset(0, 30),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          onSelected: (String value) {
+                            setState(() {
+                              _selectedTimeframe = value;
+                            });
+                          },
+                          itemBuilder: (BuildContext context) {
+                            return _timeframes.map((String timeframe) {
+                              return PopupMenuItem<String>(
+                                value: timeframe,
+                                child: Text(timeframe),
+                              );
+                            }).toList();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              
+              const Spacer(),
+              
+              // Spending amount
+              if (isLoading)
+                Shimmer.fromColors(
+                  baseColor: Colors.white.withOpacity(0.5),
+                  highlightColor: Colors.white.withOpacity(0.9),
+                  child: Container(
+                    height: 32,
+                    width: 150,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
+                    ),
+                  ),
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'KES ${totalSpent.toInt()}',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'DMsans',
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        'spent of KES ${totalBudget.toInt()}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'DMsans',
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              
+              const SizedBox(height: 12),
+              
+              // Progress bar (keep existing code)
+              if (isLoading)
+                Shimmer.fromColors(
+                  baseColor: Colors.white.withOpacity(0.5),
+                  highlightColor: Colors.white.withOpacity(0.9),
+                  child: Container(
+                    height: 10,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
+                    ),
+                  ),
+                )
+              else
+                Column(
+                  children: [
+                    Container(
+                      height: 10,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: MediaQuery.of(context).size.width * 
+                                (percentageUsed > 1.0 ? 0.85 : percentageUsed * 0.85),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: percentageUsed > 0.9
+                                    ? [Colors.red.shade300, Colors.red.shade500]
+                                    : [Colors.white, Colors.white.withOpacity(0.8)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${(percentageUsed * 100).toInt()}% used',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontFamily: 'DMsans',
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'KES ${(totalBudget - totalSpent).toInt()} left',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontFamily: 'DMsans',
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              
+              const SizedBox(height: 16),
+              
+              // Budget metrics - UPDATED TO INCLUDE BALANCE
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildMetricColumn(
+                    'KES ${totalBudget > 0 ? ((totalBudget - totalSpent) / 30).toInt() : 0}/day',
+                    'Daily Budget',
+                    Icons.calendar_today,
+                    Colors.white,
+                  ),
+                  // NEW: M-Pesa Balance Display
+                  _buildBalanceMetric(),
+                  Container(
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            percentageUsed > 0.9 ? Icons.warning : Icons.check_circle_outline,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            percentageUsed > 0.9 
+                                ? 'Budget warning!' 
+                                : 'On Track',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -182,274 +702,6 @@ class _BudgetScreenState extends State<BudgetScreen> with SingleTickerProviderSt
     );
   }
   
-  Widget _buildBudgetOverviewCard({
-    required bool isLoading,
-    required double totalBudget,
-    required double totalSpent,
-    required double percentageUsed,
-    required Color accentColor,
-    required String highestCategory,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            accentColor,
-            accentColor.withOpacity(0.8),
-            accentColor.withOpacity(0.6),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: accentColor.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Background pattern
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.2,
-              child: Image.asset(
-                'assets/images/pattern11.png',
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with title and dropdown
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Budget Overview',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontFamily: 'DMsans',
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _selectedTimeframe,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                            ),
-                          ),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 18),
-                            offset: const Offset(0, 30),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            onSelected: (String value) {
-                              setState(() {
-                                _selectedTimeframe = value;
-                              });
-                            },
-                            itemBuilder: (BuildContext context) {
-                              return _timeframes.map((String timeframe) {
-                                return PopupMenuItem<String>(
-                                  value: timeframe,
-                                  child: Text(timeframe),
-                                );
-                              }).toList();
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                
-                const Spacer(),
-                
-                // Spending amount
-                if (isLoading)
-                  Shimmer.fromColors(
-                    baseColor: Colors.white.withOpacity(0.5),
-                    highlightColor: Colors.white.withOpacity(0.9),
-                    child: Container(
-                      height: 32,
-                      width: 150,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: Colors.white,
-                      ),
-                    ),
-                  )
-                else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'KES ${totalSpent.toInt()}',
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'DMsans',
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          'spent of KES ${totalBudget.toInt()}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontFamily: 'DMsans',
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                
-                const SizedBox(height: 12),
-                
-                // Progress bar
-                if (isLoading)
-                  Shimmer.fromColors(
-                    baseColor: Colors.white.withOpacity(0.5),
-                    highlightColor: Colors.white.withOpacity(0.9),
-                    child: Container(
-                      height: 10,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: Colors.white,
-                      ),
-                    ),
-                  )
-                else
-                  Column(
-                    children: [
-                      Container(
-                        height: 10,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: MediaQuery.of(context).size.width * 
-                                  (percentageUsed > 1.0 ? 0.85 : percentageUsed * 0.85),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: percentageUsed > 0.9
-                                      ? [Colors.red.shade300, Colors.red.shade500]
-                                      : [Colors.white, Colors.white.withOpacity(0.8)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${(percentageUsed * 100).toInt()}% used',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'DMsans',
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            'KES ${(totalBudget - totalSpent).toInt()} left',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'DMsans',
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                
-                const SizedBox(height: 16),
-                
-                // Budget metrics
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildMetricColumn(
-                      'KES ${totalBudget > 0 ? ((totalBudget - totalSpent) / 30).toInt() : 0}/day',
-                      'Personal',
-                      Icons.person_outline,
-                      Colors.white,
-                    ),
-                    Container(
-                      height: 30,
-                      width: MediaQuery.of(context).size.width * 0.5,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              percentageUsed > 0.9 ? Icons.warning : Icons.check_circle_outline,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              percentageUsed > 0.9 
-                                  ? 'Budget warning!' 
-                                  : 'On Track',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   
   Widget _buildMetricColumn(String value, String label, IconData icon, Color color) {
     return Row(
