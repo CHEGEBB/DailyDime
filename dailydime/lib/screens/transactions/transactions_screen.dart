@@ -247,125 +247,76 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
     _searchController.dispose();
     super.dispose();
   }
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: backgroundColor,
+    // Make the app extend behind the status bar
+    extendBodyBehindAppBar: true,
+    // Remove the app bar since we're including actions in the header
+    appBar: null,
+    body: Consumer<TransactionProvider>(
+      builder: (context, transactionProvider, child) {
+        final isLoading = transactionProvider.isLoading;
+        final transactions = transactionProvider.filteredTransactions;
+        final balance = transactionProvider.currentBalance;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Consumer<TransactionProvider>(
-        builder: (context, transactionProvider, child) {
-          final isLoading = transactionProvider.isLoading;
-          final transactions = transactionProvider.filteredTransactions;
-          final balance = transactionProvider.currentBalance;
+        // Important: Use post-frame callback to update data after build
+        if (!isLoading && transactions.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _refreshData(transactions);
+          });
+        }
 
-          // Important: Use post-frame callback to update data after build
-          if (!isLoading && transactions.isNotEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _refreshData(transactions);
-            });
-          }
-
-          return Stack(
-            children: [
-              // Main content
-              CustomScrollView(
-                controller: _scrollController,
-                slivers: [
-                  // App Bar
-                  SliverAppBar(
-                    pinned: true,
-                    floating: true,
-                    snap: false,
-                    elevation: _isScrolled ? 2 : 0,
-                    backgroundColor: _isScrolled ? Colors.white : backgroundColor,
-                    title: _isScrolled 
-                      ? Text(
-                          'Transactions',
-                          style: TextStyle(
-                            color: secondaryColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
-                        )
-                      : null,
-                    centerTitle: _isScrolled,
-                    expandedHeight: 0,
-                    actions: [
-                      IconButton(
-                        icon: Icon(
-                          _isSearchExpanded ? Icons.close : Icons.search,
-                          color: secondaryColor,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isSearchExpanded = !_isSearchExpanded;
-                            if (!_isSearchExpanded) {
-                              _searchController.clear();
-                            }
-                          });
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          _isGridView ? Icons.view_list : Icons.grid_view,
-                          color: secondaryColor,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isGridView = !_isGridView;
-                          });
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.filter_list,
-                          color: secondaryColor,
-                        ),
-                        onPressed: () {
-                          _showFilterBottomSheet(context);
-                        },
-                      ),
-                    ],
-                  ),
-                  
-                  // Search bar (if expanded)
-                  if (_isSearchExpanded)
-                    SliverToBoxAdapter(
+        return Stack(
+          children: [
+            // Main content
+            CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                // Search bar (if expanded) - move this before the header
+                if (_isSearchExpanded)
+                  SliverToBoxAdapter(
+                    child: Container(
+                      // Add top padding to account for status bar
+                      padding: const EdgeInsets.fromLTRB(16, 60, 16, 8),
+                      color: Colors.white,
                       child: _buildSearchBar(),
                     ),
-                  
-                  // Main content
-                  SliverToBoxAdapter(
-                    child: !_isSearchExpanded 
-                      ? _buildMainContent(transactions, balance, isLoading)
-                      : _buildSearchResults(),
                   ),
-                ],
-              ),
-
-              // Add Transaction FAB
-              Positioned(
-                right: 16,
-                bottom: 16,
-                child: FloatingActionButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddTransactionScreen(),
-                      ),
-                    );
-                  },
-                  backgroundColor: primaryColor,
-                  child: const Icon(Icons.add, color: Colors.white),
+                
+                // Main content
+                SliverToBoxAdapter(
+                  child: !_isSearchExpanded 
+                    ? _buildMainContent(transactions, balance, isLoading)
+                    : _buildSearchResults(),
                 ),
+              ],
+            ),
+
+            // Add Transaction FAB
+            Positioned(
+              right: 16,
+              bottom: 16,
+              child: FloatingActionButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddTransactionScreen(),
+                    ),
+                  );
+                },
+                backgroundColor: primaryColor,
+                child: const Icon(Icons.add, color: Colors.white),
               ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
 
   Widget _buildMainContent(List<dynamic> transactions, double balance, bool isLoading) {
     return Column(
@@ -392,119 +343,158 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       ],
     );
   }
-
-  Widget _buildHeader(double balance) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        image: const DecorationImage(
-          image: AssetImage('assets/images/patter10.png'),
-          fit: BoxFit.cover,
-          opacity: 0.05,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+Widget _buildHeader(double balance) {
+  return Container(
+    // Add top padding to account for status bar
+    padding: const EdgeInsets.fromLTRB(20, 60, 20, 20), // Increased top padding from 40 to 60
+    decoration: BoxDecoration(
+      color: Colors.white,
+      image: const DecorationImage(
+        image: AssetImage('assets/images/patter12.png'),
+        fit: BoxFit.cover,
+        opacity: 0.05,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Transactions',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(24),
+        bottomRight: Radius.circular(24),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Add the app bar actions here since we're extending the header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Transactions',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
               ),
-              IconButton(
-                icon: Icon(
-                  _showAnalytics ? Icons.insights : Icons.insights_outlined,
-                  color: secondaryColor,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _showAnalytics = !_showAnalytics;
-                  });
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Current Balance',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      currencyFormat.format(balance),
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: secondaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Row(
-                children: [
-                  _buildQuickActionButton(
-                    icon: Icons.add,
-                    label: 'Add',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AddTransactionScreen(),
-                        ),
-                      );
-                    },
-                    color: Colors.green.shade700,
+            ),
+            Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    _isSearchExpanded ? Icons.close : Icons.search,
+                    color: secondaryColor,
                   ),
-                  const SizedBox(width: 12),
-                  _buildQuickActionButton(
-                    icon: Icons.remove,
-                    label: 'Spend',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AddTransactionScreen(),
-                        ),
-                      );
-                    },
-                    color: Colors.red.shade700,
+                  onPressed: () {
+                    setState(() {
+                      _isSearchExpanded = !_isSearchExpanded;
+                      if (!_isSearchExpanded) {
+                        _searchController.clear();
+                      }
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: Icon(
+                    _isGridView ? Icons.view_list : Icons.grid_view,
+                    color: secondaryColor,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isGridView = !_isGridView;
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.filter_list,
+                    color: secondaryColor,
+                  ),
+                  onPressed: () {
+                    _showFilterBottomSheet(context);
+                  },
+                ),
+                IconButton(
+                  icon: Icon(
+                    _showAnalytics ? Icons.insights : Icons.insights_outlined,
+                    color: secondaryColor,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _showAnalytics = !_showAnalytics;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Current Balance',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    currencyFormat.format(balance),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: secondaryColor,
+                    ),
                   ),
                 ],
               ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+            ),
+            Row(
+              children: [
+                _buildQuickActionButton(
+                  icon: Icons.add,
+                  label: 'Add',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddTransactionScreen(),
+                      ),
+                    );
+                  },
+                  color: Colors.green.shade700,
+                ),
+                const SizedBox(width: 12),
+                _buildQuickActionButton(
+                  icon: Icons.remove,
+                  label: 'Spend',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddTransactionScreen(),
+                      ),
+                    );
+                  },
+                  color: Colors.red.shade700,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildQuickActionButton({
     required IconData icon,
@@ -558,14 +548,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
           ],
         ),
         image: const DecorationImage(
-          image: AssetImage('assets/images/pattern10.png'),
+          image: AssetImage('assets/images/pattern11.png'),
           fit: BoxFit.cover,
           opacity: 0.1,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withOpacity(0.3),
+            color: primaryColor.withOpacity(0.5),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1093,37 +1083,34 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       ),
     );
   }
-
-  Widget _buildSearchBar() {
-    return Container(
-      height: 60,
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: TextField(
-        controller: _searchController,
-        autofocus: true,
-        decoration: InputDecoration(
-          hintText: 'Search transactions...',
-          prefixIcon: Icon(Icons.search, color: primaryColor),
-          suffixIcon: _searchController.text.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _searchController.clear();
-                },
-              )
-            : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.grey.shade100,
-          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+Widget _buildSearchBar() {
+  return SizedBox(
+    height: 44, // Reduced height
+    child: TextField(
+      controller: _searchController,
+      autofocus: true,
+      decoration: InputDecoration(
+        hintText: 'Search transactions...',
+        prefixIcon: Icon(Icons.search, color: primaryColor),
+        suffixIcon: _searchController.text.isNotEmpty
+          ? IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                _searchController.clear();
+              },
+            )
+          : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        contentPadding: const EdgeInsets.symmetric(vertical: 0),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSearchResults() {
     if (_searchController.text.isEmpty) {

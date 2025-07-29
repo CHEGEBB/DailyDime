@@ -662,9 +662,9 @@ Widget _buildProfileHeader({
     child: Container(
       decoration: const BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/images/pattern10.png'),
+          image: AssetImage('assets/images/pattern11.png'),
           fit: BoxFit.cover,
-          opacity: 0.1,
+          opacity: 0.7,
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(30),
