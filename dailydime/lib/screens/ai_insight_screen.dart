@@ -1395,7 +1395,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),
-                  unselectedLabelstyle: TextStyle(
+                  unselectedLabelStyle: TextStyle(
     fontFamily: 'DMsans',
                     fontWeight: FontWeight.w500,
                     fontSize: 14,
@@ -1523,7 +1523,8 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                   if (index % 5 == 0 && index < forecastData.length) {
                     final date = forecastData[index]['date'] as DateTime?;
                     return SideTitleWidget(
-                      axisSide: meta.axisSide,
+                      // axisSide: meta.axisSide,
+                      meta:meta,
                       child: Text(
                         date != null ? DateFormat('MM/dd').format(date) : '',
                         style: TextStyle(
@@ -1579,41 +1580,38 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
               ),
             ),
           ],
-          lineTouchData: LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              tooltipBgColor: themeService.isDarkMode 
-                  ? Colors.grey[800]!
-                  : Colors.white,
-              tooltipRoundedRadius: 8,
-              getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                return touchedBarSpots.map((barSpot) {
-                  final index = barSpot.x.toInt();
-                  if (index < forecastData.length) {
-                    final date = forecastData[index]['date'] as DateTime?;
-                    final balance = forecastData[index]['balance'] as double;
-                    return LineTooltipItem(
-                      date != null ? '${DateFormat('MMM dd').format(date)}\n' : '',
-                      GoogleFonts.poppins(
-                        color: themeService.textColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: AppConfig.formatCurrency((balance * 100).toInt()),
-                          style: TextStyle(
-    fontFamily: 'DMsans',
-                            color: _getForecastTrendColor(themeService),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return null;
-                }).whereType<LineTooltipItem>().toList();
-              },
+         lineTouchData: LineTouchData(
+  touchTooltipData: LineTouchTooltipData(
+    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+      return touchedBarSpots.map((barSpot) {
+        final index = barSpot.x.toInt();
+        if (index < forecastData.length) {
+          final date = forecastData[index]['date'] as DateTime?;
+          final balance = forecastData[index]['balance'] as double;
+          return LineTooltipItem(
+            date != null ? '${DateFormat('MMM dd').format(date)}\n' : '',
+            TextStyle(
+              fontFamily: 'DMsans',
+              color: themeService.textColor,
+              fontWeight: FontWeight.w500,
             ),
-          ),
+            children: [
+              TextSpan(
+                text: AppConfig.formatCurrency((balance * 100).toInt()),
+                style: TextStyle(
+                  fontFamily: 'DMsans',
+                  color: _getForecastTrendColor(themeService),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          );
+        }
+        return null;
+      }).whereType<LineTooltipItem>().toList();
+    },
+  ),
+),
         ),
       ),
     );
