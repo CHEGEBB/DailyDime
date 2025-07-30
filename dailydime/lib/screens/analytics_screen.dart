@@ -2014,24 +2014,24 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
             Expanded(
               child: BarChart(
                 BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: maxValue * 1.1,
-                  barTouchData: BarTouchData(
-                    touchTooltipData: BarTouchTooltipData(
-                      tooltipBgColor: themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-                      tooltipRoundedRadius: 8,
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final categoryData = data[group.x.toInt()];
-                        final category = categoryData['category'] as String;
-                        final amount = rod.toY;
-                        final label = rodIndex == 0 ? 'Predicted' : 'Historical';
-                        return BarTooltipItem(
-                          '$category - $label\n${AppConfig.formatCurrency(amount.toInt() * 100)}',
-                          TextStyle(
-                            color: themeService.isDarkMode ? Colors.white : Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
+  alignment: BarChartAlignment.spaceAround,
+  maxY: maxValue * 1.1,
+  barTouchData: BarTouchData(
+    touchTooltipData: BarTouchTooltipData(
+      getTooltipColor: (group) => themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
+      // Remove tooltipRoundedRadius if it causes issues
+      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+        final categoryData = data[group.x.toInt()];
+        final category = categoryData['category'] as String;
+        final amount = rod.toY;
+        final label = rodIndex == 0 ? 'Predicted' : 'Historical';
+        return BarTooltipItem(
+          '$category - $label\n${AppConfig.formatCurrency(amount.toInt() * 100)}',
+          TextStyle(
+            color: themeService.isDarkMode ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        );
                       },
                     ),
                   ),
