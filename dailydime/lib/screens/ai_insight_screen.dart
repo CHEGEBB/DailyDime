@@ -300,7 +300,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                 child: Opacity(
                   opacity: 0.15,
                   child: Image.asset(
-                    'assets/images/pattern1.png',
+                    'assets/images/pattern12.png',
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -331,7 +331,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                               Row(
                                 children: [
                                   Image.asset(
-                                    'assets/images/gemini_logo.png',
+                                    'assets/images/logo.png',
                                     width: 20,
                                     height: 20,
                                   ),
@@ -423,7 +423,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Image.asset(
-                      'assets/images/gemini_logo.png',
+                      'assets/images/logo.png',
                       width: 20,
                       height: 20,
                       color: themeService.primaryColor,
@@ -511,7 +511,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
               child: Row(
                 children: [
                   Image.asset(
-                    'assets/images/gemini_logo.png',
+                    'assets/images/logo.png',
                     width: 24,
                     height: 24,
                   ),
@@ -1879,7 +1879,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
             child: Row(
               children: [
                 Image.asset(
-                  'assets/images/gemini_logo.png',
+                  'assets/images/logo.png',
                   width: 20,
                   height: 20,
                   color: themeService.primaryColor,
