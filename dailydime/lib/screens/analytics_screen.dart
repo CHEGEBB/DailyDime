@@ -1554,27 +1554,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 ),
               ),
             ],
-            lineTouchData: LineTouchData(
-              touchTooltipData: LineTouchTooltipData(
-                tooltipBgColor: themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-                tooltipRoundedRadius: 8,
-                getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                  return touchedBarSpots.map((barSpot) {
-                    final flSpot = barSpot;
-                    final month = months[flSpot.x.toInt()];
-                    final savings = monthlyData[flSpot.x.toInt()]['savings'] as double;
-                    
-                    return LineTooltipItem(
-                      '$month Savings\n${AppConfig.formatCurrency(savings.toInt() * 100)}',
-                      TextStyle(
-                        color: themeService.isDarkMode ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    );
-                  }).toList();
-                },
-              ),
-            ),
+           lineTouchData: LineTouchData(
+  touchTooltipData: LineTouchTooltipData(
+    getTooltipColor: (touchedSpot) => themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
+    // Remove tooltipRoundedRadius if it causes issues
+    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+      return touchedBarSpots.map((barSpot) {
+        final flSpot = barSpot;
+        final month = months[flSpot.x.toInt()];
+        final savings = monthlyData[flSpot.x.toInt()]['savings'] as double;
+        
+        return LineTooltipItem(
+          '$month Savings\n${AppConfig.formatCurrency(savings.toInt() * 100)}',
+          TextStyle(
+            color: themeService.isDarkMode ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+      }).toList();
+    },
+  ),
+),
           ),
         ),
       ),
