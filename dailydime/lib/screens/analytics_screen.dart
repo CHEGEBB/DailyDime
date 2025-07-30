@@ -14,17 +14,15 @@ class AnalyticsScreen extends StatefulWidget {
   final List<Transaction>? transactions;
   final Map<String, dynamic>? forecastData;
 
-  const AnalyticsScreen({
-    Key? key,
-    this.transactions,
-    this.forecastData,
-  }) : super(key: key);
+  const AnalyticsScreen({Key? key, this.transactions, this.forecastData})
+    : super(key: key);
 
   @override
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProviderStateMixin {
+class _AnalyticsScreenState extends State<AnalyticsScreen>
+    with SingleTickerProviderStateMixin {
   List<Transaction> _transactions = [];
   bool _isLoading = true;
   String _selectedPeriod = 'This Month';
@@ -69,7 +67,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
 
     try {
       List<Transaction> loadedTransactions = widget.transactions ?? [];
-      
+
       if (loadedTransactions.isEmpty) {
         final appwriteService = AppwriteService();
         loadedTransactions = await appwriteService.getTransactions();
@@ -92,34 +90,39 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     if (_transactions.isEmpty) return;
 
     // Filter transactions based on selected period
-    final filteredTransactions = _filterTransactionsByPeriod(_transactions, _selectedPeriod);
-    
+    final filteredTransactions = _filterTransactionsByPeriod(
+      _transactions,
+      _selectedPeriod,
+    );
+
     // Calculate total income and expenses
     final totalIncome = filteredTransactions
         .where((t) => !t.isExpense)
         .fold(0.0, (sum, t) => sum + t.amount);
-    
+
     final totalExpenses = filteredTransactions
         .where((t) => t.isExpense)
         .fold(0.0, (sum, t) => sum + t.amount);
-    
+
     // Prepare category data
     final categoryData = _prepareCategoryData(filteredTransactions);
-    
+
     // Prepare weekly spending trend
     final weeklyTrend = _prepareWeeklyTrend(filteredTransactions);
-    
+
     // Prepare monthly trend
     final monthlyTrend = _prepareMonthlyTrend(_transactions);
-    
+
     // Prepare merchant data
     final merchantData = _prepareMerchantData(filteredTransactions);
-    
+
     setState(() {
       _analyticsData['totalIncome'] = totalIncome;
       _analyticsData['totalExpenses'] = totalExpenses;
       _analyticsData['netSavings'] = totalIncome - totalExpenses;
-      _analyticsData['savingsRate'] = totalIncome > 0 ? (totalIncome - totalExpenses) / totalIncome * 100 : 0;
+      _analyticsData['savingsRate'] = totalIncome > 0
+          ? (totalIncome - totalExpenses) / totalIncome * 100
+          : 0;
       _analyticsData['categoryData'] = categoryData;
       _analyticsData['weeklyTrend'] = weeklyTrend;
       _analyticsData['monthlyTrend'] = monthlyTrend;
@@ -127,10 +130,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     });
   }
 
-  List<Transaction> _filterTransactionsByPeriod(List<Transaction> transactions, String period) {
+  List<Transaction> _filterTransactionsByPeriod(
+    List<Transaction> transactions,
+    String period,
+  ) {
     final now = DateTime.now();
     late DateTime startDate;
-    
+
     switch (period) {
       case 'This Week':
         // Start from the beginning of the current week (Monday)
@@ -149,19 +155,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
       default:
         startDate = DateTime(now.year, now.month, 1);
     }
-    
-    return transactions.where((t) => t.date.isAfter(startDate) || 
-                                    (t.date.year == startDate.year && 
-                                     t.date.month == startDate.month && 
-                                     t.date.day == startDate.day)).toList();
+
+    return transactions
+        .where(
+          (t) =>
+              t.date.isAfter(startDate) ||
+              (t.date.year == startDate.year &&
+                  t.date.month == startDate.month &&
+                  t.date.day == startDate.day),
+        )
+        .toList();
   }
 
-  List<Map<String, dynamic>> _prepareCategoryData(List<Transaction> transactions) {
+  List<Map<String, dynamic>> _prepareCategoryData(
+    List<Transaction> transactions,
+  ) {
     final Map<String, double> categoryTotals = {};
-    
+
     // Filter by expense/income based on toggle
-    final filteredTransactions = transactions.where((t) => t.isExpense == _showExpenses).toList();
-    
+    final filteredTransactions = transactions
+        .where((t) => t.isExpense == _showExpenses)
+        .toList();
+
     for (final transaction in filteredTransactions) {
       final category = transaction.category;
       if (!categoryTotals.containsKey(category)) {
@@ -169,18 +184,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
       }
       categoryTotals[category] = categoryTotals[category]! + transaction.amount;
     }
-    
+
     // Convert to list of maps and sort by amount
     final result = categoryTotals.entries.map((entry) {
-      return {
-        'category': entry.key,
-        'amount': entry.value,
-      };
+      return {'category': entry.key, 'amount': entry.value};
     }).toList();
-    
+
     // Sort in descending order of amount
-    result.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
-    
+    result.sort(
+      (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
+    );
+
     return result;
   }
 
@@ -194,96 +208,117 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
       'Sat': 0,
       'Sun': 0,
     };
-    
+
     // Filter by expense/income based on toggle
-    final filteredTransactions = transactions.where((t) => t.isExpense == _showExpenses).toList();
-    
+    final filteredTransactions = transactions
+        .where((t) => t.isExpense == _showExpenses)
+        .toList();
+
     for (final transaction in filteredTransactions) {
       final dayOfWeek = _getDayAbbreviation(transaction.date.weekday);
       dailyTotals[dayOfWeek] = dailyTotals[dayOfWeek]! + transaction.amount;
     }
-    
+
     return dailyTotals;
   }
 
-  List<Map<String, dynamic>> _prepareMonthlyTrend(List<Transaction> transactions) {
+  List<Map<String, dynamic>> _prepareMonthlyTrend(
+    List<Transaction> transactions,
+  ) {
     final Map<String, Map<String, double>> monthlyTotals = {};
     final now = DateTime.now();
-    
+
     // Create entries for the last 6 months
     for (int i = 0; i < 6; i++) {
       final month = DateTime(now.year, now.month - i);
       final monthKey = DateFormat('MMM').format(month);
       monthlyTotals[monthKey] = {'income': 0, 'expenses': 0};
     }
-    
+
     // Calculate totals for each month
     for (final transaction in transactions) {
       // Only consider transactions from the last 6 months
       if (transaction.date.isAfter(DateTime(now.year, now.month - 6))) {
         final monthKey = DateFormat('MMM').format(transaction.date);
-        
+
         if (monthlyTotals.containsKey(monthKey)) {
           final key = transaction.isExpense ? 'expenses' : 'income';
-          monthlyTotals[monthKey]![key] = monthlyTotals[monthKey]![key]! + transaction.amount;
+          monthlyTotals[monthKey]![key] =
+              monthlyTotals[monthKey]![key]! + transaction.amount;
         }
       }
     }
-    
+
     // Convert to list of maps and reverse to show oldest first
-    return monthlyTotals.entries.map((entry) {
-      return {
-        'month': entry.key,
-        'income': entry.value['income'],
-        'expenses': entry.value['expenses'],
-        'savings': entry.value['income']! - entry.value['expenses']!,
-      };
-    }).toList().reversed.toList();
+    return monthlyTotals.entries
+        .map((entry) {
+          return {
+            'month': entry.key,
+            'income': entry.value['income'],
+            'expenses': entry.value['expenses'],
+            'savings': entry.value['income']! - entry.value['expenses']!,
+          };
+        })
+        .toList()
+        .reversed
+        .toList();
   }
 
-  List<Map<String, dynamic>> _prepareMerchantData(List<Transaction> transactions) {
+  List<Map<String, dynamic>> _prepareMerchantData(
+    List<Transaction> transactions,
+  ) {
     final Map<String, double> merchantTotals = {};
-    
+
     // Filter by expense/income based on toggle
-    final filteredTransactions = transactions.where((t) => t.isExpense == _showExpenses).toList();
-    
+    final filteredTransactions = transactions
+        .where((t) => t.isExpense == _showExpenses)
+        .toList();
+
     for (final transaction in filteredTransactions) {
-      final merchant = transaction.business ?? 
-                      transaction.recipient ?? 
-                      transaction.sender ?? 
-                      'Unknown';
-      
+      final merchant =
+          transaction.business ??
+          transaction.recipient ??
+          transaction.sender ??
+          'Unknown';
+
       if (!merchantTotals.containsKey(merchant)) {
         merchantTotals[merchant] = 0;
       }
       merchantTotals[merchant] = merchantTotals[merchant]! + transaction.amount;
     }
-    
+
     // Convert to list of maps and sort by amount
     final result = merchantTotals.entries.map((entry) {
-      return {
-        'merchant': entry.key,
-        'amount': entry.value,
-      };
+      return {'merchant': entry.key, 'amount': entry.value};
     }).toList();
-    
+
     // Sort in descending order of amount
-    result.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
-    
+    result.sort(
+      (a, b) => (b['amount'] as double).compareTo(a['amount'] as double),
+    );
+
     // Return top 5 merchants
     return result.take(5).toList();
   }
 
   String _getDayAbbreviation(int weekday) {
     switch (weekday) {
-      case 1: return 'Mon';
-      case 2: return 'Tue';
-      case 3: return 'Wed';
-      case 4: return 'Thu';
-      case 5: return 'Fri';
-      case 6: return 'Sat';
-      case 7: return 'Sun';
-      default: return '';
+      case 1:
+        return 'Mon';
+      case 2:
+        return 'Tue';
+      case 3:
+        return 'Wed';
+      case 4:
+        return 'Thu';
+      case 5:
+        return 'Fri';
+      case 6:
+        return 'Sat';
+      case 7:
+        return 'Sun';
+      default:
+        return '';
     }
   }
 
@@ -291,31 +326,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     final themeService = Provider.of<ThemeService>(context);
     final isDark = themeService.isDarkMode;
-    
+
     return Scaffold(
-      body: _isLoading 
+      body: _isLoading
           ? _buildLoadingState(themeService)
-          : _transactions.isEmpty 
-              ? EmptyState(
-                  title: 'No Transactions Yet',
-                  message: 'Start adding transactions to see analytics and insights.',
-                  animation: 'assets/animations/empty_chart.json',
-                  buttonText: 'Go to Transactions',
-                  onButtonPressed: () {
-                    Navigator.of(context).pushNamed('/transactions');
-                  },
-                )
-              : _buildAnalyticsContent(themeService),
+          : _transactions.isEmpty
+          ? EmptyState(
+              title: 'No Transactions Yet',
+              message:
+                  'Start adding transactions to see analytics and insights.',
+              animation: 'assets/animations/empty_chart.json',
+              buttonText: 'Go to Transactions',
+              onButtonPressed: () {
+                Navigator.of(context).pushNamed('/transactions');
+              },
+            )
+          : _buildAnalyticsContent(themeService),
     );
   }
 
   Widget _buildLoadingState(ThemeService themeService) {
     return Shimmer.fromColors(
-      baseColor: themeService.isDarkMode 
-          ? Colors.grey[800]! 
+      baseColor: themeService.isDarkMode
+          ? Colors.grey[800]!
           : Colors.grey[300]!,
-      highlightColor: themeService.isDarkMode 
-          ? Colors.grey[700]! 
+      highlightColor: themeService.isDarkMode
+          ? Colors.grey[700]!
           : Colors.grey[100]!,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -368,15 +404,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
           child: NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) {
               return [
-                SliverToBoxAdapter(
-                  child: _buildSummaryCard(themeService),
-                ),
+                SliverToBoxAdapter(child: _buildSummaryCard(themeService)),
                 SliverToBoxAdapter(
                   child: TabBar(
                     controller: _tabController,
                     labelColor: themeService.primaryColor,
-                    unselectedLabelColor: themeService.isDarkMode 
-                        ? Colors.white70 
+                    unselectedLabelColor: themeService.isDarkMode
+                        ? Colors.white70
                         : Colors.black54,
                     indicatorColor: themeService.primaryColor,
                     tabs: const [
@@ -422,19 +456,24 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 });
               }
             },
-            items: <String>['This Week', 'This Month', 'Last 3 Months', 'This Year']
-                .map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    color: themeService.textColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              );
-            }).toList(),
+            items:
+                <String>[
+                  'This Week',
+                  'This Month',
+                  'Last 3 Months',
+                  'This Year',
+                ].map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        color: themeService.textColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
           ),
           Row(
             children: [
@@ -458,7 +497,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   });
                 },
                 style: TextButton.styleFrom(
-                  backgroundColor: (_showExpenses ? Colors.red : Colors.green).withOpacity(0.1),
+                  backgroundColor: (_showExpenses ? Colors.red : Colors.green)
+                      .withOpacity(0.1),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -472,18 +512,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   }
 
   Widget _buildSummaryCard(ThemeService themeService) {
-    final totalAmount = _showExpenses 
-        ? _analyticsData['totalExpenses'] ?? 0.0 
+    final totalAmount = _showExpenses
+        ? _analyticsData['totalExpenses'] ?? 0.0
         : _analyticsData['totalIncome'] ?? 0.0;
-    
+
     final savingsRate = _analyticsData['savingsRate'] ?? 0.0;
-    
+
     return Card(
       margin: const EdgeInsets.all(16),
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: themeService.cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -514,8 +552,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 _buildSummaryItem(
                   themeService,
                   'Savings',
-                  AppConfig.formatCurrency((_analyticsData['netSavings'] ?? 0.0).toInt() * 100),
-                  _analyticsData['netSavings'] != null && (_analyticsData['netSavings'] as double) >= 0
+                  AppConfig.formatCurrency(
+                    (_analyticsData['netSavings'] ?? 0.0).toInt() * 100,
+                  ),
+                  _analyticsData['netSavings'] != null &&
+                          (_analyticsData['netSavings'] as double) >= 0
                       ? Colors.green
                       : Colors.red,
                 ),
@@ -544,10 +585,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: themeService.subtextColor,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: themeService.subtextColor, fontSize: 12),
         ),
         const SizedBox(height: 4),
         Text(
@@ -586,19 +624,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   }
 
   Widget _buildCategoryTab(ThemeService themeService) {
-    final categoryData = _analyticsData['categoryData'] as List<Map<String, dynamic>>? ?? [];
-    
+    final categoryData =
+        _analyticsData['categoryData'] as List<Map<String, dynamic>>? ?? [];
+
     if (categoryData.isEmpty) {
       return Center(
         child: Text(
           'No category data available for the selected period',
-          style: TextStyle(
-            color: themeService.subtextColor,
-          ),
+          style: TextStyle(color: themeService.subtextColor),
         ),
       );
     }
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -613,26 +650,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
           const SizedBox(height: 24),
           _buildSectionTitle('Category Breakdown', themeService),
           const SizedBox(height: 8),
-          ...categoryData.map((category) => _buildCategoryItem(category, themeService)),
+          ...categoryData.map(
+            (category) => _buildCategoryItem(category, themeService),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildTrendTab(ThemeService themeService) {
-    final monthlyTrend = _analyticsData['monthlyTrend'] as List<Map<String, dynamic>>? ?? [];
-    
+    final monthlyTrend =
+        _analyticsData['monthlyTrend'] as List<Map<String, dynamic>>? ?? [];
+
     if (monthlyTrend.isEmpty) {
       return Center(
         child: Text(
           'No trend data available',
-          style: TextStyle(
-            color: themeService.subtextColor,
-          ),
+          style: TextStyle(color: themeService.subtextColor),
         ),
       );
     }
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -654,7 +692,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
           const SizedBox(height: 24),
           _buildSectionTitle('Monthly Details', themeService),
           const SizedBox(height: 8),
-          ...monthlyTrend.map((month) => _buildMonthlyTrendItem(month, themeService)),
+          ...monthlyTrend.map(
+            (month) => _buildMonthlyTrendItem(month, themeService),
+          ),
         ],
       ),
     );
@@ -684,10 +724,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
             Text(
               'Forecasts are generated from the AI Insights screen',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: themeService.subtextColor,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: themeService.subtextColor, fontSize: 14),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -699,7 +736,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
               style: ElevatedButton.styleFrom(
                 backgroundColor: themeService.primaryColor,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -709,13 +749,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
         ),
       );
     }
-    
-    final dailyForecast = _forecastData['daily_forecast'] as List<dynamic>? ?? [];
-    final majorExpenses = _forecastData['major_expenses'] as List<dynamic>? ?? [];
-    final categoryForecast = _forecastData['category_forecast'] as List<dynamic>? ?? [];
+
+    final dailyForecast =
+        _forecastData['daily_forecast'] as List<dynamic>? ?? [];
+    final majorExpenses =
+        _forecastData['major_expenses'] as List<dynamic>? ?? [];
+    final categoryForecast =
+        _forecastData['category_forecast'] as List<dynamic>? ?? [];
     final totalForecast = _forecastData['total_forecast'] as double? ?? 0.0;
-    final comparison = _forecastData['previous_month_comparison'] as Map<String, dynamic>? ?? {};
-    
+    final comparison =
+        _forecastData['previous_month_comparison'] as Map<String, dynamic>? ??
+        {};
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -746,10 +791,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   Row(
                     children: [
                       Icon(
-                        (comparison['percent_change'] as double? ?? 0) > 0 
-                            ? Icons.trending_up 
+                        (comparison['percent_change'] as double? ?? 0) > 0
+                            ? Icons.trending_up
                             : Icons.trending_down,
-                        color: (comparison['percent_change'] as double? ?? 0) > 0
+                        color:
+                            (comparison['percent_change'] as double? ?? 0) > 0
                             ? Colors.red
                             : Colors.green,
                         size: 16,
@@ -758,7 +804,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                       Text(
                         '${(comparison['percent_change'] as double? ?? 0).abs().toStringAsFixed(1)}% ${(comparison['percent_change'] as double? ?? 0) > 0 ? 'more than' : 'less than'} last month',
                         style: TextStyle(
-                          color: (comparison['percent_change'] as double? ?? 0) > 0
+                          color:
+                              (comparison['percent_change'] as double? ?? 0) > 0
                               ? Colors.red
                               : Colors.green,
                           fontSize: 12,
@@ -779,7 +826,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
           const SizedBox(height: 24),
           _buildSectionTitle('Expected Major Expenses', themeService),
           const SizedBox(height: 8),
-          ...majorExpenses.map((expense) => _buildMajorExpenseItem(expense, themeService)),
+          ...majorExpenses.map(
+            (expense) => _buildMajorExpenseItem(expense, themeService),
+          ),
           const SizedBox(height: 24),
           _buildSectionTitle('Category Forecast', themeService),
           const SizedBox(height: 16),
@@ -804,19 +853,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   }
 
   Widget _buildWeeklyTrendChart(ThemeService themeService) {
-    final weeklyData = _analyticsData['weeklyTrend'] as Map<String, double>? ?? {};
-    
+    final weeklyData =
+        _analyticsData['weeklyTrend'] as Map<String, double>? ?? {};
+
     if (weeklyData.isEmpty) {
       return const SizedBox();
     }
-    
-    final maxValue = weeklyData.values.fold(0.0, (prev, curr) => curr > prev ? curr : prev);
-    
+
+    final maxValue = weeklyData.values.fold(
+      0.0,
+      (prev, curr) => curr > prev ? curr : prev,
+    );
+
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: themeService.cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -830,8 +881,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 horizontalInterval: maxValue / 4,
                 getDrawingHorizontalLine: (value) {
                   return FlLine(
-                    color: themeService.isDarkMode 
-                        ? Colors.grey[800] 
+                    color: themeService.isDarkMode
+                        ? Colors.grey[800]
                         : Colors.grey[300],
                     strokeWidth: 1,
                   );
@@ -843,7 +894,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   sideTitles: SideTitles(
                     showTitles: true,
                     getTitlesWidget: (value, meta) {
-                      final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                      final days = [
+                        'Mon',
+                        'Tue',
+                        'Wed',
+                        'Thu',
+                        'Fri',
+                        'Sat',
+                        'Sun',
+                      ];
                       if (value >= 0 && value < days.length) {
                         return Text(
                           days[value.toInt()],
@@ -865,9 +924,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                     getTitlesWidget: (value, meta) {
                       if (value == 0) return const Text('');
                       return Text(
-                        AppConfig.formatCurrency(value.toInt() * 100)
-                            .replaceAll(AppConfig.currencySymbol, '')
-                            .trim(),
+                        AppConfig.formatCurrency(
+                          value.toInt() * 100,
+                        ).replaceAll(AppConfig.currencySymbol, '').trim(),
                         style: TextStyle(
                           color: themeService.subtextColor,
                           fontSize: 10,
@@ -884,9 +943,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   sideTitles: SideTitles(showTitles: false),
                 ),
               ),
-              borderData: FlBorderData(
-                show: false,
-              ),
+              borderData: FlBorderData(show: false),
               minX: 0,
               maxX: 6,
               minY: 0,
@@ -924,27 +981,35 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 ),
               ],
               lineTouchData: LineTouchData(
-  touchTooltipData: LineTouchTooltipData(
-    getTooltipColor: (touchedSpot) => themeService.isDarkMode 
-        ? Colors.grey[800]! 
-        : Colors.white,  // Changed to 'getTooltipColor'
-    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-      return touchedBarSpots.map((barSpot) {
-        final flSpot = barSpot;
-        final weekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][flSpot.x.toInt()];
-        return LineTooltipItem(
-          '$weekday\n${AppConfig.formatCurrency(flSpot.y.toInt() * 100)}',
-          TextStyle(
-            color: themeService.isDarkMode 
-                ? Colors.white 
-                : Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        );
-      }).toList();
-    },
-  ),
-),
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipColor: (touchedSpot) => themeService.isDarkMode
+                      ? Colors.grey[800]!
+                      : Colors.white, // Changed to 'getTooltipColor'
+                  getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                    return touchedBarSpots.map((barSpot) {
+                      final flSpot = barSpot;
+                      final weekday = [
+                        'Mon',
+                        'Tue',
+                        'Wed',
+                        'Thu',
+                        'Fri',
+                        'Sat',
+                        'Sun',
+                      ][flSpot.x.toInt()];
+                      return LineTooltipItem(
+                        '$weekday\n${AppConfig.formatCurrency(flSpot.y.toInt() * 100)}',
+                        TextStyle(
+                          color: themeService.isDarkMode
+                              ? Colors.white
+                              : Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    }).toList();
+                  },
+                ),
+              ),
             ),
           ),
         ),
@@ -953,36 +1018,31 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   }
 
   Widget _buildMerchantList(ThemeService themeService) {
-    final merchantData = _analyticsData['merchantData'] as List<Map<String, dynamic>>? ?? [];
-    
+    final merchantData =
+        _analyticsData['merchantData'] as List<Map<String, dynamic>>? ?? [];
+
     if (merchantData.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Text(
             'No merchant data available for the selected period',
-            style: TextStyle(
-              color: themeService.subtextColor,
-            ),
+            style: TextStyle(color: themeService.subtextColor),
           ),
         ),
       );
     }
-    
+
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: themeService.cardColor,
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: merchantData.length,
         separatorBuilder: (context, index) => Divider(
-          color: themeService.isDarkMode 
-              ? Colors.grey[800] 
-              : Colors.grey[200],
+          color: themeService.isDarkMode ? Colors.grey[800] : Colors.grey[200],
           height: 1,
         ),
         itemBuilder: (context, index) {
@@ -996,7 +1056,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
               ),
             ),
             trailing: Text(
-              AppConfig.formatCurrency((merchant['amount'] as double).toInt() * 100),
+              AppConfig.formatCurrency(
+                (merchant['amount'] as double).toInt() * 100,
+              ),
               style: TextStyle(
                 color: _showExpenses ? Colors.red : Colors.green,
                 fontWeight: FontWeight.bold,
@@ -1009,19 +1071,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   }
 
   Widget _buildMonthlyOverview(ThemeService themeService) {
-    final monthlyTrend = _analyticsData['monthlyTrend'] as List<Map<String, dynamic>>? ?? [];
-    
+    final monthlyTrend =
+        _analyticsData['monthlyTrend'] as List<Map<String, dynamic>>? ?? [];
+
     if (monthlyTrend.isEmpty) {
       return const SizedBox();
     }
-    
+
     final latestMonth = monthlyTrend.last;
-    
+
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: themeService.cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1039,7 +1100,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
             const SizedBox(height: 16),
             _buildOverviewItem(
               'Income',
-              AppConfig.formatCurrency((latestMonth['income'] as double).toInt() * 100),
+              AppConfig.formatCurrency(
+                (latestMonth['income'] as double).toInt() * 100,
+              ),
               Icons.arrow_downward,
               Colors.green,
               themeService,
@@ -1047,7 +1110,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
             const SizedBox(height: 12),
             _buildOverviewItem(
               'Expenses',
-              AppConfig.formatCurrency((latestMonth['expenses'] as double).toInt() * 100),
+              AppConfig.formatCurrency(
+                (latestMonth['expenses'] as double).toInt() * 100,
+              ),
               Icons.arrow_upward,
               Colors.red,
               themeService,
@@ -1055,9 +1120,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
             const SizedBox(height: 12),
             _buildOverviewItem(
               'Net Savings',
-              AppConfig.formatCurrency((latestMonth['savings'] as double).toInt() * 100),
-              (latestMonth['savings'] as double) >= 0 ? Icons.savings : Icons.warning,
-              (latestMonth['savings'] as double) >= 0 ? Colors.green : Colors.red,
+              AppConfig.formatCurrency(
+                (latestMonth['savings'] as double).toInt() * 100,
+              ),
+              (latestMonth['savings'] as double) >= 0
+                  ? Icons.savings
+                  : Icons.warning,
+              (latestMonth['savings'] as double) >= 0
+                  ? Colors.green
+                  : Colors.red,
               themeService,
             ),
           ],
@@ -1081,11 +1152,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
             color: iconColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            color: iconColor,
-            size: 20,
-          ),
+          child: Icon(icon, color: iconColor, size: 20),
         ),
         const SizedBox(width: 12),
         Column(
@@ -1093,10 +1160,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
           children: [
             Text(
               label,
-              style: TextStyle(
-                color: themeService.subtextColor,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: themeService.subtextColor, fontSize: 12),
             ),
             Text(
               value,
@@ -1112,14 +1176,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildCategoryPieChart(List<Map<String, dynamic>> categoryData, ThemeService themeService) {
+  Widget _buildCategoryPieChart(
+    List<Map<String, dynamic>> categoryData,
+    ThemeService themeService,
+  ) {
     if (categoryData.isEmpty) {
       return const SizedBox();
     }
-    
+
     // Calculate total amount
-    final totalAmount = categoryData.fold(0.0, (sum, item) => sum + (item['amount'] as double));
-    
+    final totalAmount = categoryData.fold(
+      0.0,
+      (sum, item) => sum + (item['amount'] as double),
+    );
+
     // Generate colors for each category
     final List<Color> colors = [
       Colors.blue,
@@ -1133,18 +1203,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
       Colors.indigo,
       Colors.cyan,
     ];
-    
+
     // Prepare sections
     final sections = <PieChartSectionData>[];
-    
+
     for (var i = 0; i < categoryData.length; i++) {
       final category = categoryData[i];
       final percentage = (category['amount'] as double) / totalAmount * 100;
-      
+
       if (percentage < 1) continue; // Skip very small slices
-      
+
       final color = i < colors.length ? colors[i] : Colors.grey;
-      
+
       sections.add(
         PieChartSectionData(
           color: color,
@@ -1159,12 +1229,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
         ),
       );
     }
-    
+
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: themeService.cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1205,9 +1273,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                       itemCount: min(5, categoryData.length),
                       itemBuilder: (context, index) {
                         final category = categoryData[index];
-                        final percentage = (category['amount'] as double) / totalAmount * 100;
-                        final color = index < colors.length ? colors[index] : Colors.grey;
-                        
+                        final percentage =
+                            (category['amount'] as double) / totalAmount * 100;
+                        final color = index < colors.length
+                            ? colors[index]
+                            : Colors.grey;
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
@@ -1254,15 +1325,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildCategoryItem(Map<String, dynamic> category, ThemeService themeService) {
+  Widget _buildCategoryItem(
+    Map<String, dynamic> category,
+    ThemeService themeService,
+  ) {
     final amount = category['amount'] as double;
-    
+
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: themeService.cardColor,
       child: ListTile(
         title: Text(
@@ -1286,49 +1358,53 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildMonthlyTrendChart(List<Map<String, dynamic>> monthlyData, ThemeService themeService) {
+  Widget _buildMonthlyTrendChart(
+    List<Map<String, dynamic>> monthlyData,
+    ThemeService themeService,
+  ) {
     if (monthlyData.isEmpty) {
       return const SizedBox();
     }
-    
+
     final months = monthlyData.map((m) => m['month'] as String).toList();
-    
+
     final maxValue = monthlyData.fold(0.0, (prev, curr) {
       final income = curr['income'] as double;
       final expenses = curr['expenses'] as double;
       final max = income > expenses ? income : expenses;
       return max > prev ? max : prev;
     });
-    
+
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: themeService.cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: BarChart(
-         BarChartData(
-  alignment: BarChartAlignment.spaceAround,
-  maxY: maxValue * 1.1,
-  barTouchData: BarTouchData(
-    touchTooltipData: BarTouchTooltipData(
-      getTooltipColor: (group) => themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-        final month = months[group.x.toInt()];
-        final amount = rod.toY;
-        final label = rodIndex == 0 ? 'Income' : 'Expenses';
-        return BarTooltipItem(
-          '$month - $label\n${AppConfig.formatCurrency(amount.toInt() * 100)}',
-          TextStyle(
-            color: themeService.isDarkMode ? Colors.white : Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        );
-      },
-    ),
-  ),
+          BarChartData(
+            alignment: BarChartAlignment.spaceAround,
+            maxY: maxValue * 1.1,
+            barTouchData: BarTouchData(
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipColor: (group) =>
+                    themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
+                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                  final month = months[group.x.toInt()];
+                  final amount = rod.toY;
+                  final label = rodIndex == 0 ? 'Income' : 'Expenses';
+                  return BarTooltipItem(
+                    '$month - $label\n${AppConfig.formatCurrency(amount.toInt() * 100)}',
+                    TextStyle(
+                      color: themeService.isDarkMode
+                          ? Colors.white
+                          : Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                },
+              ),
+            ),
             titlesData: FlTitlesData(
               show: true,
               bottomTitles: AxisTitles(
@@ -1356,9 +1432,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   getTitlesWidget: (value, meta) {
                     if (value == 0) return const Text('');
                     return Text(
-                      AppConfig.formatCurrency(value.toInt() * 100)
-                          .replaceAll(AppConfig.currencySymbol, '')
-                          .trim(),
+                      AppConfig.formatCurrency(
+                        value.toInt() * 100,
+                      ).replaceAll(AppConfig.currencySymbol, '').trim(),
                       style: TextStyle(
                         color: themeService.subtextColor,
                         fontSize: 10,
@@ -1375,16 +1451,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 sideTitles: SideTitles(showTitles: false),
               ),
             ),
-            borderData: FlBorderData(
-              show: false,
-            ),
+            borderData: FlBorderData(show: false),
             gridData: FlGridData(
               show: true,
               drawVerticalLine: false,
               horizontalInterval: maxValue / 4,
               getDrawingHorizontalLine: (value) {
                 return FlLine(
-                  color: themeService.isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                  color: themeService.isDarkMode
+                      ? Colors.grey[800]
+                      : Colors.grey[300],
                   strokeWidth: 1,
                 );
               },
@@ -1393,7 +1469,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
               final data = monthlyData[index];
               final income = data['income'] as double;
               final expenses = data['expenses'] as double;
-              
+
               return BarChartGroupData(
                 x: index,
                 barRods: [
@@ -1424,35 +1500,36 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildSavingsTrendChart(List<Map<String, dynamic>> monthlyData, ThemeService themeService) {
+  Widget _buildSavingsTrendChart(
+    List<Map<String, dynamic>> monthlyData,
+    ThemeService themeService,
+  ) {
     if (monthlyData.isEmpty) {
       return const SizedBox();
     }
-    
+
     final months = monthlyData.map((m) => m['month'] as String).toList();
-    
+
     // Calculate min and max values for y-axis
     double minValue = 0;
     double maxValue = 0;
-    
+
     for (final data in monthlyData) {
       final savings = data['savings'] as double;
       if (savings < minValue) minValue = savings;
       if (savings > maxValue) maxValue = savings;
     }
-    
+
     // Ensure we have some margin
     minValue = minValue * 1.1;
     maxValue = maxValue * 1.1;
-    
+
     // If all values are positive, start from 0
     if (minValue > 0) minValue = 0;
-    
+
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: themeService.cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1464,7 +1541,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
               horizontalInterval: (maxValue - minValue) / 4,
               getDrawingHorizontalLine: (value) {
                 return FlLine(
-                  color: themeService.isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                  color: themeService.isDarkMode
+                      ? Colors.grey[800]
+                      : Colors.grey[300],
                   strokeWidth: 1,
                 );
               },
@@ -1495,9 +1574,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   interval: (maxValue - minValue) / 4,
                   getTitlesWidget: (value, meta) {
                     return Text(
-                      AppConfig.formatCurrency(value.toInt() * 100)
-                          .replaceAll(AppConfig.currencySymbol, '')
-                          .trim(),
+                      AppConfig.formatCurrency(
+                        value.toInt() * 100,
+                      ).replaceAll(AppConfig.currencySymbol, '').trim(),
                       style: TextStyle(
                         color: themeService.subtextColor,
                         fontSize: 10,
@@ -1514,9 +1593,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 sideTitles: SideTitles(showTitles: false),
               ),
             ),
-            borderData: FlBorderData(
-              show: false,
-            ),
+            borderData: FlBorderData(show: false),
             minX: 0,
             maxX: monthlyData.length - 1.0,
             minY: minValue,
@@ -1537,7 +1614,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   getDotPainter: (spot, percent, barData, index) {
                     final savings = monthlyData[index]['savings'] as double;
                     final color = savings >= 0 ? Colors.green : Colors.red;
-                    
+
                     return FlDotCirclePainter(
                       radius: 5,
                       color: color,
@@ -1554,45 +1631,50 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 ),
               ),
             ],
-           lineTouchData: LineTouchData(
-  touchTooltipData: LineTouchTooltipData(
-    getTooltipColor: (touchedSpot) => themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-    // Remove tooltipRoundedRadius if it causes issues
-    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-      return touchedBarSpots.map((barSpot) {
-        final flSpot = barSpot;
-        final month = months[flSpot.x.toInt()];
-        final savings = monthlyData[flSpot.x.toInt()]['savings'] as double;
-        
-        return LineTooltipItem(
-          '$month Savings\n${AppConfig.formatCurrency(savings.toInt() * 100)}',
-          TextStyle(
-            color: themeService.isDarkMode ? Colors.white : Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        );
-      }).toList();
-    },
-  ),
-),
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipColor: (touchedSpot) =>
+                    themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
+                // Remove tooltipRoundedRadius if it causes issues
+                getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                  return touchedBarSpots.map((barSpot) {
+                    final flSpot = barSpot;
+                    final month = months[flSpot.x.toInt()];
+                    final savings =
+                        monthlyData[flSpot.x.toInt()]['savings'] as double;
+
+                    return LineTooltipItem(
+                      '$month Savings\n${AppConfig.formatCurrency(savings.toInt() * 100)}',
+                      TextStyle(
+                        color: themeService.isDarkMode
+                            ? Colors.white
+                            : Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }).toList();
+                },
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildMonthlyTrendItem(Map<String, dynamic> month, ThemeService themeService) {
+  Widget _buildMonthlyTrendItem(
+    Map<String, dynamic> month,
+    ThemeService themeService,
+  ) {
     final income = month['income'] as double;
     final expenses = month['expenses'] as double;
     final savings = month['savings'] as double;
     final savingsPercent = income > 0 ? (savings / income) * 100 : 0.0;
-    
+
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: themeService.cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1648,10 +1730,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: themeService.subtextColor,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: themeService.subtextColor, fontSize: 12),
         ),
         const SizedBox(height: 4),
         Text(
@@ -1666,45 +1745,49 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildForecastChart(List<dynamic> dailyForecast, ThemeService themeService) {
+  Widget _buildForecastChart(
+    List<dynamic> dailyForecast,
+    ThemeService themeService,
+  ) {
     if (dailyForecast.isEmpty) {
       return const SizedBox();
     }
-    
+
     // Convert to proper data format
     final data = <FlSpot>[];
     final actualData = <FlSpot>[];
     final futureData = <FlSpot>[];
-    
+
     for (var i = 0; i < dailyForecast.length; i++) {
       final forecast = dailyForecast[i] as Map<String, dynamic>;
       final amount = forecast['amount'] as double;
       final isActual = forecast['actual'] as bool? ?? false;
-      
+
       if (isActual) {
         actualData.add(FlSpot(i.toDouble(), amount));
       } else {
         futureData.add(FlSpot(i.toDouble(), amount));
       }
-      
+
       data.add(FlSpot(i.toDouble(), amount));
     }
-    
+
     // Calculate min and max values for better visualization
-    double maxValue = data.fold(0.0, (prev, curr) => curr.y > prev ? curr.y : prev);
-    
+    double maxValue = data.fold(
+      0.0,
+      (prev, curr) => curr.y > prev ? curr.y : prev,
+    );
+
     // Extract date labels
     final dateLabels = dailyForecast.map((f) {
       final forecast = f as Map<String, dynamic>;
       final dateStr = forecast['date'] as String;
       return dateStr.split('-').last; // Just the day part
     }).toList();
-    
+
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: themeService.cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1716,7 +1799,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
               horizontalInterval: maxValue / 4,
               getDrawingHorizontalLine: (value) {
                 return FlLine(
-                  color: themeService.isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                  color: themeService.isDarkMode
+                      ? Colors.grey[800]
+                      : Colors.grey[300],
                   strokeWidth: 1,
                 );
               },
@@ -1729,7 +1814,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   interval: 5,
                   getTitlesWidget: (value, meta) {
                     final index = value.toInt();
-                    if (index >= 0 && index < dateLabels.length && index % 5 == 0) {
+                    if (index >= 0 &&
+                        index < dateLabels.length &&
+                        index % 5 == 0) {
                       return Text(
                         dateLabels[index],
                         style: TextStyle(
@@ -1750,9 +1837,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   getTitlesWidget: (value, meta) {
                     if (value == 0) return const Text('');
                     return Text(
-                      AppConfig.formatCurrency(value.toInt() * 100)
-                          .replaceAll(AppConfig.currencySymbol, '')
-                          .trim(),
+                      AppConfig.formatCurrency(
+                        value.toInt() * 100,
+                      ).replaceAll(AppConfig.currencySymbol, '').trim(),
                       style: TextStyle(
                         color: themeService.subtextColor,
                         fontSize: 10,
@@ -1769,9 +1856,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 sideTitles: SideTitles(showTitles: false),
               ),
             ),
-            borderData: FlBorderData(
-              show: false,
-            ),
+            borderData: FlBorderData(show: false),
             minX: 0,
             maxX: (dailyForecast.length - 1).toDouble(),
             minY: 0,
@@ -1828,28 +1913,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 ),
             ],
             lineTouchData: LineTouchData(
-  touchTooltipData: LineTouchTooltipData(
-    getTooltipColor: (touchedSpot) => themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-    // Remove tooltipRoundedRadius if it causes issues
-    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-      return touchedBarSpots.map((barSpot) {
-        final flSpot = barSpot;
-        final index = flSpot.x.toInt();
-        final forecast = dailyForecast[index] as Map<String, dynamic>;
-        final date = forecast['date'] as String;
-        final isActual = forecast['actual'] as bool? ?? false;
-        
-        return LineTooltipItem(
-          '${date}\n${isActual ? 'Actual' : 'Forecast'}: ${AppConfig.formatCurrency(flSpot.y.toInt() * 100)}',
-          TextStyle(
-            color: themeService.isDarkMode ? Colors.white : Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        );
-      }).toList();
-    },
-  ),
-),
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipColor: (touchedSpot) =>
+                    themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
+                // Remove tooltipRoundedRadius if it causes issues
+                getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                  return touchedBarSpots.map((barSpot) {
+                    final flSpot = barSpot;
+                    final index = flSpot.x.toInt();
+                    final forecast =
+                        dailyForecast[index] as Map<String, dynamic>;
+                    final date = forecast['date'] as String;
+                    final isActual = forecast['actual'] as bool? ?? false;
+
+                    return LineTooltipItem(
+                      '${date}\n${isActual ? 'Actual' : 'Forecast'}: ${AppConfig.formatCurrency(flSpot.y.toInt() * 100)}',
+                      TextStyle(
+                        color: themeService.isDarkMode
+                            ? Colors.white
+                            : Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }).toList();
+                },
+              ),
+            ),
           ),
         ),
       ),
@@ -1862,13 +1951,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     final estimatedAmount = expenseMap['estimated_amount'] as double? ?? 0.0;
     final confidence = expenseMap['confidence'] as double? ?? 0.0;
     final reason = expenseMap['reason'] as String? ?? '';
-    
+
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: themeService.cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1900,7 +1987,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _getConfidenceColor(confidence).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -1938,33 +2028,38 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     return Colors.red;
   }
 
-  Widget _buildCategoryForecastChart(List<dynamic> categoryForecast, ThemeService themeService) {
+  Widget _buildCategoryForecastChart(
+    List<dynamic> categoryForecast,
+    ThemeService themeService,
+  ) {
     if (categoryForecast.isEmpty) {
       return const SizedBox();
     }
-    
+
     // Convert to proper data format
-    final data = categoryForecast.map((c) {
-      final category = c as Map<String, dynamic>;
-      return {
-        'category': category['category'] as String,
-        'predicted_amount': category['predicted_amount'] as double,
-        'historical_average': category['historical_average'] as double? ?? 0.0,
-      };
-    }).take(8).toList(); // Limit to top 8 categories
-    
+    final data = categoryForecast
+        .map((c) {
+          final category = c as Map<String, dynamic>;
+          return {
+            'category': category['category'] as String,
+            'predicted_amount': category['predicted_amount'] as double,
+            'historical_average':
+                category['historical_average'] as double? ?? 0.0,
+          };
+        })
+        .take(8)
+        .toList(); // Limit to top 8 categories
+
     final maxValue = data.fold(0.0, (prev, curr) {
       final predicted = curr['predicted_amount'] as double;
       final historical = curr['historical_average'] as double;
       final max = predicted > historical ? predicted : historical;
       return max > prev ? max : prev;
     });
-    
+
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: themeService.cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -2014,24 +2109,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
             Expanded(
               child: BarChart(
                 BarChartData(
-  alignment: BarChartAlignment.spaceAround,
-  maxY: maxValue * 1.1,
-  barTouchData: BarTouchData(
-    touchTooltipData: BarTouchTooltipData(
-      getTooltipColor: (group) => themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-      // Remove tooltipRoundedRadius if it causes issues
-      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-        final categoryData = data[group.x.toInt()];
-        final category = categoryData['category'] as String;
-        final amount = rod.toY;
-        final label = rodIndex == 0 ? 'Predicted' : 'Historical';
-        return BarTooltipItem(
-          '$category - $label\n${AppConfig.formatCurrency(amount.toInt() * 100)}',
-          TextStyle(
-            color: themeService.isDarkMode ? Colors.white : Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        );
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxValue * 1.1,
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (group) => themeService.isDarkMode
+                          ? Colors.grey[800]!
+                          : Colors.white,
+                      // Remove tooltipRoundedRadius if it causes issues
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        final categoryData = data[group.x.toInt()];
+                        final category = categoryData['category'] as String;
+                        final amount = rod.toY;
+                        final label = rodIndex == 0
+                            ? 'Predicted'
+                            : 'Historical';
+                        return BarTooltipItem(
+                          '$category - $label\n${AppConfig.formatCurrency(amount.toInt() * 100)}',
+                          TextStyle(
+                            color: themeService.isDarkMode
+                                ? Colors.white
+                                : Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -2042,11 +2143,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
                           if (value >= 0 && value < data.length) {
-                            final category = data[value.toInt()]['category'] as String;
+                            final category =
+                                data[value.toInt()]['category'] as String;
                             return Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
-                                category.length > 8 ? '${category.substring(0, 8)}...' : category,
+                                category.length > 8
+                                    ? '${category.substring(0, 8)}...'
+                                    : category,
                                 style: TextStyle(
                                   color: themeService.subtextColor,
                                   fontSize: 10,
@@ -2067,9 +2171,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                         getTitlesWidget: (value, meta) {
                           if (value == 0) return const Text('');
                           return Text(
-                            AppConfig.formatCurrency(value.toInt() * 100)
-                                .replaceAll(AppConfig.currencySymbol, '')
-                                .trim(),
+                            AppConfig.formatCurrency(
+                              value.toInt() * 100,
+                            ).replaceAll(AppConfig.currencySymbol, '').trim(),
                             style: TextStyle(
                               color: themeService.subtextColor,
                               fontSize: 10,
@@ -2086,25 +2190,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                       sideTitles: SideTitles(showTitles: false),
                     ),
                   ),
-                  borderData: FlBorderData(
-                    show: false,
-                  ),
+                  borderData: FlBorderData(show: false),
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
                     horizontalInterval: maxValue / 4,
                     getDrawingHorizontalLine: (value) {
                       return FlLine(
-                        color: themeService.isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                        color: themeService.isDarkMode
+                            ? Colors.grey[800]
+                            : Colors.grey[300],
                         strokeWidth: 1,
                       );
                     },
                   ),
                   barGroups: List.generate(data.length, (index) {
                     final categoryData = data[index];
-                    final predicted = categoryData['predicted_amount'] as double;
-                    final historical = categoryData['historical_average'] as double;
-                    
+                    final predicted =
+                        categoryData['predicted_amount'] as double;
+                    final historical =
+                        categoryData['historical_average'] as double;
+
                     return BarChartGroupData(
                       x: index,
                       barRods: [

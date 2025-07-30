@@ -1,1686 +1,2467 @@
-// lib/services/ai_insight_service.dart
-import 'dart:async';
-import 'dart:convert';
+// lib/screens/ai_insights_screen.dart
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
+import 'package:lottie/lottie.dart';
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/models/transaction.dart';
 import 'package:dailydime/models/budget.dart';
 import 'package:dailydime/models/savings_goal.dart';
+import 'package:dailydime/models/insight_model.dart';
+import 'package:dailydime/services/ai_insight_service.dart';
+import 'package:dailydime/services/theme_service.dart';
+import 'package:dailydime/services/appwrite_service.dart';
 import 'package:dailydime/services/balance_service.dart';
+import 'package:dailydime/screens/analytics_screen.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:intl/intl.dart';
 
-class AIInsightService {
-  static final AIInsightService _instance = AIInsightService._internal();
-  factory AIInsightService() => _instance;
-  AIInsightService._internal();
+class AIInsightsScreen extends StatefulWidget {
+  const AIInsightsScreen({Key? key}) : super(key: key);
 
-  final String _apiKey = AppConfig.geminiApiKey;
-  final String _model = AppConfig.geminiModel;
-  final String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+  @override
+  State<AIInsightsScreen> createState() => _AIInsightsScreenState();
+}
 
-  // Cache insights to reduce API calls
-  Map<String, dynamic> _cachedInsights = {};
-  DateTime? _lastInsightUpdate;
-
-  // Generate financial insights based on transaction data
-  Future<List<Map<String, dynamic>>> generateInsights({
-    required List<Transaction> transactions,
-    List<Budget>? budgets,
-    List<SavingsGoal>? savingsGoals,
-    double? currentBalance,
-  }) async {
-    // Check if cache is valid (less than 6 hours old)
-    final now = DateTime.now();
-    if (_lastInsightUpdate != null && 
-        now.difference(_lastInsightUpdate!).inHours < 6 &&
-        _cachedInsights.isNotEmpty) {
-      return _cachedInsights['insights'] ?? [];
-    }
-
-    try {
-      // Prepare transaction data for AI analysis
-      final transactionData = _prepareTransactionData(transactions);
-      final budgetData = _prepareBudgetData(budgets);
-      final savingsData = _prepareSavingsData(savingsGoals);
-      final balanceData = await _prepareBalanceData(currentBalance);
-
-      // Construct prompt for Gemini
-      final prompt = _constructFinancialAnalysisPrompt(
-        transactionData: transactionData,
-        budgetData: budgetData,
-        savingsData: savingsData,
-        balanceData: balanceData,
-      );
-
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      // Parse insights from response
-      final insights = _parseInsightsFromResponse(response);
-      
-      // Update cache
-      _cachedInsights = {'insights': insights};
-      _lastInsightUpdate = now;
-      
-      return insights;
-    } catch (e) {
-      debugPrint('Error generating insights: $e');
-      // Return fallback insights if API call fails
-      return _generateFallbackInsights(transactions, budgets);
-    }
-  }
-
-  // Generate a spending forecast based on historical data
-  Future<Map<String, dynamic>> generateSpendingForecast(List<Transaction> transactions) async {
-    try {
-      // Extract and prepare transaction data by date
-      final transactionsByDate = _groupTransactionsByDate(transactions);
-      
-      // Construct prompt for Gemini
-      final prompt = _constructForecastPrompt(transactionsByDate);
-      
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      // Parse forecast data
-      return _parseForecastFromResponse(response);
-    } catch (e) {
-      debugPrint('Error generating forecast: $e');
-      return _generateFallbackForecast(transactions);
-    }
-  }
-
-  // Generate budget recommendations based on spending patterns
-  Future<List<Map<String, dynamic>>> generateBudgetRecommendations(
-    List<Transaction> transactions, 
-    double monthlyIncome
-  ) async {
-    try {
-      // Categorize and sum transactions
-      final categorizedSpending = _categorizeTotalSpending(transactions);
-      
-      // Construct prompt for Gemini
-      final prompt = _constructBudgetRecommendationPrompt(
-        categorizedSpending: categorizedSpending,
-        monthlyIncome: monthlyIncome,
-      );
-      
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      // Parse budget recommendations
-      return _parseBudgetRecommendationsFromResponse(response);
-    } catch (e) {
-      debugPrint('Error generating budget recommendations: $e');
-      return _generateFallbackBudgetRecommendations(transactions, monthlyIncome);
-    }
-  }
-
-  // Analyze specific spending category in depth
-  Future<Map<String, dynamic>> analyzeCategorySpending(
-    List<Transaction> transactions,
-    String category
-  ) async {
-    try {
-      // Filter transactions by category
-      final categoryTransactions = transactions
-          .where((t) => t.category.toLowerCase() == category.toLowerCase())
-          .toList();
-      
-      // Prepare detailed category data
-      final categoryData = _prepareCategoryData(categoryTransactions, category);
-      
-      // Construct prompt for Gemini
-      final prompt = _constructCategoryAnalysisPrompt(categoryData);
-      
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      // Parse category analysis
-      return _parseCategoryAnalysisFromResponse(response, category);
-    } catch (e) {
-      debugPrint('Error analyzing category spending: $e');
-      return _generateFallbackCategoryAnalysis(transactions, category);
-    }
-  }
-
-  // Detect spending anomalies in transaction history
-  Future<List<Map<String, dynamic>>> detectSpendingAnomalies(List<Transaction> transactions) async {
-    try {
-      // Prepare transaction data for anomaly detection
-      final transactionData = _prepareTransactionData(transactions);
-      
-      // Construct prompt for Gemini
-      final prompt = _constructAnomalyDetectionPrompt(transactionData);
-      
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      // Parse anomalies
-      return _parseAnomaliesFromResponse(response);
-    } catch (e) {
-      debugPrint('Error detecting anomalies: $e');
-      return _generateFallbackAnomalies(transactions);
-    }
-  }
-
-  // Generate savings recommendations
-  Future<Map<String, dynamic>> generateSavingsRecommendations(
-    List<Transaction> transactions,
-    double monthlyIncome,
-    List<SavingsGoal>? savingsGoals
-  ) async {
-    try {
-      // Analyze income vs expenses
-      final incomeVsExpenses = _analyzeIncomeVsExpenses(transactions, monthlyIncome);
-      
-      // Prepare savings goals data
-      final savingsData = _prepareSavingsData(savingsGoals);
-      
-      // Construct prompt for Gemini
-      final prompt = _constructSavingsRecommendationPrompt(
-        incomeVsExpenses: incomeVsExpenses,
-        savingsData: savingsData,
-      );
-      
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      // Parse savings recommendations
-      return _parseSavingsRecommendationsFromResponse(response);
-    } catch (e) {
-      debugPrint('Error generating savings recommendations: $e');
-      return _generateFallbackSavingsRecommendations(transactions, monthlyIncome);
-    }
-  }
-
-  // Generate AI response to user question about finances
-  Future<String> answerFinancialQuestion(
-    String question,
-    List<Transaction> recentTransactions
-  ) async {
-    try {
-      // Prepare transaction context
-      final transactionContext = _prepareTransactionContextForQuestion(recentTransactions);
-      
-      // Construct prompt for Gemini
-      final prompt = _constructQuestionAnswerPrompt(
-        question: question,
-        transactionContext: transactionContext,
-      );
-      
-      // Call Gemini API
-      final response = await _callGeminiAPI(prompt);
-      
-      // Extract answer
-      return _extractAnswerFromResponse(response);
-    } catch (e) {
-      debugPrint('Error answering financial question: $e');
-      return "I'm sorry, I couldn't process your question at the moment. Please try again later.";
-    }
-  }
-
-  // Helper methods for data preparation
-  Map<String, dynamic> _prepareTransactionData(List<Transaction> transactions) {
-    // Group transactions by categories
-    final categoriesMap = <String, List<Transaction>>{};
-    for (final transaction in transactions) {
-      final category = transaction.category;
-      if (!categoriesMap.containsKey(category)) {
-        categoriesMap[category] = [];
-      }
-      categoriesMap[category]!.add(transaction);
-    }
-
-    // Calculate metrics
-    final now = DateTime.now();
-    final oneMonthAgo = DateTime(now.year, now.month - 1, now.day);
-    final threeMonthsAgo = DateTime(now.year, now.month - 3, now.day);
-
-    final thisMonthTransactions = transactions
-        .where((t) => t.date.isAfter(oneMonthAgo))
-        .toList();
+class _AIInsightsScreenState extends State<AIInsightsScreen> with TickerProviderStateMixin {
+  final AIInsightService _aiService = AIInsightService();
+  final AppwriteService _appwriteService = AppwriteService();
+  
+  List<Transaction> _transactions = [];
+  List<Budget> _budgets = [];
+  List<SavingsGoal> _savingsGoals = [];
+  double _currentBalance = 0;
+  
+  List<Map<String, dynamic>> _insights = [];
+  Map<String, dynamic> _forecastData = {};
+  List<Map<String, dynamic>> _budgetRecommendations = [];
+  List<Map<String, dynamic>> _anomalies = [];
+  Map<String, dynamic> _savingsRecommendations = {};
+  
+  bool _isLoading = true;
+  bool _isProcessing = false;
+  bool _hasError = false;
+  String _errorMessage = '';
+  
+  // Chat feature
+  final TextEditingController _questionController = TextEditingController();
+  final List<Map<String, dynamic>> _chatHistory = [];
+  bool _isAskingQuestion = false;
+  final ScrollController _chatScrollController = ScrollController();
+  
+  // Animation controllers
+  late AnimationController _pulseAnimationController;
+  
+  @override
+  void initState() {
+    super.initState();
+    _pulseAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
     
-    final lastThreeMonthsTransactions = transactions
-        .where((t) => t.date.isAfter(threeMonthsAgo))
-        .toList();
-
-    // Total income and expenses
-    final thisMonthIncome = thisMonthTransactions
-        .where((t) => !t.isExpense)
-        .fold(0.0, (sum, t) => sum + t.amount);
-    
-    final thisMonthExpenses = thisMonthTransactions
-        .where((t) => t.isExpense)
-        .fold(0.0, (sum, t) => sum + t.amount);
-
-    // Categorized spending
-    final categorizedSpending = <String, double>{};
-    for (final category in categoriesMap.keys) {
-      final categoryTransactions = categoriesMap[category]!
-          .where((t) => t.isExpense && t.date.isAfter(oneMonthAgo))
-          .toList();
-      
-      final totalSpent = categoryTransactions.fold(0.0, (sum, t) => sum + t.amount);
-      if (totalSpent > 0) {
-        categorizedSpending[category] = totalSpent;
-      }
-    }
-
-    // Weekly spending pattern
-    final weeklySpendings = <String, double>{};
-    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
-    for (final day in daysOfWeek) {
-      final dayTransactions = thisMonthTransactions
-          .where((t) => t.isExpense && _getDayOfWeek(t.date) == day)
-          .toList();
-      
-      weeklySpendings[day] = dayTransactions.fold(0.0, (sum, t) => sum + t.amount);
-    }
-
-    // Monthly trend
-    final monthlyTrend = <String, Map<String, double>>{};
-    for (var i = 2; i >= 0; i--) {
-      final month = DateTime(now.year, now.month - i, 1);
-      final monthName = _getMonthName(month);
-      
-      final monthTransactions = transactions
-          .where((t) => 
-              t.date.year == month.year && 
-              t.date.month == month.month)
-          .toList();
-      
-      final income = monthTransactions
-          .where((t) => !t.isExpense)
-          .fold(0.0, (sum, t) => sum + t.amount);
-      
-      final expenses = monthTransactions
-          .where((t) => t.isExpense)
-          .fold(0.0, (sum, t) => sum + t.amount);
-      
-      monthlyTrend[monthName] = {
-        'income': income,
-        'expenses': expenses,
-        'savings': income - expenses
-      };
-    }
-
-    return {
-      'total_transactions': transactions.length,
-      'recent_transactions': thisMonthTransactions.length,
-      'this_month_income': thisMonthIncome,
-      'this_month_expenses': thisMonthExpenses,
-      'categorized_spending': categorizedSpending,
-      'weekly_pattern': weeklySpendings,
-      'monthly_trend': monthlyTrend,
-    };
+    _loadData();
   }
-
-  Map<String, dynamic> _prepareBudgetData(List<Budget>? budgets) {
-    if (budgets == null || budgets.isEmpty) {
-      return {'has_budgets': false};
-    }
-
-    final budgetData = <String, dynamic>{
-      'has_budgets': true,
-      'budgets': <Map<String, dynamic>>[]
-    };
-
-    for (final budget in budgets) {
-      budgetData['budgets'].add({
-        'category': budget.category,
-        'amount': budget.amount,
-        'spent': budget.spent,
-        'remaining': budget.amount - budget.spent,
-        'progress': budget.spent / budget.amount
-      });
-    }
-
-    return budgetData;
+  
+  @override
+  void dispose() {
+    _pulseAnimationController.dispose();
+    _questionController.dispose();
+    _chatScrollController.dispose();
+    super.dispose();
   }
-
-  Map<String, dynamic> _prepareSavingsData(List<SavingsGoal>? savingsGoals) {
-    if (savingsGoals == null || savingsGoals.isEmpty) {
-      return {'has_savings_goals': false};
-    }
-
-    final savingsData = <String, dynamic>{
-      'has_savings_goals': true,
-      'goals': <Map<String, dynamic>>[]
-    };
-
-   for (final goal in savingsGoals) {
-  savingsData['goals'].add({
-    'name': goal.title,  // Changed from goal.name to goal.title
-    'target_amount': goal.targetAmount,
-    'current_amount': goal.currentAmount,
-    'deadline': goal.targetDate.toIso8601String(),  // Changed from goal.deadline to goal.targetDate
-    'progress': goal.currentAmount / goal.targetAmount
+  
+  Future<void> _loadData() async {
+  setState(() {
+    _isLoading = true;
+    _hasError = false;
   });
-}
-
-    return savingsData;
-  }
-
-  Future<Map<String, dynamic>> _prepareBalanceData(double? currentBalance) async {
-    double balance = currentBalance ?? 0.0;
+  
+  try {
+    // Load user data
+    final transactionsFuture = _appwriteService.getTransactions();
+    final budgetsFuture = _appwriteService.getBudgets();
+    final savingsGoalsFuture = _appwriteService.getSavingsGoals();
+    final balanceFuture = BalanceService.instance.getCurrentBalance();
     
-    if (balance == 0) {
-      balance = await BalanceService.instance.getCurrentBalance();
+    // Wait for all data to load - Fixed the casting issue
+    final results = await Future.wait([
+      transactionsFuture,
+      budgetsFuture,
+      savingsGoalsFuture,
+      balanceFuture,
+    ] as Iterable<Future>);
+    
+    _transactions = results[0] as List<Transaction>;
+    _budgets = results[1] as List<Budget>;
+    _savingsGoals = results[2] as List<SavingsGoal>;
+    _currentBalance = results[3] as double;
+    
+    // Generate insights if we have transaction data
+    if (_transactions.isNotEmpty) {
+      await _generateInsights();
     }
     
-    return {
-      'current_balance': balance,
-      'has_balance': balance > 0,
-    };
+    setState(() {
+      _isLoading = false;
+    });
+  } catch (e) {
+    setState(() {
+      _isLoading = false;
+      _hasError = true;
+      _errorMessage = 'Failed to load data: ${e.toString()}';
+    });
   }
-
-  // Helper methods for prompt construction
-  String _constructFinancialAnalysisPrompt({
-    required Map<String, dynamic> transactionData,
-    required Map<String, dynamic> budgetData,
-    required Map<String, dynamic> savingsData,
-    required Map<String, dynamic> balanceData,
-  }) {
-    return '''
-You are a financial analyst and advisor. Analyze the following financial data and provide clear, actionable insights and recommendations for the user.
-
-TRANSACTION DATA:
-${jsonEncode(transactionData)}
-
-BUDGET DATA:
-${jsonEncode(budgetData)}
-
-SAVINGS GOALS DATA:
-${jsonEncode(savingsData)}
-
-BALANCE DATA:
-${jsonEncode(balanceData)}
-
-Based on this data, provide 3-5 key insights and recommendations. Each insight should have:
-1. A short, clear title
-2. A brief explanation of the insight
-3. A specific, actionable recommendation
-4. A relevant icon name (material icon)
-5. A priority level (high, medium, low)
-
-Format your response as a JSON array of objects with the following structure:
-[
-  {
-    "title": "Insight title",
-    "description": "Brief explanation",
-    "recommendation": "Actionable advice",
-    "icon": "material_icon_name",
-    "priority": "priority_level",
-    "type": "insight_type" (spending, saving, budget, income, or balance)
-  }
-]
-
-Only include the JSON in your response, with no additional text.
-''';
-  }
-
-  String _constructForecastPrompt(Map<DateTime, List<Transaction>> transactionsByDate) {
-    return '''
-You are a financial forecasting AI. Based on the following transaction history, predict spending patterns for the next 30 days.
-
-TRANSACTION HISTORY:
-${jsonEncode(transactionsByDate.map((k, v) => MapEntry(k.toIso8601String(), v.map((t) => {
-      'amount': t.amount,
-      'category': t.category,
-      'isExpense': t.isExpense,
-      'date': t.date.toIso8601String()
-    }).toList())))}
-
-Generate a 30-day spending forecast with the following:
-1. Daily spending predictions
-2. Expected major expenses
-3. Category breakdown of predicted spending
-4. Total month forecast amount
-5. Comparison to previous month
-
-Format your response as a JSON object with the following structure:
-{
-  "daily_forecast": [{"date": "YYYY-MM-DD", "amount": 000.00}],
-  "major_expenses": [{"category": "Category", "amount": 000.00, "likelihood": 0.X}],
-  "category_forecast": [{"category": "Category", "amount": 000.00, "percent": XX}],
-  "total_forecast": 000.00,
-  "previous_month_comparison": {"amount": 000.00, "percent_change": XX.X}
 }
-
-Only include the JSON in your response, with no additional text.
-''';
-  }
-
-  String _constructBudgetRecommendationPrompt({
-    required Map<String, double> categorizedSpending,
-    required double monthlyIncome,
-  }) {
-    return '''
-You are a budget planning AI. Based on the following spending patterns and income, recommend optimal budget allocations.
-
-SPENDING BY CATEGORY:
-${jsonEncode(categorizedSpending)}
-
-MONTHLY INCOME: $monthlyIncome
-
-Provide budget recommendations following the 50/30/20 rule or other appropriate methods. Create budget categories that make sense for the user's spending patterns.
-
-Format your response as a JSON array of objects with the following structure:
-[
-  {
-    "category": "Category name",
-    "recommended_amount": 000.00,
-    "percent_of_income": XX.X,
-    "current_spending": 000.00,
-    "adjustment_needed": 000.00,
-    "icon": "material_icon_name",
-    "priority": "essential/wants/savings"
-  }
-]
-
-Only include the JSON in your response, with no additional text.
-''';
-  }
-
-  String _constructCategoryAnalysisPrompt(Map<String, dynamic> categoryData) {
-    return '''
-You are a financial category analysis AI. Analyze the following spending in a specific category and provide insights.
-
-CATEGORY DATA:
-${jsonEncode(categoryData)}
-
-Provide a detailed analysis including:
-1. Spending trend over time
-2. Comparison to overall budget
-3. Top merchants/recipients in this category
-4. Recommendations for optimizing spending
-5. Potential savings opportunity
-
-Format your response as a JSON object with the following structure:
-{
-  "category": "Category name",
-  "total_spent": 000.00,
-  "average_transaction": 000.00,
-  "trend": "increasing/decreasing/stable",
-  "percent_change": XX.X,
-  "top_merchants": [{"name": "Merchant", "amount": 000.00, "percent": XX.X}],
-  "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "savings_potential": 000.00,
-  "insight": "Brief insight about spending in this category"
-}
-
-Only include the JSON in your response, with no additional text.
-''';
-  }
-
-  String _constructAnomalyDetectionPrompt(Map<String, dynamic> transactionData) {
-    return '''
-You are a financial anomaly detection AI. Analyze the following transaction data and identify potential anomalies or unusual spending patterns.
-
-TRANSACTION DATA:
-${jsonEncode(transactionData)}
-
-Identify 1-3 anomalies that might indicate:
-1. Unusually large transactions
-2. Unexpected spending patterns
-3. Potential duplicate payments
-4. Subscriptions or recurring charges that might be forgotten
-5. Categories with sudden increases in spending
-
-Format your response as a JSON array of objects with the following structure:
-[
-  {
-    "title": "Anomaly description",
-    "category": "Category affected",
-    "amount": 000.00,
-    "date": "YYYY-MM-DD" (or date range),
-    "severity": "high/medium/low",
-    "explanation": "Detailed explanation",
-    "recommendation": "Suggested action",
-    "icon": "material_icon_name"
-  }
-]
-
-Only include the JSON in your response, with no additional text.
-''';
-  }
-
-  String _constructSavingsRecommendationPrompt({
-    required Map<String, dynamic> incomeVsExpenses,
-    required Map<String, dynamic> savingsData,
-  }) {
-    return '''
-You are a savings advisor AI. Based on the following financial data, provide recommendations for increasing savings.
-
-INCOME VS EXPENSES:
-${jsonEncode(incomeVsExpenses)}
-
-SAVINGS GOALS:
-${jsonEncode(savingsData)}
-
-Provide recommendations for:
-1. Optimal monthly savings amount
-2. Strategies to increase savings
-3. Timeline for meeting existing savings goals
-4. Suggestions for new savings goals
-5. Emergency fund recommendations
-
-Format your response as a JSON object with the following structure:
-{
-  "recommended_monthly_saving": 000.00,
-  "percent_of_income": XX.X,
-  "strategies": ["Strategy 1", "Strategy 2"],
-  "goal_timelines": [{"goal": "Goal name", "current_amount": 000.00, "target": 000.00, "estimated_completion": "YYYY-MM"}],
-  "suggested_new_goals": [{"name": "Goal name", "target": 000.00, "timeline": "X months", "monthly_contribution": 000.00}],
-  "emergency_fund": {"current": 000.00, "target": 000.00, "months_to_complete": X}
-}
-
-Only include the JSON in your response, with no additional text.
-''';
-  }
-
-  String _constructQuestionAnswerPrompt({
-    required String question,
-    required Map<String, dynamic> transactionContext,
-  }) {
-    return '''
-You are a personal finance assistant. Answer the following question based on the user's financial data.
-
-USER QUESTION:
-$question
-
-FINANCIAL CONTEXT:
-${jsonEncode(transactionContext)}
-
-Provide a helpful, concise answer that directly addresses the user's question. If the question cannot be answered with the available data, clearly state what information is missing. Focus on providing actionable advice when possible.
-
-Format your response as plain text with no special formatting or JSON.
-''';
-  }
-
-  // API call function
-  Future<String> _callGeminiAPI(String prompt) async {
-    final url = '$_baseUrl/$_model:generateContent?key=$_apiKey';
+  Future<void> _generateInsights() async {
+    if (_transactions.isEmpty) return;
     
-    final payload = {
-      'contents': [
-        {
-          'parts': [
-            {'text': prompt}
-          ]
-        }
-      ],
-      'generationConfig': {
-        'temperature': 0.2,
-        'maxOutputTokens': 2048,
-        'topP': 0.8,
-        'topK': 40
+    setState(() {
+      _isProcessing = true;
+    });
+    
+    try {
+      // Get all AI insights in parallel
+      final insightsFuture = _aiService.generateInsights(
+        transactions: _transactions,
+        budgets: _budgets,
+        savingsGoals: _savingsGoals,
+        currentBalance: _currentBalance,
+      );
+      
+      final forecastFuture = _aiService.generateSpendingForecast(_transactions);
+      
+      // Calculate monthly income
+      final now = DateTime.now();
+      final oneMonthAgo = DateTime(now.year, now.month - 1, now.day);
+      final monthlyIncome = _transactions
+          .where((t) => !t.isExpense && t.date.isAfter(oneMonthAgo))
+          .fold(0.0, (sum, t) => sum + t.amount);
+      
+      final budgetRecommendationsFuture = _aiService.generateBudgetRecommendations(
+        _transactions, 
+        monthlyIncome,
+      );
+      
+      final anomaliesFuture = _aiService.detectSpendingAnomalies(_transactions);
+      
+      final savingsRecommendationsFuture = _aiService.generateSavingsRecommendations(
+        _transactions,
+        monthlyIncome,
+        _savingsGoals,
+      );
+      
+      // Wait for all AI requests to complete
+      final results = await Future.wait([
+        insightsFuture,
+        forecastFuture,
+        budgetRecommendationsFuture,
+        anomaliesFuture,
+        savingsRecommendationsFuture,
+      ]);
+      
+      setState(() {
+        _insights = results[0] as List<Map<String, dynamic>>;
+        _forecastData = results[1] as Map<String, dynamic>;
+        _budgetRecommendations = results[2] as List<Map<String, dynamic>>;
+        _anomalies = results[3] as List<Map<String, dynamic>>;
+        _savingsRecommendations = results[4] as Map<String, dynamic>;
+        _isProcessing = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isProcessing = false;
+        _hasError = true;
+        _errorMessage = 'Failed to generate insights: ${e.toString()}';
+      });
+    }
+  }
+  
+  Future<void> _askQuestion(String question) async {
+    if (question.trim().isEmpty) return;
+    
+    // Add user question to chat
+    setState(() {
+      _chatHistory.add({
+        'isUser': true,
+        'message': question,
+        'timestamp': DateTime.now(),
+      });
+      _isAskingQuestion = true;
+    });
+    
+    // Clear input field
+    _questionController.clear();
+    
+    // Scroll to bottom of chat
+    _scrollChatToBottom();
+    
+    try {
+      // Get AI response
+      final response = await _aiService.answerFinancialQuestion(
+        question,
+        _transactions,
+      );
+      
+      setState(() {
+        _chatHistory.add({
+          'isUser': false,
+          'message': response,
+          'timestamp': DateTime.now(),
+        });
+        _isAskingQuestion = false;
+      });
+      
+      // Scroll to show the new message
+      _scrollChatToBottom();
+    } catch (e) {
+      setState(() {
+        _chatHistory.add({
+          'isUser': false,
+          'message': "Sorry, I couldn't process your question right now. Please try again later.",
+          'timestamp': DateTime.now(),
+        });
+        _isAskingQuestion = false;
+      });
+      
+      _scrollChatToBottom();
+    }
+  }
+  
+  void _scrollChatToBottom() {
+    // Wait for UI to update before scrolling
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_chatScrollController.hasClients) {
+        _chatScrollController.animateTo(
+          _chatScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
       }
-    };
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    final themeService = Provider.of<ThemeService>(context);
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
     
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
+    return Scaffold(
+      body: _isLoading 
+          ? _buildLoadingState(themeService)
+          : _hasError
+              ? _buildErrorState(themeService)
+              : _transactions.isEmpty
+                  ? _buildEmptyState(themeService)
+                  : _buildInsightsContent(themeService, screenHeight, screenWidth),
     );
-    
-    if (response.statusCode != 200) {
-      throw Exception('API call failed with status: ${response.statusCode}');
-    }
-    
-    final jsonResponse = jsonDecode(response.body);
-    return jsonResponse['candidates'][0]['content']['parts'][0]['text'];
   }
-
-  // Response parsing functions
-  List<Map<String, dynamic>> _parseInsightsFromResponse(String response) {
-    try {
-      // Extract JSON from response
-      final jsonMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(response);
-      
-      if (jsonMatch != null) {
-        final jsonStr = jsonMatch.group(0);
-        final List<dynamic> decoded = jsonDecode(jsonStr!);
-        
-        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
-      }
-      
-      // Alternative approach if regex fails
-      final decoded = jsonDecode(response);
-      if (decoded is List) {
-        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
-      }
-      
-      throw Exception('Failed to parse insights response');
-    } catch (e) {
-      debugPrint('Error parsing insights: $e');
-      debugPrint('Raw response: $response');
-      return [];
-    }
+  
+  Widget _buildLoadingState(ThemeService themeService) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 120,
+            height: 120,
+            child: Lottie.asset(
+              'assets/animations/finance_loading.json',
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Loading your financial insights...',
+            style: TextStyle(
+              color: themeService.textColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
-
-  Map<String, dynamic> _parseForecastFromResponse(String response) {
-    try {
-      // Extract JSON from response
-      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(response);
-      
-      if (jsonMatch != null) {
-        final jsonStr = jsonMatch.group(0);
-        return Map<String, dynamic>.from(jsonDecode(jsonStr!));
-      }
-      
-      // Alternative approach if regex fails
-      final decoded = jsonDecode(response);
-      if (decoded is Map) {
-        return Map<String, dynamic>.from(decoded);
-      }
-      
-      throw Exception('Failed to parse forecast response');
-    } catch (e) {
-      debugPrint('Error parsing forecast: $e');
-      return {};
-    }
+  
+  Widget _buildErrorState(ThemeService themeService) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 120,
+            height: 120,
+            child: Lottie.asset(
+              'assets/animations/error.json',
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Oops! Something went wrong',
+            style: TextStyle(
+              color: themeService.textColor,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              _errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: themeService.subtextColor,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _loadData,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Try Again'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeService.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
-
-  List<Map<String, dynamic>> _parseBudgetRecommendationsFromResponse(String response) {
-    try {
-      // Extract JSON from response
-      final jsonMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(response);
-      
-      if (jsonMatch != null) {
-        final jsonStr = jsonMatch.group(0);
-        final List<dynamic> decoded = jsonDecode(jsonStr!);
-        
-        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
-      }
-      
-      // Alternative approach if regex fails
-      final decoded = jsonDecode(response);
-      if (decoded is List) {
-        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
-      }
-      
-      throw Exception('Failed to parse budget recommendations response');
-    } catch (e) {
-      debugPrint('Error parsing budget recommendations: $e');
-      return [];
-    }
+  
+  Widget _buildEmptyState(ThemeService themeService) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 200,
+            height: 200,
+            child: Lottie.asset(
+              'assets/animations/empty_chart.json',
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No transactions yet',
+            style: TextStyle(
+              color: themeService.textColor,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Add some transactions to get personalized AI insights about your finances',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: themeService.subtextColor,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pushNamed('/transactions');
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Add Transaction'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeService.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
-
-  Map<String, dynamic> _parseCategoryAnalysisFromResponse(String response, String category) {
-    try {
-      // Extract JSON from response
-      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(response);
-      
-      if (jsonMatch != null) {
-        final jsonStr = jsonMatch.group(0);
-        return Map<String, dynamic>.from(jsonDecode(jsonStr!));
-      }
-      
-      // Alternative approach if regex fails
-      final decoded = jsonDecode(response);
-      if (decoded is Map) {
-        return Map<String, dynamic>.from(decoded);
-      }
-      
-      throw Exception('Failed to parse category analysis response');
-    } catch (e) {
-      debugPrint('Error parsing category analysis: $e');
-      return {'category': category, 'error': true};
-    }
-  }
-
-  List<Map<String, dynamic>> _parseAnomaliesFromResponse(String response) {
-    try {
-      // Extract JSON from response
-      final jsonMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(response);
-      
-      if (jsonMatch != null) {
-        final jsonStr = jsonMatch.group(0);
-        final List<dynamic> decoded = jsonDecode(jsonStr!);
-        
-        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
-      }
-      
-      // Alternative approach if regex fails
-      final decoded = jsonDecode(response);
-      if (decoded is List) {
-        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
-      }
-      
-      throw Exception('Failed to parse anomalies response');
-    } catch (e) {
-      debugPrint('Error parsing anomalies: $e');
-      return [];
-    }
-  }
-
-  Map<String, dynamic> _parseSavingsRecommendationsFromResponse(String response) {
-    try {
-      // Extract JSON from response
-      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(response);
-      
-      if (jsonMatch != null) {
-        final jsonStr = jsonMatch.group(0);
-        return Map<String, dynamic>.from(jsonDecode(jsonStr!));
-      }
-      
-      // Alternative approach if regex fails
-      final decoded = jsonDecode(response);
-      if (decoded is Map) {
-        return Map<String, dynamic>.from(decoded);
-      }
-      
-      throw Exception('Failed to parse savings recommendations response');
-    } catch (e) {
-      debugPrint('Error parsing savings recommendations: $e');
-      return {};
-    }
-  }
-
-  String _extractAnswerFromResponse(String response) {
-    // Clean up the response if needed
-    return response.trim();
-  }
-
-  // Helper methods for fallback responses
-  List<Map<String, dynamic>> _generateFallbackInsights(
-    List<Transaction> transactions,
-    List<Budget>? budgets
+  
+  Widget _buildInsightsContent(
+    ThemeService themeService,
+    double screenHeight,
+    double screenWidth,
   ) {
-    final insights = <Map<String, dynamic>>[];
-    
-    // Group transactions by date (month)
-    final transactionsByMonth = <String, List<Transaction>>{};
-    for (final t in transactions) {
-      final monthKey = '${t.date.year}-${t.date.month}';
-      if (!transactionsByMonth.containsKey(monthKey)) {
-        transactionsByMonth[monthKey] = [];
-      }
-      transactionsByMonth[monthKey]!.add(t);
-    }
-    
-    // Calculate last month's spending
-    final now = DateTime.now();
-    final lastMonth = DateTime(now.year, now.month - 1);
-    final lastMonthKey = '${lastMonth.year}-${lastMonth.month}';
-    final lastMonthTransactions = transactionsByMonth[lastMonthKey] ?? [];
-    
-    final lastMonthExpenses = lastMonthTransactions
-        .where((t) => t.isExpense)
-        .fold(0.0, (sum, t) => sum + t.amount);
-    
-    // Top spending category
-    final categorizedSpending = _categorizeTotalSpending(transactions);
-    String topCategory = 'Unknown';
-    double topAmount = 0;
-    
-    categorizedSpending.forEach((category, amount) {
-      if (amount > topAmount) {
-        topAmount = amount;
-        topCategory = category;
-      }
-    });
-    
-    // Add spending insight
-    insights.add({
-      'title': 'Monthly Spending Overview',
-      'description': 'Last month, you spent ${AppConfig.formatCurrency(lastMonthExpenses.toInt() * 100)}.',
-      'recommendation': 'Review your expenses to identify savings opportunities.',
-      'icon': 'trending_up',
-      'priority': 'medium',
-      'type': 'spending'
-    });
-    
-    // Add top category insight
-    if (topCategory != 'Unknown') {
-      insights.add({
-        'title': 'Top Spending Category',
-        'description': 'Your highest spending is in $topCategory (${AppConfig.formatCurrency(topAmount.toInt() * 100)}).',
-        'recommendation': 'Consider setting a budget for this category.',
-        'icon': 'category',
-        'priority': 'high',
-        'type': 'budget'
-      });
-    }
-    
-    // Add budget insight if available
-    if (budgets != null && budgets.isNotEmpty) {
-      final overBudgets = budgets.where((b) => b.spent > b.amount).toList();
-      
-      if (overBudgets.isNotEmpty) {
-        insights.add({
-          'title': 'Budget Alert',
-          "description": "You've exceeded your budget in ${overBudgets.length} categories.",
-          'recommendation': 'Adjust your spending or revise your budget goals.',
-          'icon': 'warning',
-          'priority': 'high',
-          'type': 'budget'
-        });
-      }
-    } else {
-      insights.add({
-        'title': 'Create Your First Budget',
-        'description': 'Setting budgets helps track and control your spending.',
-        'recommendation': 'Create a budget for your major spending categories.',
-        'icon': 'add_chart',
-        'priority': 'medium',
-        'type': 'budget'
-      });
-    }
-    
-    // Add savings insight
-    insights.add({
-      'title': 'Start Saving Regularly',
-      'description': 'Regular savings build financial security over time.',
-      'recommendation': 'Try to save at least 10-20% of your income each month.',
-      'icon': 'savings',
-      'priority': 'medium',
-      'type': 'saving'
-    });
-    
-    return insights;
+    return Stack(
+      children: [
+        Column(
+          children: [
+            _buildHeader(themeService),
+            Expanded(
+              child: DefaultTabController(
+                length: 4,
+                child: Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: themeService.isDarkMode 
+                            ? Colors.grey[800]
+                            : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: TabBar(
+                        indicator: BoxDecoration(
+                          borderRadius: BorderRadius.circular(25),
+                          color: themeService.primaryColor,
+                        ),
+                        labelColor: Colors.white,
+                        unselectedLabelColor: themeService.subtextColor,
+                        labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                        tabs: const [
+                          Tab(text: 'Insights'),
+                          Tab(text: 'Budget'),
+                          Tab(text: 'Forecast'),
+                          Tab(text: 'Ask AI'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          _buildInsightsTab(themeService),
+                          _buildBudgetRecommendationsTab(themeService),
+                          _buildForecastTab(themeService),
+                          _buildAskAITab(themeService),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_isProcessing)
+          Positioned.fill(
+            child: Container(
+              color: themeService.backgroundColor.withOpacity(0.7),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 100,
+                      height: 100,
+                      child: Lottie.asset(
+                        'assets/animations/ai_thinking.json',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'AI is analyzing your finances...',
+                      style: TextStyle(
+                        color: themeService.textColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
-
-  Map<String, dynamic> _generateFallbackForecast(List<Transaction> transactions) {
-    // Simple forecast based on historical data
-    final now = DateTime.now();
-    final monthStart = DateTime(now.year, now.month, 1);
-    final monthEnd = DateTime(now.year, now.month + 1, 0);
-    
-    // Calculate average daily spending
-    final recentTransactions = transactions
-        .where((t) => t.date.isAfter(DateTime(now.year, now.month - 3)))
-        .where((t) => t.isExpense)
-        .toList();
-    
-    final totalSpent = recentTransactions.fold(0.0, (sum, t) => sum + t.amount);
-    final daysCount = recentTransactions.isEmpty ? 1 : 90; // 3 months
-    final avgDailySpending = totalSpent / daysCount;
-    
-    // Generate daily forecast
-    final daysInMonth = monthEnd.day;
-    final dailyForecast = <Map<String, dynamic>>[];
-    
-    for (var i = 1; i <= daysInMonth; i++) {
-      final forecastDate = DateTime(now.year, now.month, i);
-      if (forecastDate.isBefore(now)) {
-        // Use actual data for past days
-        final dayTransactions = transactions
-            .where((t) => 
-                t.date.year == forecastDate.year && 
-                t.date.month == forecastDate.month &&
-                t.date.day == forecastDate.day &&
-                t.isExpense)
-            .toList();
-        
-        final actualSpent = dayTransactions.fold(0.0, (sum, t) => sum + t.amount);
-        
-        dailyForecast.add({
-          'date': forecastDate.toIso8601String().substring(0, 10),
-          'amount': actualSpent,
-          'actual': true
-        });
-      } else {
-        // Forecast future days
-        // Weekends might have higher spending
-        double modifier = 1.0;
-        if (forecastDate.weekday == DateTime.saturday) {
-          modifier = 1.5;
-        } else if (forecastDate.weekday == DateTime.sunday) {
-          modifier = 1.3;
-        }
-        
-        dailyForecast.add({
-          'date': forecastDate.toIso8601String().substring(0, 10),
-          'amount': avgDailySpending * modifier,
-          'actual': false
-        });
-      }
-    }
-    
-    // Major expenses (categories with highest spending)
-    final categorizedSpending = _categorizeTotalSpending(recentTransactions);
-    final majorExpenses = categorizedSpending.entries
-        .map((e) => {
-          'category': e.key,
-          'amount': e.value / 3, // Monthly average
-          'likelihood': 0.8
-        })
-        .toList();
-    
-    // Sort and limit to top 3
-    majorExpenses.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
-    final top3Expenses = majorExpenses.take(3).toList();
-    
-    // Calculate total forecast
-    final daysLeftInMonth = monthEnd.difference(now).inDays + 1;
-    final spentSoFar = transactions
-        .where((t) => 
-            t.date.year == now.year && 
-            t.date.month == now.month &&
-            t.isExpense)
-        .fold(0.0, (sum, t) => sum + t.amount);
-    
-    final forecastRemaining = avgDailySpending * daysLeftInMonth;
-    final totalForecast = spentSoFar + forecastRemaining;
-    
-    // Previous month comparison
-    final lastMonth = DateTime(now.year, now.month - 1);
-    final lastMonthTransactions = transactions
-        .where((t) => 
-            t.date.year == lastMonth.year && 
-            t.date.month == lastMonth.month &&
-            t.isExpense)
-        .toList();
-    
-    final lastMonthTotal = lastMonthTransactions.fold(0.0, (sum, t) => sum + t.amount);
-    final percentChange = lastMonthTotal > 0 
-        ? ((totalForecast - lastMonthTotal) / lastMonthTotal) * 100
-        : 0.0;
-    
-    return {
-      'daily_forecast': dailyForecast,
-      'major_expenses': top3Expenses,
-      'category_forecast': categorizedSpending.entries
-          .map((e) => {
-            'category': e.key,
-            'amount': e.value / 3, // Monthly average
-            'percent': (e.value / totalSpent) * 100
-          })
-          .toList(),
-      'total_forecast': totalForecast,
-      'previous_month_comparison': {
-        'amount': lastMonthTotal,
-        'percent_change': percentChange
-      }
-    };
+  
+  Widget _buildHeader(ThemeService themeService) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            themeService.primaryColor,
+            themeService.primaryColor.withOpacity(0.8),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'AI Budget Insights',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                onPressed: _isProcessing ? null : _generateInsights,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Smart recommendations based on your spending',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
   }
-
-  List<Map<String, dynamic>> _generateFallbackBudgetRecommendations(
-    List<Transaction> transactions,
-    double monthlyIncome
-  ) {
-    // Apply 50/30/20 rule
-    final essentialsBudget = monthlyIncome * 0.5;
-    final wantsBudget = monthlyIncome * 0.3;
-    final savingsBudget = monthlyIncome * 0.2;
-    
-    // Categorize current spending
-    final now = DateTime.now();
-    final monthStart = DateTime(now.year, now.month, 1);
-    
-    final currentMonthTransactions = transactions
-        .where((t) => t.date.isAfter(monthStart) && t.isExpense)
-        .toList();
-    
-    final categorizedSpending = <String, double>{};
-    for (final t in currentMonthTransactions) {
-      if (!categorizedSpending.containsKey(t.category)) {
-        categorizedSpending[t.category] = 0;
-      }
-      categorizedSpending[t.category] = categorizedSpending[t.category]! + t.amount;
+  
+  Widget _buildInsightsTab(ThemeService themeService) {
+    if (_insights.isEmpty) {
+      return _buildNoInsightsState(themeService);
     }
     
-    // Map categories to priorities
-    final essentialCategories = [
-      'Housing', 'Rent', 'Mortgage', 'Utilities', 'Groceries', 
-      'Health', 'Healthcare', 'Insurance', 'Transport', 'Transportation',
-      'Debt', 'Loan'
-    ];
-    
-    final wantsCategories = [
-      'Entertainment', 'Dining', 'Shopping', 'Travel', 'Leisure',
-      'Subscription', 'Hobbies', 'Clothing', 'Personal'
-    ];
-    
-    final savingsCategories = [
-      'Savings', 'Investment', 'Emergency Fund', 'Retirement'
-    ];
-    
-    // Generate recommendations
-    final recommendations = <Map<String, dynamic>>[];
-    
-    // Essential categories
-    double totalEssentialsSpending = 0;
-    categorizedSpending.forEach((category, amount) {
-      if (essentialCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
-        totalEssentialsSpending += amount;
-      }
-    });
-    
-    recommendations.add({
-      'category': 'Essentials',
-      'recommended_amount': essentialsBudget,
-      'percent_of_income': 50.0,
-      'current_spending': totalEssentialsSpending,
-      'adjustment_needed': essentialsBudget - totalEssentialsSpending,
-      'icon': 'home',
-      'priority': 'essential'
-    });
-    
-    // Wants categories
-    double totalWantsSpending = 0;
-    categorizedSpending.forEach((category, amount) {
-      if (wantsCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
-        totalWantsSpending += amount;
-      }
-    });
-    
-    recommendations.add({
-      'category': 'Wants',
-      'recommended_amount': wantsBudget,
-      'percent_of_income': 30.0,
-      'current_spending': totalWantsSpending,
-      'adjustment_needed': wantsBudget - totalWantsSpending,
-      'icon': 'shopping_bag',
-      'priority': 'wants'
-    });
-    
-    // Savings categories
-    double totalSavingsSpending = 0;
-    categorizedSpending.forEach((category, amount) {
-      if (savingsCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
-        totalSavingsSpending += amount;
-      }
-    });
-    
-    recommendations.add({
-      'category': 'Savings',
-      'recommended_amount': savingsBudget,
-      'percent_of_income': 20.0,
-      'current_spending': totalSavingsSpending,
-      'adjustment_needed': savingsBudget - totalSavingsSpending,
-      'icon': 'savings',
-      'priority': 'savings'
-    });
-    
-    // Add specific category recommendations for top spending areas
-    final sortedCategories = categorizedSpending.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    for (var i = 0; i < 3 && i < sortedCategories.length; i++) {
-      final category = sortedCategories[i].key;
-      final amount = sortedCategories[i].value;
-      
-      String priority = 'wants';
-      IconData icon = Icons.category;
-      
-      if (essentialCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
-        priority = 'essential';
-        icon = Icons.home;
-      } else if (savingsCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
-        priority = 'savings';
-        icon = Icons.savings;
-      } else {
-        icon = _getCategoryIcon(category);
-      }
-      
-      // Recommend slight reduction for high spending categories
-      final recommendedAmount = amount * 0.9;
-      
-      recommendations.add({
-        'category': category,
-        'recommended_amount': recommendedAmount,
-        'percent_of_income': (recommendedAmount / monthlyIncome) * 100,
-        'current_spending': amount,
-        'adjustment_needed': recommendedAmount - amount,
-        'icon': icon.toString().replaceAll('IconData(', '').replaceAll(')', ''),
-        'priority': priority
-      });
-    }
-    
-    return recommendations;
-  }
-
-  Map<String, dynamic> _generateFallbackCategoryAnalysis(
-    List<Transaction> transactions,
-    String category
-  ) {
-    // Filter transactions for the category
-    final categoryTransactions = transactions
-        .where((t) => t.category.toLowerCase() == category.toLowerCase())
-        .toList();
-    
-    if (categoryTransactions.isEmpty) {
-      return {
-        'category': category,
-        'error': true,
-        'message': 'No transactions found for this category'
-      };
-    }
-    
-    // Calculate metrics
-    final totalSpent = categoryTransactions.fold(0.0, (sum, t) => sum + t.amount);
-    final avgTransaction = totalSpent / categoryTransactions.length;
-    
-    // Group by month to determine trend
-    final byMonth = <String, double>{};
-    for (final t in categoryTransactions) {
-      final monthKey = '${t.date.year}-${t.date.month}';
-      if (!byMonth.containsKey(monthKey)) {
-        byMonth[monthKey] = 0;
-      }
-      byMonth[monthKey] = byMonth[monthKey]! + t.amount;
-    }
-    
-    // Determine trend (need at least 2 months of data)
-    String trend = 'stable';
-    double percentChange = 0;
-    
-    if (byMonth.length >= 2) {
-      final monthsSorted = byMonth.keys.toList()..sort();
-      final latestMonth = monthsSorted.last;
-      final previousMonth = monthsSorted[monthsSorted.length - 2];
-      
-      final latestAmount = byMonth[latestMonth]!;
-      final previousAmount = byMonth[previousMonth]!;
-      
-      percentChange = previousAmount > 0
-          ? ((latestAmount - previousAmount) / previousAmount) * 100
-          : 0;
-      
-      if (percentChange > 10) {
-        trend = 'increasing';
-      } else if (percentChange < -10) {
-        trend = 'decreasing';
-      }
-    }
-    
-    // Find top merchants
-    final byMerchant = <String, double>{};
-    for (final t in categoryTransactions) {
-      final merchant = t.business ?? t.recipient ?? t.sender ?? 'Unknown';
-      if (!byMerchant.containsKey(merchant)) {
-        byMerchant[merchant] = 0;
-      }
-      byMerchant[merchant] = byMerchant[merchant]! + t.amount;
-    }
-    
-    final topMerchants = byMerchant.entries
-        .map((e) => {
-          'name': e.key,
-          'amount': e.value,
-          'percent': (e.value / totalSpent) * 100
-        })
-        .toList()
-      ..sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
-    
-    // Generate recommendations based on trend
-    final recommendations = <String>[];
-    double savingsPotential = 0;
-    
-    if (trend == 'increasing') {
-      recommendations.add('Your spending in this category is increasing. Consider setting a budget.');
-      recommendations.add('Review your recent transactions to identify unnecessary expenses.');
-      savingsPotential = totalSpent * 0.15; // Suggest 15% reduction
-    } else if (trend == 'stable' && totalSpent > 0) {
-      recommendations.add('Your spending is consistent. Consider if you can optimize any recurring expenses.');
-      savingsPotential = totalSpent * 0.1; // Suggest 10% reduction
-    } else if (trend == 'decreasing') {
-      recommendations.add('Great job reducing spending in this category! Keep it up.');
-      savingsPotential = totalSpent * 0.05; // Suggest 5% further reduction
-    }
-    
-    // Add category-specific recommendations
-    if (category.toLowerCase().contains('subscription') || 
-        category.toLowerCase().contains('entertainment')) {
-      recommendations.add('Review your subscriptions to identify services you no longer use.');
-      savingsPotential += totalSpent * 0.2;
-    } else if (category.toLowerCase().contains('dining') || 
-               category.toLowerCase().contains('food')) {
-      recommendations.add('Consider cooking more meals at home to reduce dining expenses.');
-      savingsPotential += totalSpent * 0.3;
-    }
-    
-    return {
-      'category': category,
-      'total_spent': totalSpent,
-      'average_transaction': avgTransaction,
-      'trend': trend,
-      'percent_change': percentChange,
-      'top_merchants': topMerchants.take(3).toList(),
-      'recommendations': recommendations,
-      'savings_potential': savingsPotential,
-      'insight': 'You spend an average of ${AppConfig.formatCurrency(avgTransaction.toInt() * 100)} per transaction in this category.'
-    };
-  }
-
-  List<Map<String, dynamic>> _generateFallbackAnomalies(List<Transaction> transactions) {
-    final anomalies = <Map<String, dynamic>>[];
-    
-    if (transactions.isEmpty) {
-      return anomalies;
-    }
-    
-    // Find unusually large transactions
-    final amounts = transactions.map((t) => t.amount).toList();
-    amounts.sort();
-    
-    final medianIndex = amounts.length ~/ 2;
-    final medianAmount = amounts.length.isOdd
-        ? amounts[medianIndex]
-        : (amounts[medianIndex - 1] + amounts[medianIndex]) / 2;
-    
-    // Consider amounts more than 3x the median as potentially anomalous
-    final threshold = medianAmount * 3;
-    final largeTransactions = transactions
-        .where((t) => t.amount > threshold && t.isExpense)
-        .toList()
-      ..sort((a, b) => b.date.compareTo(a.date)); // Most recent first
-    
-    if (largeTransactions.isNotEmpty) {
-      final t = largeTransactions.first;
-      anomalies.add({
-        'title': 'Unusually Large Transaction',
-        'category': t.category,
-        'amount': t.amount,
-        'date': t.date.toIso8601String().substring(0, 10),
-        'severity': 'medium',
-        'explanation': 'This transaction is significantly larger than your typical spending in this category.',
-        'recommendation': 'Verify this transaction if it doesn\'t look familiar.',
-        'icon': 'warning'
-      });
-    }
-    
-    // Detect potential duplicate payments
-    final recentTransactions = transactions
-        .where((t) => t.date.isAfter(DateTime.now().subtract(const Duration(days: 30))))
-        .toList();
-    
-    for (var i = 0; i < recentTransactions.length; i++) {
-      for (var j = i + 1; j < recentTransactions.length; j++) {
-        final t1 = recentTransactions[i];
-        final t2 = recentTransactions[j];
-        
-        // Check if amounts match and they're close in time
-        if (t1.amount == t2.amount && 
-            t1.isExpense && 
-            t2.isExpense &&
-            t1.category == t2.category &&
-            t1.date.difference(t2.date).inHours.abs() < 48) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_anomalies.isNotEmpty) ...[
+            _buildSectionHeader('Attention Needed', themeService),
+            const SizedBox(height: 8),
+            ..._anomalies.map((anomaly) => _buildAnomalyCard(anomaly, themeService)),
+            const SizedBox(height: 24),
+          ],
           
-          final recipient = t1.business ?? t1.recipient ?? 'same recipient';
+          _buildSectionHeader('Smart Insights', themeService),
+          const SizedBox(height: 8),
+          ..._insights.map((insight) => _buildInsightCard(insight, themeService)),
           
-          anomalies.add({
-            'title': 'Potential Duplicate Payment',
-            'category': t1.category,
-            'amount': t1.amount,
-            'date': '${t1.date.toIso8601String().substring(0, 10)} & ${t2.date.toIso8601String().substring(0, 10)}',
-            'severity': 'high',
-            'explanation': 'You made two identical payments of ${AppConfig.formatCurrency(t1.amount.toInt() * 100)} to $recipient within 48 hours.',
-            'recommendation': 'Check if one of these was a duplicate payment.',
-            'icon': 'content_copy'
-          });
+          const SizedBox(height: 24),
+          _buildSectionHeader('Recent Analysis', themeService),
+          const SizedBox(height: 8),
+          _buildAnalyticsPreviewCard(themeService),
           
-          break; // Only report this pair once
-        }
-      }
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildNoInsightsState(ThemeService themeService) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 150,
+            height: 150,
+            child: Lottie.asset(
+              'assets/animations/lightbulb.json',
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No insights yet',
+            style: TextStyle(
+              color: themeService.textColor,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Tap the refresh button to generate new insights based on your transaction data',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: themeService.subtextColor,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _generateInsights,
+            icon: const Icon(Icons.autorenew),
+            label: const Text('Generate Insights'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeService.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildBudgetRecommendationsTab(ThemeService themeService) {
+    if (_budgetRecommendations.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 150,
+              height: 150,
+              child: Lottie.asset(
+                'assets/animations/budget_setup.json',
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No budget recommendations yet',
+              style: TextStyle(
+                color: themeService.textColor,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                'Tap the refresh button to generate personalized budget recommendations',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: themeService.subtextColor,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
     
-    // Detect sudden category increases
-    final thisMonth = DateTime.now();
-    final lastMonth = DateTime(thisMonth.year, thisMonth.month - 1);
-    
-    final thisMonthTransactions = transactions
-        .where((t) => t.date.year == thisMonth.year && t.date.month == thisMonth.month)
-        .toList();
-    
-    final lastMonthTransactions = transactions
-        .where((t) => t.date.year == lastMonth.year && t.date.month == lastMonth.month)
-        .toList();
-    
-    final thisMonthByCategory = <String, double>{};
-    for (final t in thisMonthTransactions.where((t) => t.isExpense)) {
-      if (!thisMonthByCategory.containsKey(t.category)) {
-        thisMonthByCategory[t.category] = 0;
-      }
-      thisMonthByCategory[t.category] = thisMonthByCategory[t.category]! + t.amount;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('Recommended Budget', themeService),
+          const SizedBox(height: 16),
+          
+          // Pie chart for budget allocation
+          SizedBox(
+            height: 250,
+            child: _buildBudgetAllocationChart(themeService),
+          ),
+          
+          const SizedBox(height: 24),
+          _buildSectionHeader('Budget Categories', themeService),
+          const SizedBox(height: 8),
+          
+          ..._budgetRecommendations.map(
+            (budget) => _buildBudgetRecommendationCard(budget, themeService),
+          ),
+          
+          const SizedBox(height: 24),
+          if (_savingsRecommendations.isNotEmpty) ...[
+            _buildSavingsRecommendationCard(themeService),
+            const SizedBox(height: 32),
+          ],
+          
+          Center(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Navigate to budget creation screen with recommendations
+                Navigator.of(context).pushNamed('/budget/create', arguments: _budgetRecommendations);
+              },
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Create Budget Plan'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeService.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildForecastTab(ThemeService themeService) {
+    if (_forecastData.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 150,
+              height: 150,
+              child: Lottie.asset(
+                'assets/animations/forecast.json',
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No forecast data yet',
+              style: TextStyle(
+                color: themeService.textColor,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                'Tap the refresh button to generate spending forecasts',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: themeService.subtextColor,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
     
-    final lastMonthByCategory = <String, double>{};
-    for (final t in lastMonthTransactions.where((t) => t.isExpense)) {
-      if (!lastMonthByCategory.containsKey(t.category)) {
-        lastMonthByCategory[t.category] = 0;
-      }
-      lastMonthByCategory[t.category] = lastMonthByCategory[t.category]! + t.amount;
-    }
+    final dailyForecast = _forecastData['daily_forecast'] as List<dynamic>? ?? [];
+    final majorExpenses = _forecastData['major_expenses'] as List<dynamic>? ?? [];
+    final categoryForecast = _forecastData['category_forecast'] as List<dynamic>? ?? [];
+    final totalForecast = _forecastData['total_forecast'] as double? ?? 0.0;
+    final comparison = _forecastData['previous_month_comparison'] as Map<String, dynamic>? ?? {};
     
-    thisMonthByCategory.forEach((category, amount) {
-      final lastMonthAmount = lastMonthByCategory[category] ?? 0;
-      
-      // Detect significant increases (>50%)
-      if (lastMonthAmount > 0 && amount > lastMonthAmount * 1.5) {
-        final increase = amount - lastMonthAmount;
-        final percentIncrease = (increase / lastMonthAmount) * 100;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('30-Day Spending Forecast', themeService),
+          const SizedBox(height: 8),
+          
+          // Summary card
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            color: themeService.cardColor,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Forecast Total',
+                    style: TextStyle(
+                      color: themeService.subtextColor,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    AppConfig.formatCurrency(totalForecast.toInt() * 100),
+                    style: TextStyle(
+                      color: themeService.textColor,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        (comparison['percent_change'] as double? ?? 0) > 0
+                            ? Icons.trending_up
+                            : Icons.trending_down,
+                        color: (comparison['percent_change'] as double? ?? 0) > 0
+                            ? Colors.red
+                            : Colors.green,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${(comparison['percent_change'] as double? ?? 0).abs().toStringAsFixed(1)}% ${(comparison['percent_change'] as double? ?? 0) > 0 ? 'more than' : 'less than'} last month',
+                        style: TextStyle(
+                          color: (comparison['percent_change'] as double? ?? 0) > 0
+                              ? Colors.red
+                              : Colors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          _buildSectionHeader('Daily Spending Projection', themeService),
+          const SizedBox(height: 16),
+          
+          // Daily forecast chart
+          SizedBox(
+            height: 250,
+            child: _buildForecastChart(dailyForecast, themeService),
+          ),
+          
+          const SizedBox(height: 24),
+          _buildSectionHeader('Expected Major Expenses', themeService),
+          const SizedBox(height: 8),
+          
+          if (majorExpenses.isNotEmpty)
+            ...majorExpenses.map(
+              (expense) => _buildMajorExpenseCard(expense, themeService),
+            )
+          else
+            Card(
+              elevation: 0,
+              color: themeService.cardColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Text(
+                    'No major expenses predicted',
+                    style: TextStyle(color: themeService.subtextColor),
+                  ),
+                ),
+              ),
+            ),
+          
+          const SizedBox(height: 24),
+          _buildSectionHeader('Category Forecast', themeService),
+          const SizedBox(height: 16),
+          
+          // Category forecast chart
+          SizedBox(
+            height: 300,
+            child: _buildCategoryForecastChart(categoryForecast, themeService),
+          ),
+          
+          const SizedBox(height: 24),
+          Center(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Navigate to Analytics with forecast data
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => AnalyticsScreen(
+                      transactions: _transactions,
+                      forecastData: _forecastData,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.analytics_outlined),
+              label: const Text('View Detailed Analytics'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeService.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildAskAITab(ThemeService themeService) {
+    return Column(
+      children: [
+        Expanded(
+          child: _chatHistory.isEmpty
+              ? _buildChatEmptyState(themeService)
+              : _buildChatMessages(themeService),
+        ),
+        _buildChatInput(themeService),
+      ],
+    );
+  }
+  
+  Widget _buildChatEmptyState(ThemeService themeService) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 150,
+              height: 150,
+              child: Lottie.asset(
+                'assets/animations/finance_chat.json',
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Ask me anything about your finances',
+              style: TextStyle(
+                color: themeService.textColor,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Examples:',
+              style: TextStyle(
+                color: themeService.subtextColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildSuggestedQuestion(
+              'How much did I spend on food last month?',
+              themeService,
+            ),
+            _buildSuggestedQuestion(
+              'What category am I spending the most on?',
+              themeService,
+            ),
+            _buildSuggestedQuestion(
+              'How can I improve my savings?',
+              themeService,
+            ),
+            _buildSuggestedQuestion(
+              'When will I reach my savings goal at my current rate?',
+              themeService,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildSuggestedQuestion(String question, ThemeService themeService) {
+    return GestureDetector(
+      onTap: () => _askQuestion(question),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: themeService.primaryColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: themeService.primaryColor.withOpacity(0.3),
+          ),
+        ),
+        child: Text(
+          question,
+          style: TextStyle(
+            color: themeService.primaryColor,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildChatMessages(ThemeService themeService) {
+    return ListView.builder(
+      controller: _chatScrollController,
+      padding: const EdgeInsets.all(16),
+      itemCount: _chatHistory.length,
+      itemBuilder: (context, index) {
+        final message = _chatHistory[index];
+        final isUser = message['isUser'] as bool;
         
-        anomalies.add({
-          'title': 'Spending Increase',
-          'category': category,
-          'amount': increase,
-          'date': '${lastMonth.year}-${lastMonth.month.toString().padLeft(2, '0')} to ${thisMonth.year}-${thisMonth.month.toString().padLeft(2, '0')}',
-          'severity': percentIncrease > 100 ? 'high' : 'medium',
-          'explanation': 'Your spending in $category increased by ${percentIncrease.toStringAsFixed(0)}% compared to last month.',
-          'recommendation': 'Review your recent transactions in this category to identify the cause.',
-          'icon': 'trending_up'
-        });
-      }
-    });
-    
-    return anomalies;
-  }
-
-  Map<String, dynamic> _generateFallbackSavingsRecommendations(
-    List<Transaction> transactions,
-    double monthlyIncome
-  ) {
-    // Calculate average monthly expenses
-    final now = DateTime.now();
-    final threeMonthsAgo = DateTime(now.year, now.month - 3, now.day);
-    
-    final recentTransactions = transactions
-        .where((t) => t.date.isAfter(threeMonthsAgo))
-        .toList();
-    
-    final expenses = recentTransactions
-        .where((t) => t.isExpense)
-        .fold(0.0, (sum, t) => sum + t.amount);
-    
-    final avgMonthlyExpenses = expenses / 3;
-    final currentSavingsRate = monthlyIncome > 0 
-        ? ((monthlyIncome - avgMonthlyExpenses) / monthlyIncome) * 100
-        : 0.0;
-    
-    // Recommended savings rate (aim for 20%)
-    final targetSavingsRate = 20.0;
-    final recommendedMonthlySaving = monthlyIncome * (targetSavingsRate / 100);
-    
-    // Strategies based on current savings rate
-    final strategies = <String>[];
-    
-    if (currentSavingsRate < 10) {
-      strategies.add('Reduce discretionary spending on entertainment and dining out');
-      strategies.add('Review and cancel unused subscriptions');
-      strategies.add('Consider a "no-spend" challenge for non-essential items');
-    } else if (currentSavingsRate < 20) {
-      strategies.add('Set up automatic transfers to your savings on payday');
-      strategies.add('Look for better deals on regular expenses like insurance');
-      strategies.add('Consider a side income to boost your savings rate');
-    } else {
-      strategies.add('Great job! Consider increasing investments for long-term growth');
-      strategies.add('Review your tax strategy to maximize returns');
-      strategies.add('Consider additional retirement contributions');
-    }
-    
-    // Emergency fund recommendation (3-6 months of expenses)
-    final recommendedEmergencyFund = avgMonthlyExpenses * 6;
-    
-    // Estimate current emergency fund (placeholder)
-    final estimatedCurrentEmergencyFund = 0.0; // Would need actual data
-    
-    final monthsToCompleteEmergencyFund = recommendedEmergencyFund > 0 && recommendedMonthlySaving > 0
-        ? (recommendedEmergencyFund - estimatedCurrentEmergencyFund) / recommendedMonthlySaving
-        : 0;
-    
-    // Suggested new goals
-    final suggestedNewGoals = <Map<String, dynamic>>[];
-    
-    if (estimatedCurrentEmergencyFund < recommendedEmergencyFund) {
-      suggestedNewGoals.add({
-        'name': 'Emergency Fund',
-        'target': recommendedEmergencyFund,
-        'timeline': '${monthsToCompleteEmergencyFund.ceil()} months',
-        'monthly_contribution': recommendedMonthlySaving
-      });
-    }
-    
-    suggestedNewGoals.add({
-      'name': 'Retirement Fund',
-      'target': monthlyIncome * 12 * 10, // 10 years of income as example
-      'timeline': '30 years',
-      'monthly_contribution': monthlyIncome * 0.15
-    });
-    
-    suggestedNewGoals.add({
-      'name': 'Vacation Fund',
-      'target': monthlyIncome * 2,
-      'timeline': '12 months',
-      'monthly_contribution': (monthlyIncome * 2) / 12
-    });
-    
-    return {
-      'recommended_monthly_saving': recommendedMonthlySaving,
-      'percent_of_income': targetSavingsRate,
-      'strategies': strategies,
-      'goal_timelines': [],
-      'suggested_new_goals': suggestedNewGoals,
-      'emergency_fund': {
-        'current': estimatedCurrentEmergencyFund,
-        'target': recommendedEmergencyFund,
-        'months_to_complete': monthsToCompleteEmergencyFund.ceil()
-      }
-    };
-  }
-
-  // Helper methods
-  Map<String, double> _categorizeTotalSpending(List<Transaction> transactions) {
-    final categorizedSpending = <String, double>{};
-    
-    for (final t in transactions.where((t) => t.isExpense)) {
-      if (!categorizedSpending.containsKey(t.category)) {
-        categorizedSpending[t.category] = 0;
-      }
-      categorizedSpending[t.category] = categorizedSpending[t.category]! + t.amount;
-    }
-    
-    return categorizedSpending;
-  }
-
-  Map<DateTime, List<Transaction>> _groupTransactionsByDate(List<Transaction> transactions) {
-    final result = <DateTime, List<Transaction>>{};
-    
-    for (final t in transactions) {
-      // Normalize to just the date part
-      final dateKey = DateTime(t.date.year, t.date.month, t.date.day);
-      
-      if (!result.containsKey(dateKey)) {
-        result[dateKey] = [];
-      }
-      
-      result[dateKey]!.add(t);
-    }
-    
-    return result;
-  }
-
-  Map<String, dynamic> _prepareCategoryData(List<Transaction> transactions, String category) {
-    // Group by month
-    final byMonth = <String, double>{};
-    for (final t in transactions) {
-      final monthKey = '${t.date.year}-${t.date.month}';
-      if (!byMonth.containsKey(monthKey)) {
-        byMonth[monthKey] = 0;
-      }
-      byMonth[monthKey] = byMonth[monthKey]! + t.amount;
-    }
-    
-    // Group by merchant
-    final byMerchant = <String, double>{};
-    for (final t in transactions) {
-      final merchant = t.business ?? t.recipient ?? t.sender ?? 'Unknown';
-      if (!byMerchant.containsKey(merchant)) {
-        byMerchant[merchant] = 0;
-      }
-      byMerchant[merchant] = byMerchant[merchant]! + t.amount;
-    }
-    
-    return {
-      'category': category,
-      'transaction_count': transactions.length,
-      'total_amount': transactions.fold(0.0, (sum, t) => sum + t.amount),
-      'by_month': byMonth,
-      'by_merchant': byMerchant,
-      'transactions': transactions.map((t) => {
-        'amount': t.amount,
-        'date': t.date.toIso8601String(),
-        'merchant': t.business ?? t.recipient ?? t.sender ?? 'Unknown'
-      }).toList()
-    };
-  }
-
-  Map<String, dynamic> _analyzeIncomeVsExpenses(
-    List<Transaction> transactions,
-    double monthlyIncome
-  ) {
-    // Group by month
-    final byMonth = <String, Map<String, double>>{};
-    
-    for (final t in transactions) {
-      final monthKey = '${t.date.year}-${t.date.month}';
-      
-      if (!byMonth.containsKey(monthKey)) {
-        byMonth[monthKey] = {'income': 0, 'expenses': 0};
-      }
-      
-      if (t.isExpense) {
-        byMonth[monthKey]!['expenses'] = byMonth[monthKey]!['expenses']! + t.amount;
-      } else {
-        byMonth[monthKey]!['income'] = byMonth[monthKey]!['income']! + t.amount;
-      }
-    }
-    
-    // Calculate savings rate
-    final savingsRates = <String, double>{};
-    for (final month in byMonth.keys) {
-      final income = byMonth[month]!['income']!;
-      final expenses = byMonth[month]!['expenses']!;
-      
-      savingsRates[month] = income > 0 ? ((income - expenses) / income) * 100 : 0;
-    }
-    
-    return {
-      'monthly_data': byMonth,
-      'savings_rates': savingsRates,
-      'reported_monthly_income': monthlyIncome,
-      'average_expenses': byMonth.isNotEmpty 
-          ? byMonth.values.fold(0.0, (sum, m) => sum + m['expenses']!) / byMonth.length
-          : 0.0
-    };
-  }
-
-  Map<String, dynamic> _prepareTransactionContextForQuestion(List<Transaction> transactions) {
-    // Group transactions by date
-    final byDate = _groupTransactionsByDate(transactions);
-    
-    // Calculate current month metrics
-    final now = DateTime.now();
-    final currentMonthTransactions = transactions
-        .where((t) => t.date.year == now.year && t.date.month == now.month)
-        .toList();
-    
-    final currentMonthIncome = currentMonthTransactions
-        .where((t) => !t.isExpense)
-        .fold(0.0, (sum, t) => sum + t.amount);
-    
-    final currentMonthExpenses = currentMonthTransactions
-        .where((t) => t.isExpense)
-        .fold(0.0, (sum, t) => sum + t.amount);
-    
-    // Get recent balance
-    final balance = BalanceService.instance.getCurrentBalance();
-    
-    // Get top spending categories
-    final categorizedSpending = _categorizeTotalSpending(transactions);
-    final topCategories = categorizedSpending.entries
-        .map((e) => {'category': e.key, 'amount': e.value})
-        .toList()
-      ..sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
-    
-    return {
-      'transaction_count': transactions.length,
-      'current_month': {
-        'income': currentMonthIncome,
-        'expenses': currentMonthExpenses,
-        'balance': currentMonthIncome - currentMonthExpenses
+        return Align(
+          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
+            ),
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isUser 
+                  ? themeService.primaryColor
+                  : themeService.isDarkMode
+                      ? Colors.grey[800]
+                      : Colors.grey[200],
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message['message'] as String,
+                  style: TextStyle(
+                    color: isUser ? Colors.white : themeService.textColor,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat('h:mm a').format(message['timestamp'] as DateTime),
+                  style: TextStyle(
+                    color: isUser 
+                        ? Colors.white.withOpacity(0.7)
+                        : themeService.subtextColor,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       },
-      'current_balance': balance,
-      'top_spending_categories': topCategories.take(5).toList(),
-      'recent_transactions': transactions
-          .take(10)
-          .map((t) => {
-            'amount': t.amount,
-            'category': t.category,
-            'date': t.date.toIso8601String(),
-            'is_expense': t.isExpense,
-            'title': t.title
-          })
-          .toList()
-    };
+    );
   }
-
-  // Helper functions
-  String _getDayOfWeek(DateTime date) {
-    switch (date.weekday) {
-      case 1: return 'Monday';
-      case 2: return 'Tuesday';
-      case 3: return 'Wednesday';
-      case 4: return 'Thursday';
-      case 5: return 'Friday';
-      case 6: return 'Saturday';
-      case 7: return 'Sunday';
-      default: return '';
-    }
+  
+  Widget _buildChatInput(ThemeService themeService) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeService.isDarkMode ? Colors.grey[900] : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _questionController,
+              decoration: InputDecoration(
+                hintText: 'Ask about your finances...',
+                hintStyle: TextStyle(color: themeService.subtextColor),
+                filled: true,
+                fillColor: themeService.isDarkMode ? Colors.grey[800] : Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              style: TextStyle(color: themeService.textColor),
+              onSubmitted: _isAskingQuestion ? null : _askQuestion,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Material(
+            color: themeService.primaryColor,
+            borderRadius: BorderRadius.circular(24),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: _isAskingQuestion
+                  ? null
+                  : () => _askQuestion(_questionController.text),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                child: _isAskingQuestion
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
-
-  String _getMonthName(DateTime date) {
-    switch (date.month) {
-      case 1: return 'January';
-      case 2: return 'February';
-      case 3: return 'March';
-      case 4: return 'April';
-      case 5: return 'May';
-      case 6: return 'June';
-      case 7: return 'July';
-      case 8: return 'August';
-      case 9: return 'September';
-      case 10: return 'October';
-      case 11: return 'November';
-      case 12: return 'December';
-      default: return '';
-    }
+  
+  Widget _buildSectionHeader(String title, ThemeService themeService) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: themeService.textColor,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const Spacer(),
+        AnimatedBuilder(
+          animation: _pulseAnimationController,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: 1.0 + 0.1 * _pulseAnimationController.value,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: themeService.primaryColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'AI Powered',
+          style: TextStyle(
+            color: themeService.subtextColor,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
   }
-
-  IconData _getCategoryIcon(String category) {
-    final categoryLower = category.toLowerCase();
+  
+  Widget _buildInsightCard(Map<String, dynamic> insight, ThemeService themeService) {
+    final title = insight['title'] as String;
+    final description = insight['description'] as String;
+    final recommendation = insight['recommendation'] as String;
+    final iconName = insight['icon'] as String;
+    final priority = insight['priority'] as String;
+    final type = insight['type'] as String;
     
-    if (categoryLower.contains('food') || categoryLower.contains('dining') || 
-        categoryLower.contains('restaurant')) {
-      return Icons.restaurant;
-    } else if (categoryLower.contains('transport') || categoryLower.contains('travel') || 
-              categoryLower.contains('uber')) {
-      return Icons.directions_car;
-    } else if (categoryLower.contains('shopping') || categoryLower.contains('clothing')) {
-      return Icons.shopping_bag;
-    } else if (categoryLower.contains('entertainment') || categoryLower.contains('movie')) {
-      return Icons.movie;
-    } else if (categoryLower.contains('health') || categoryLower.contains('medical')) {
-      return Icons.health_and_safety;
-    } else if (categoryLower.contains('education') || categoryLower.contains('school')) {
-      return Icons.school;
-    } else if (categoryLower.contains('home') || categoryLower.contains('rent') || 
-              categoryLower.contains('mortgage')) {
-      return Icons.home;
-    } else if (categoryLower.contains('utilities') || categoryLower.contains('electric') || 
-              categoryLower.contains('water')) {
-      return Icons.electrical_services;
-    } else if (categoryLower.contains('phone') || categoryLower.contains('mobile')) {
-      return Icons.phone_android;
-    } else if (categoryLower.contains('savings') || categoryLower.contains('investment')) {
-      return Icons.savings;
-    } else {
-      return Icons.category;
+    // Map string icon name to IconData
+    IconData iconData = Icons.lightbulb_outline;
+    try {
+      iconData = IconData(
+        int.parse(iconName.split('0x')[1], radix: 16),
+        fontFamily: 'MaterialIcons',
+      );
+    } catch (e) {
+      // Fallback icons based on insight type
+      switch (type) {
+        case 'spending':
+          iconData = Icons.shopping_cart_outlined;
+          break;
+        case 'saving':
+          iconData = Icons.savings_outlined;
+          break;
+        case 'budget':
+          iconData = Icons.account_balance_wallet_outlined;
+          break;
+        case 'income':
+          iconData = Icons.attach_money;
+          break;
+        case 'balance':
+          iconData = Icons.account_balance_outlined;
+          break;
+      }
+    }
+    
+    // Color based on priority
+    Color priorityColor;
+    switch (priority.toLowerCase()) {
+      case 'high':
+        priorityColor = Colors.red;
+        break;
+      case 'medium':
+        priorityColor = Colors.orange;
+        break;
+      default:
+        priorityColor = Colors.green;
+    }
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      color: themeService.cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: themeService.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    iconData,
+                    color: themeService.primaryColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: priorityColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              priority,
+                              style: TextStyle(
+                                color: priorityColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: themeService.isDarkMode
+                                  ? Colors.grey[800]
+                                  : Colors.grey[200],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              type.toUpperCase(),
+                              style: TextStyle(
+                                color: themeService.subtextColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: themeService.textColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              description,
+              style: TextStyle(
+                color: themeService.textColor,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: themeService.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: themeService.primaryColor.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.tips_and_updates_outlined,
+                    color: themeService.primaryColor,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      recommendation,
+                      style: TextStyle(
+                        color: themeService.primaryColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildAnomalyCard(Map<String, dynamic> anomaly, ThemeService themeService) {
+    final title = anomaly['title'] as String;
+    final category = anomaly['category'] as String;
+    final amount = anomaly['amount'] as double;
+    final date = anomaly['date'] as String;
+    final severity = anomaly['severity'] as String;
+    final explanation = anomaly['explanation'] as String;
+    final recommendation = anomaly['recommendation'] as String;
+    final iconName = anomaly['icon'] as String;
+    
+    // Map string icon name to IconData
+    IconData iconData = Icons.warning_amber_rounded;
+    try {
+      iconData = IconData(
+        int.parse(iconName.split('0x')[1], radix: 16),
+        fontFamily: 'MaterialIcons',
+      );
+    } catch (e) {
+      // Fallback icon
+    }
+    
+    // Color based on severity
+    Color severityColor;
+    switch (severity.toLowerCase()) {
+      case 'high':
+        severityColor = Colors.red;
+        break;
+      case 'medium':
+        severityColor = Colors.orange;
+        break;
+      default:
+        severityColor = Colors.yellow;
+    }
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      color: severityColor.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: severityColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    iconData,
+                    color: severityColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: severityColor.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              severity.toUpperCase(),
+                              style: TextStyle(
+                                color: severityColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            AppConfig.formatCurrency(amount.toInt() * 100),
+                            style: TextStyle(
+                              color: severityColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: themeService.textColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '$category • $date',
+                        style: TextStyle(
+                          color: themeService.subtextColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              explanation,
+              style: TextStyle(
+                color: themeService.textColor,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: severityColor.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    color: severityColor,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      recommendation,
+                      style: TextStyle(
+                        color: themeService.textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildBudgetRecommendationCard(
+    Map<String, dynamic> budget,
+    ThemeService themeService,
+  ) {
+    final category = budget['category'] as String;
+    final recommendedAmount = budget['recommended_amount'] as double;
+    final percentOfIncome = budget['percent_of_income'] as double;
+    final currentSpending = budget['current_spending'] as double;
+    final adjustmentNeeded = budget['adjustment_needed'] as double;
+    final iconName = budget['icon'] as String;
+    final priority = budget['priority'] as String;
+    
+    // Map string icon name to IconData
+    IconData iconData = Icons.category;
+    try {
+      iconData = IconData(
+        int.parse(iconName.split('0x')[1], radix: 16),
+        fontFamily: 'MaterialIcons',
+      );
+    } catch (e) {
+      // Fallback icon based on category
+      switch (category.toLowerCase()) {
+        case 'food':
+          iconData = Icons.restaurant;
+          break;
+        case 'transport':
+        case 'transportation':
+          iconData = Icons.directions_car;
+          break;
+        case 'housing':
+        case 'rent':
+          iconData = Icons.home;
+          break;
+        case 'utilities':
+          iconData = Icons.water_damage;
+          break;
+        case 'entertainment':
+          iconData = Icons.movie;
+          break;
+        case 'health':
+          iconData = Icons.health_and_safety;
+          break;
+        case 'education':
+          iconData = Icons.school;
+          break;
+        case 'shopping':
+          iconData = Icons.shopping_bag;
+          break;
+        case 'savings':
+          iconData = Icons.savings;
+          break;
+      }
+    }
+    
+    // Color based on priority
+    Color priorityColor;
+    switch (priority.toLowerCase()) {
+      case 'essential':
+        priorityColor = Colors.red;
+        break;
+      case 'wants':
+        priorityColor = Colors.orange;
+        break;
+      default:
+        priorityColor = Colors.green;
+    }
+    
+    final isOverBudget = adjustmentNeeded < 0;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      color: themeService.cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: priorityColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    iconData,
+                    color: priorityColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: priorityColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              priority.toUpperCase(),
+                              style: TextStyle(
+                                color: priorityColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${percentOfIncome.toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              color: themeService.subtextColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        category,
+                        style: TextStyle(
+                          color: themeService.textColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildBudgetAmountItem(
+                  'Recommended',
+                  AppConfig.formatCurrency(recommendedAmount.toInt() * 100),
+                  themeService,
+                ),
+                _buildBudgetAmountItem(
+                  'Current Spending',
+                  AppConfig.formatCurrency(currentSpending.toInt() * 100),
+                  themeService,
+                  textColor: isOverBudget ? Colors.red : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            LinearProgressIndicator(
+              value: currentSpending / recommendedAmount,
+              backgroundColor: themeService.isDarkMode
+                  ? Colors.grey[800]
+                  : Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isOverBudget ? Colors.red : Colors.green,
+              ),
+              borderRadius: BorderRadius.circular(10),
+              minHeight: 10,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  isOverBudget ? Icons.arrow_downward : Icons.arrow_upward,
+                  color: isOverBudget ? Colors.red : Colors.green,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isOverBudget
+                      ? 'Reduce by ${AppConfig.formatCurrency(adjustmentNeeded.abs().toInt() * 100)}'
+                      : 'Within budget by ${AppConfig.formatCurrency(adjustmentNeeded.toInt() * 100)}',
+                  style: TextStyle(
+                    color: isOverBudget ? Colors.red : Colors.green,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildBudgetAmountItem(
+    String label,
+    String amount,
+    ThemeService themeService, {
+    Color? textColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: themeService.subtextColor,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          amount,
+          style: TextStyle(
+            color: textColor ?? themeService.textColor,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildMajorExpenseCard(
+    Map<String, dynamic> expense,
+    ThemeService themeService,
+  ) {
+    final category = expense['category'] as String;
+    final amount = expense['amount'] as double;
+    final likelihood = expense['likelihood'] as double;
+    
+    // Icon based on category
+    IconData iconData = Icons.category;
+    switch (category.toLowerCase()) {
+      case 'food':
+        iconData = Icons.restaurant;
+        break;
+      case 'transport':
+      case 'transportation':
+        iconData = Icons.directions_car;
+        break;
+      case 'housing':
+      case 'rent':
+        iconData = Icons.home;
+        break;
+      case 'utilities':
+        iconData = Icons.water_damage;
+        break;
+      case 'entertainment':
+        iconData = Icons.movie;
+        break;
+      case 'health':
+        iconData = Icons.health_and_safety;
+        break;
+      case 'education':
+        iconData = Icons.school;
+        break;
+      case 'shopping':
+        iconData = Icons.shopping_bag;
+        break;
+      case 'savings':
+        iconData = Icons.savings;
+        break;
+    }
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      color: themeService.cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                iconData,
+                color: Colors.orange,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    category,
+                    style: TextStyle(
+                      color: themeService.textColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Likelihood: ${(likelihood * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      color: themeService.subtextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              AppConfig.formatCurrency(amount.toInt() * 100),
+              style: TextStyle(
+                color: Colors.orange,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildSavingsRecommendationCard(ThemeService themeService) {
+    if (_savingsRecommendations.isEmpty) return const SizedBox.shrink();
+    
+    final recommendedSaving = _savingsRecommendations['recommended_monthly_saving'] as double? ?? 0.0;
+    final percentOfIncome = _savingsRecommendations['percent_of_income'] as double? ?? 0.0;
+    final strategies = _savingsRecommendations['strategies'] as List<dynamic>? ?? [];
+    final emergencyFund = _savingsRecommendations['emergency_fund'] as Map<String, dynamic>? ?? {};
+    
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      color: Colors.green.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.savings_outlined,
+                    color: Colors.green,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Savings Recommendation',
+                        style: TextStyle(
+                          color: themeService.textColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${percentOfIncome.toStringAsFixed(1)}% of income',
+                        style: TextStyle(
+                          color: themeService.subtextColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  AppConfig.formatCurrency(recommendedSaving.toInt() * 100),
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Savings Strategies',
+              style: TextStyle(
+                color: themeService.textColor,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...strategies.take(3).map((strategy) => _buildStrategyItem(strategy as String, themeService)),
+            
+            if (emergencyFund.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.green.withOpacity(0.3),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.shield_outlined,
+                          color: Colors.green,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Emergency Fund',
+                          style: TextStyle(
+                            color: themeService.textColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildEmergencyFundItem(
+                          'Current',
+                          AppConfig.formatCurrency((emergencyFund['current'] as double? ?? 0.0).toInt() * 100),
+                          themeService,
+                        ),
+                        _buildEmergencyFundItem(
+                          'Target',
+                          AppConfig.formatCurrency((emergencyFund['target'] as double? ?? 0.0).toInt() * 100),
+                          themeService,
+                        ),
+                        _buildEmergencyFundItem(
+                          'Time to Goal',
+                          '${emergencyFund['months_to_complete'] as int? ?? 0} months',
+                          themeService,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildStrategyItem(String strategy, ThemeService themeService) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.check_circle_outline,
+            color: Colors.green,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              strategy,
+              style: TextStyle(
+                color: themeService.textColor,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildEmergencyFundItem(
+    String label,
+    String value,
+    ThemeService themeService,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: themeService.subtextColor,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            color: themeService.textColor,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildAnalyticsPreviewCard(ThemeService themeService) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      color: themeService.cardColor,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => AnalyticsScreen(
+                transactions: _transactions,
+                forecastData: _forecastData,
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Weekly Spending Trend',
+                    style: TextStyle(
+                      color: themeService.textColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward,
+                    color: themeService.subtextColor,
+                    size: 18,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 180,
+                child: _buildWeeklyTrendMiniChart(themeService),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  'View detailed analytics →',
+                  style: TextStyle(
+                    color: themeService.primaryColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildWeeklyTrendMiniChart(ThemeService themeService) {
+    // Create sample data if no transactions
+    final Map<String, double> weeklyData = {'Mon': 0, 'Tue': 0, 'Wed': 0, 'Thu': 0, 'Fri': 0, 'Sat': 0, 'Sun': 0};
+    
+    if (_transactions.isNotEmpty) {
+      // Filter transactions for this week
+      final now = DateTime.now();
+      final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+      final thisWeekTransactions = _transactions.where(
+        (t) => t.date.isAfter(startOfWeek) || 
+               (t.date.year == startOfWeek.year && 
+                t.date.month == startOfWeek.month && 
+                t.date.day == startOfWeek.day)
+      ).toList();
+      
+      // Group by day of week
+      for (final transaction in thisWeekTransactions) {
+        if (transaction.isExpense) {
+          final dayOfWeek = _getDayAbbreviation(transaction.date.weekday);
+          weeklyData[dayOfWeek] = (weeklyData[dayOfWeek] ?? 0) + transaction.amount;
+        }
+      }
+    }
+    
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(show: false),
+        titlesData: FlTitlesData(
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                if (value.toInt() < 0 || value.toInt() >= days.length) {
+                  return const Text('');
+                }
+                return Text(
+                  days[value.toInt()],
+                  style: TextStyle(
+                    color: themeService.subtextColor,
+                    fontSize: 10,
+                  ),
+                );
+              },
+              reservedSize: 22,
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: [
+              FlSpot(0, weeklyData['Mon'] ?? 0),
+              FlSpot(1, weeklyData['Tue'] ?? 0),
+              FlSpot(2, weeklyData['Wed'] ?? 0),
+              FlSpot(3, weeklyData['Thu'] ?? 0),
+              FlSpot(4, weeklyData['Fri'] ?? 0),
+              FlSpot(5, weeklyData['Sat'] ?? 0),
+              FlSpot(6, weeklyData['Sun'] ?? 0),
+            ],
+            isCurved: true,
+            color: themeService.primaryColor,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: themeService.primaryColor,
+                  strokeWidth: 2,
+                  strokeColor: Colors.white,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: themeService.primaryColor.withOpacity(0.2),
+            ),
+          ),
+        ],
+        minX: 0,
+        maxX: 6,
+        minY: 0,
+      ),
+    );
+  }
+  
+  Widget _buildBudgetAllocationChart(ThemeService themeService) {
+    if (_budgetRecommendations.isEmpty) {
+      return Center(
+        child: Text(
+          'No budget data available',
+          style: TextStyle(color: themeService.subtextColor),
+        ),
+      );
+    }
+    
+    // Prepare data for pie chart
+    final List<PieChartSectionData> sections = [];
+    final colors = [
+      Colors.red,
+      Colors.orange,
+      Colors.yellow,
+      Colors.green,
+      Colors.blue,
+      Colors.indigo,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.amber,
+    ];
+    
+    for (int i = 0; i < _budgetRecommendations.length; i++) {
+      final budget = _budgetRecommendations[i];
+      final category = budget['category'] as String;
+      final amount = budget['recommended_amount'] as double;
+      final percent = budget['percent_of_income'] as double;
+      
+      sections.add(
+        PieChartSectionData(
+          color: colors[i % colors.length],
+          value: amount,
+          title: '${percent.toStringAsFixed(1)}%',
+          radius: 80,
+          titleStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      );
+    }
+    
+    return PieChart(
+      PieChartData(
+        sections: sections,
+        centerSpaceRadius: 40,
+        sectionsSpace: 2,
+      ),
+    );
+  }
+  
+  Widget _buildForecastChart(List<dynamic> dailyForecast, ThemeService themeService) {
+    if (dailyForecast.isEmpty) {
+      return Center(
+        child: Text(
+          'No forecast data available',
+          style: TextStyle(color: themeService.subtextColor),
+        ),
+      );
+    }
+    
+    // Convert forecast data to spots for line chart
+    final List<FlSpot> spots = [];
+    
+    for (int i = 0; i < dailyForecast.length; i++) {
+      final day = dailyForecast[i];
+      final amount = day['amount'] as double;
+      spots.add(FlSpot(i.toDouble(), amount));
+    }
+    
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: themeService.isDarkMode
+                  ? Colors.grey[800]!
+                  : Colors.grey[300]!,
+              strokeWidth: 1,
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              getTitlesWidget: (value, meta) {
+                return Text(
+                  AppConfig.formatCurrency(value.toInt() * 100).split('.')[0],
+                  style: TextStyle(
+                    color: themeService.subtextColor,
+                    fontSize: 10,
+                  ),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 22,
+              interval: 7,
+              getTitlesWidget: (value, meta) {
+                if (value % 7 != 0) return const Text('');
+                final week = (value / 7).toInt() + 1;
+                return Text(
+                  'Week $week',
+                  style: TextStyle(
+                    color: themeService.subtextColor,
+                    fontSize: 10,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: themeService.primaryColor,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: themeService.primaryColor.withOpacity(0.2),
+            ),
+          ),
+        ],
+        minX: 0,
+        maxX: spots.length.toDouble() - 1,
+        minY: 0,
+      ),
+    );
+  }
+  
+  Widget _buildCategoryForecastChart(List<dynamic> categoryForecast, ThemeService themeService) {
+    if (categoryForecast.isEmpty) {
+      return Center(
+        child: Text(
+          'No category forecast data available',
+          style: TextStyle(color: themeService.subtextColor),
+        ),
+      );
+    }
+    
+    // Prepare data for bar chart
+    final List<BarChartGroupData> barGroups = [];
+    
+    for (int i = 0; i < categoryForecast.length; i++) {
+      final category = categoryForecast[i];
+      final amount = category['amount'] as double;
+      
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: amount,
+              color: themeService.primaryColor,
+              width: 16,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(6),
+                topRight: Radius.circular(6),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: categoryForecast.fold<double>(
+          0,
+          (prev, element) => math.max(prev, element['amount'] as double),
+        ) * 1.2,
+        titlesData: FlTitlesData(
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              getTitlesWidget: (value, meta) {
+                return Text(
+                  AppConfig.formatCurrency(value.toInt() * 100).split('.')[0],
+                  style: TextStyle(
+                    color: themeService.subtextColor,
+                    fontSize: 10,
+                  ),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 30,
+              getTitlesWidget: (value, meta) {
+                if (value.toInt() < 0 || value.toInt() >= categoryForecast.length) {
+                  return const Text('');
+                }
+                final category = categoryForecast[value.toInt()];
+                final categoryName = category['category'] as String;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    categoryName.length > 8
+                        ? '${categoryName.substring(0, 8)}...'
+                        : categoryName,
+                    style: TextStyle(
+                      color: themeService.subtextColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: themeService.isDarkMode
+                  ? Colors.grey[800]!
+                  : Colors.grey[300]!,
+              strokeWidth: 1,
+            );
+          },
+        ),
+        barGroups: barGroups,
+      ),
+    );
+  }
+  
+  String _getDayAbbreviation(int weekday) {
+    switch (weekday) {
+      case 1:
+        return 'Mon';
+      case 2:
+        return 'Tue';
+      case 3:
+        return 'Wed';
+      case 4:
+        return 'Thu';
+      case 5:
+        return 'Fri';
+      case 6:
+        return 'Sat';
+      case 7:
+        return 'Sun';
+      default:
+        return '';
     }
   }
 }
+

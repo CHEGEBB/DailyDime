@@ -1,577 +1,1686 @@
 // lib/services/ai_insight_service.dart
-
+import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/models/transaction.dart';
-import 'package:dailydime/services/appwrite_service.dart';
+import 'package:dailydime/models/budget.dart';
 import 'package:dailydime/models/savings_goal.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
-import 'dart:async';
+import 'package:dailydime/services/balance_service.dart';
 
 class AIInsightService {
-  final AppwriteService _appwriteService;
+  static final AIInsightService _instance = AIInsightService._internal();
+  factory AIInsightService() => _instance;
+  AIInsightService._internal();
+
   final String _apiKey = AppConfig.geminiApiKey;
-  GenerativeModel? _model;
+  final String _model = AppConfig.geminiModel;
+  final String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-  AIInsightService(this._appwriteService) {
-    _initializeGemini();
-  }
+  // Cache insights to reduce API calls
+  Map<String, dynamic> _cachedInsights = {};
+  DateTime? _lastInsightUpdate;
 
-  void _initializeGemini() {
-    if (_apiKey.isNotEmpty) {
-      _model = GenerativeModel(
-        model: 'gemini-2.0-flash',
-        apiKey: _apiKey,
+  // Generate financial insights based on transaction data
+  Future<List<Map<String, dynamic>>> generateInsights({
+    required List<Transaction> transactions,
+    List<Budget>? budgets,
+    List<SavingsGoal>? savingsGoals,
+    double? currentBalance,
+  }) async {
+    // Check if cache is valid (less than 6 hours old)
+    final now = DateTime.now();
+    if (_lastInsightUpdate != null && 
+        now.difference(_lastInsightUpdate!).inHours < 6 &&
+        _cachedInsights.isNotEmpty) {
+      return _cachedInsights['insights'] ?? [];
+    }
+
+    try {
+      // Prepare transaction data for AI analysis
+      final transactionData = _prepareTransactionData(transactions);
+      final budgetData = _prepareBudgetData(budgets);
+      final savingsData = _prepareSavingsData(savingsGoals);
+      final balanceData = await _prepareBalanceData(currentBalance);
+
+      // Construct prompt for Gemini
+      final prompt = _constructFinancialAnalysisPrompt(
+        transactionData: transactionData,
+        budgetData: budgetData,
+        savingsData: savingsData,
+        balanceData: balanceData,
       );
-    }
-  }
 
-  // Fetch financial data from Appwrite
-  Future<Map<String, dynamic>> fetchFinancialData() async {
-    try {
-      // Get transactions for last 3 months
-      final transactions = await _appwriteService.getTransactions(limit: 100);
-      final goals = await _appwriteService.getSavingsGoals();
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
       
-      // Group and analyze the data
-      return {
-        'transactions': transactions,
-        'goals': goals,
-        'stats': _calculateFinancialStats(transactions, goals),
-        'insights': await _generateInsights(transactions, goals),
-      };
-    } catch (e) {
-      print('Error fetching financial data: $e');
-      return {
-        'transactions': [],
-        'goals': [],
-        'stats': _getEmptyStats(),
-        'insights': [],
-      };
-    }
-  }
-
-  // Calculate financial statistics
-  Map<String, dynamic> _calculateFinancialStats(
-      List<Transaction> transactions, List<SavingsGoal> goals) {
-    // Filter transactions by date
-    final now = DateTime.now();
-    final thisMonth = transactions.where((t) => 
-      t.date.month == now.month && t.date.year == now.year).toList();
-    
-    // Calculate basic metrics
-    double totalIncome = 0;
-    double totalExpenses = 0;
-    double totalSavings = 0;
-    
-    for (var t in thisMonth) {
-      if (t.type == 'income') {
-        totalIncome += t.amount;
-      } else {
-        totalExpenses += t.amount;
-      }
-    }
-    
-    // Calculate savings and goals progress
-    for (var goal in goals) {
-      totalSavings += goal.currentAmount;
-    }
-    
-    // Calculate financial health score (0-100)
-    int financialHealthScore = _calculateFinancialHealthScore(
-      totalIncome, totalExpenses, totalSavings, goals);
-    
-    // Generate category breakdown
-    final categoryBreakdown = _getCategoryBreakdown(transactions);
-    
-    // Generate weekly spending data
-    final weeklySpending = _getWeeklySpending(transactions);
-    
-    return {
-      'totalIncome': totalIncome,
-      'totalExpenses': totalExpenses,
-      'totalSavings': totalSavings,
-      'monthlySavings': totalIncome - totalExpenses,
-      'dailyAverage': totalExpenses / 30,
-      'activeGoalsCount': goals.where((g) => !g.isCompleted).length,
-      'financialHealthScore': financialHealthScore,
-      'savingsGrowthPercentage': _calculateSavingsGrowth(transactions, goals),
-      'categoryBreakdown': categoryBreakdown,
-      'weeklySpending': weeklySpending,
-      'predictedSpending': _getPredictedSpending(transactions),
-      'spendingPatterns': _getSpendingPatterns(transactions),
-    };
-  }
-
-  // Calculate financial health score
-  int _calculateFinancialHealthScore(
-      double income, double expenses, double savings, List<SavingsGoal> goals) {
-    if (income == 0) return 50; // Default middle score
-    
-    // Factors that contribute to score
-    double savingsRatio = savings / (income * 3); // Savings relative to 3 months income
-    double expenseToIncomeRatio = expenses / income;
-    double goalsProgress = 0;
-    
-    if (goals.isNotEmpty) {
-      double totalGoalAmount = 0;
-      double totalCurrentAmount = 0;
+      // Parse insights from response
+      final insights = _parseInsightsFromResponse(response);
       
-      for (var goal in goals) {
-        totalGoalAmount += goal.targetAmount;
-        totalCurrentAmount += goal.currentAmount;
-      }
-      
-      goalsProgress = totalCurrentAmount / totalGoalAmount;
-    }
-    
-    // Calculate score (higher is better)
-    int score = 50;
-    
-    // Good savings ratio improves score
-    if (savingsRatio > 0.5) score += 20;
-    else if (savingsRatio > 0.25) score += 10;
-    else if (savingsRatio > 0.1) score += 5;
-    
-    // Low expense to income ratio improves score
-    if (expenseToIncomeRatio < 0.5) score += 20;
-    else if (expenseToIncomeRatio < 0.7) score += 10;
-    else if (expenseToIncomeRatio < 0.9) score += 5;
-    
-    // Good goal progress improves score
-    if (goalsProgress > 0.8) score += 10;
-    else if (goalsProgress > 0.5) score += 5;
-    
-    // Cap score at 100
-    return score > 100 ? 100 : score;
-  }
-
-  // Calculate savings growth percentage
-  double _calculateSavingsGrowth(
-      List<Transaction> transactions, List<SavingsGoal> goals) {
-    // Default if not enough data
-    if (goals.isEmpty) return 0;
-    
-    // Simple positive number for demo - in production would compare to previous period
-    return 12.5; // Example growth percentage
-  }
-
-  // Get category breakdown
-  List<Map<String, dynamic>> _getCategoryBreakdown(List<Transaction> transactions) {
-    Map<String, double> categoryTotals = {};
-    
-    // Get only expense transactions from current month
-    final now = DateTime.now();
-    final thisMonthExpenses = transactions.where((t) => 
-      t.type == 'expense' && 
-      t.date.month == now.month && 
-      t.date.year == now.year).toList();
-    
-    // Sum amounts by category
-    for (var t in thisMonthExpenses) {
-      if (categoryTotals.containsKey(t.category)) {
-        categoryTotals[t.category] = categoryTotals[t.category]! + t.amount;
-      } else {
-        categoryTotals[t.category] = t.amount;
-      }
-    }
-    
-    // Convert to list and sort by amount (descending)
-    List<Map<String, dynamic>> result = [];
-    categoryTotals.forEach((category, amount) {
-      result.add({
-        'name': category,
-        'amount': amount,
-        'color': _getCategoryColor(category),
-      });
-    });
-    
-    result.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
-    
-    // Return top 5 categories or all if less than 5
-    return result.take(5).toList();
-  }
-
-  // Get category color
-  Color _getCategoryColor(String category) {
-    final Map<String, Color> categoryColors = {
-      'Food': Colors.orange,
-      'Transport': Colors.blue,
-      'Housing': Colors.purple,
-      'Entertainment': Colors.pink,
-      'Shopping': Colors.teal,
-      'Health': Colors.red,
-      'Education': Colors.amber,
-      'Utilities': Colors.indigo,
-      'Other': Colors.grey,
-    };
-    
-    return categoryColors[category] ?? Colors.grey;
-  }
-
-  // Get weekly spending data
-  List<Map<String, dynamic>> _getWeeklySpending(List<Transaction> transactions) {
-    // Get only expenses from last 4 weeks
-    final now = DateTime.now();
-    final fourWeeksAgo = now.subtract(const Duration(days: 28));
-    
-    final recentExpenses = transactions.where((t) => 
-      t.type == 'expense' && 
-      t.date.isAfter(fourWeeksAgo)).toList();
-    
-    // Group by week
-    Map<int, double> weeklyTotals = {};
-    
-    for (var t in recentExpenses) {
-      // Calculate week number (0 = current week, 1 = last week, etc.)
-      int daysSinceToday = now.difference(t.date).inDays;
-      int weekNumber = daysSinceToday ~/ 7;
-      
-      if (weekNumber < 4) { // Only consider last 4 weeks
-        if (weeklyTotals.containsKey(weekNumber)) {
-          weeklyTotals[weekNumber] = weeklyTotals[weekNumber]! + t.amount;
-        } else {
-          weeklyTotals[weekNumber] = t.amount;
-        }
-      }
-    }
-    
-    // Convert to list format for charts
-    List<Map<String, dynamic>> result = [];
-    
-    for (int i = 3; i >= 0; i--) {
-      String weekLabel = i == 0 ? 'This Week' : '${i} Week${i > 1 ? 's' : ''} Ago';
-      result.add({
-        'week': weekLabel,
-        'amount': weeklyTotals[i] ?? 0,
-      });
-    }
-    
-    return result;
-  }
-
-  // Get predicted spending for next month
-  List<Map<String, dynamic>> _getPredictedSpending(List<Transaction> transactions) {
-    // In a real app, this would use ML to predict future spending
-    // For demo, we'll just project based on current month's spending
-    
-    // Get current month's daily spending average
-    final now = DateTime.now();
-    final thisMonthExpenses = transactions.where((t) => 
-      t.type == 'expense' && 
-      t.date.month == now.month && 
-      t.date.year == now.year).toList();
-    
-    double dailyAverage = 0;
-    if (thisMonthExpenses.isNotEmpty) {
-      double totalExpenses = thisMonthExpenses.fold(0, (sum, t) => sum + t.amount);
-      int daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-      dailyAverage = totalExpenses / daysInMonth;
-    }
-    
-    // Project next month spending (with some variation)
-    List<Map<String, dynamic>> result = [];
-    int daysInNextMonth = DateTime(now.year, now.month + 2, 0).day;
-    
-    for (int week = 1; week <= 4; week++) {
-      // Add some randomness to predictions for visual interest
-      double weeklyAmount = dailyAverage * 7 * (1 + (week % 3 - 1) * 0.1);
-      
-      result.add({
-        'week': 'Week $week',
-        'amount': weeklyAmount > 0 ? weeklyAmount : dailyAverage * 7,
-        'isPrediction': true,
-      });
-    }
-    
-    return result;
-  }
-
-  // Get spending patterns
-  List<Map<String, dynamic>> _getSpendingPatterns(List<Transaction> transactions) {
-    // In production, this would use clustering algorithms to find patterns
-    // For demo, we'll use predefined patterns
-    
-    return [
-      {'name': 'Essentials', 'percentage': 45, 'color': Colors.blue},
-      {'name': 'Impulse Buys', 'percentage': 25, 'color': Colors.orange},
-      {'name': 'Entertainment', 'percentage': 20, 'color': Colors.purple},
-      {'name': 'Investments', 'percentage': 10, 'color': Colors.green},
-    ];
-  }
-
-  // Generate AI insights using Gemini
-  Future<List<Map<String, dynamic>>> _generateInsights(
-      List<Transaction> transactions, List<SavingsGoal> goals) async {
-    // Default insights if Gemini not available
-    List<Map<String, dynamic>> defaultInsights = [
-      {
-        'title': 'Spending Pattern',
-        'description': 'You spend more on weekends than weekdays. Consider planning weekend activities in advance.',
-        'icon': Icons.calendar_today,
-        'color': Colors.blue,
-        'showChart': false,
-        'actionable': true,
-        'actionText': 'View Weekend Expenses',
-      },
-      {
-        'title': 'Savings Opportunity',
-        'description': 'You could save KSh 4,500 by reducing dining out expenses this month.',
-        'icon': Icons.restaurant,
-        'color': Colors.green,
-        'showChart': false,
-        'actionable': true,
-        'actionText': 'See How',
-      },
-      {
-        'title': 'Budget Alert',
-        'description': 'You\'re spending faster than usual this month. Consider slowing down to stay on budget.',
-        'icon': Icons.warning_amber_rounded,
-        'color': Colors.orange,
-        'showChart': true,
-        'chartData': _getWeeklySpending(transactions),
-        'actionable': false,
-      },
-    ];
-    
-    // If no Gemini API key or not enough data, return default insights
-    if (_model == null || transactions.length < 5) {
-      return defaultInsights;
-    }
-    
-    try {
-      // Prepare data for Gemini
-      final promptData = _prepareDataForGemini(transactions, goals);
-      
-      // Get response from Gemini
-      final content = [Content.text(promptData)];
-      final response = await _model!.generateContent(content);
-      final responseText = response.text ?? '';
-      
-      // Parse response to insights
-      if (responseText.isNotEmpty) {
-        return _parseGeminiResponse(responseText) ?? defaultInsights;
-      }
-      
-      return defaultInsights;
-    } catch (e) {
-      print('Error generating insights with Gemini: $e');
-      return defaultInsights;
-    }
-  }
-
-  // Prepare data for Gemini prompt
-  String _prepareDataForGemini(
-      List<Transaction> transactions, List<SavingsGoal> goals) {
-    // Create a simplified representation of data for the prompt
-    String transactionSummary = '';
-    String goalSummary = '';
-    
-    // Summarize recent transactions
-    final recentTransactions = transactions.take(20).toList();
-    for (var t in recentTransactions) {
-      transactionSummary += '${t.date.toString().substring(0, 10)}: ${t.type} of ${t.amount} for ${t.category}\n';
-    }
-    
-    // Summarize goals
-    for (var g in goals) {
-      goalSummary += '${g.title}: ${g.currentAmount}/${g.targetAmount} (${(g.currentAmount/g.targetAmount*100).toStringAsFixed(0)}% complete)\n';
-    }
-    
-    // Create prompt
-    return '''
-    You are a financial advisor analyzing user spending patterns. Please provide 3 financial insights based on the following data:
-    
-    RECENT TRANSACTIONS:
-    $transactionSummary
-    
-    SAVING GOALS:
-    $goalSummary
-    
-    Generate 3 insights in the following JSON format:
-    [
-      {
-        "title": "Brief insight title",
-        "description": "Detailed explanation of the insight in 1-2 sentences",
-        "actionable": true/false (whether this has an action the user can take),
-        "actionText": "Text for action button if actionable is true"
-      }
-    ]
-    
-    Only return the JSON array, nothing else.
-    ''';
-  }
-
-  // Parse Gemini response to insights
-  List<Map<String, dynamic>>? _parseGeminiResponse(String response) {
-    try {
-      // Extract JSON part if there's other text
-      String jsonPart = response;
-      if (response.contains('[') && response.contains(']')) {
-        jsonPart = response.substring(
-          response.indexOf('['),
-          response.lastIndexOf(']') + 1,
-        );
-      }
-      
-      // Parse JSON
-      List<dynamic> parsed = jsonDecode(jsonPart);
-      
-      // Convert to insight format
-      List<Map<String, dynamic>> insights = [];
-      
-      // Icons to use for different insight types
-      final Map<String, IconData> insightIcons = {
-        'spend': Icons.money_off,
-        'save': Icons.savings,
-        'budget': Icons.account_balance_wallet,
-        'goal': Icons.flag,
-        'pattern': Icons.insights,
-        'alert': Icons.warning_amber,
-        'opportunity': Icons.lightbulb_outline,
-      };
-      
-      // Colors to use for different insight types
-      final Map<String, Color> insightColors = {
-        'spend': Colors.red,
-        'save': Colors.green,
-        'budget': Colors.blue,
-        'goal': Colors.purple,
-        'pattern': Colors.teal,
-        'alert': Colors.orange,
-        'opportunity': Colors.amber,
-      };
-      
-      for (var item in parsed) {
-        // Determine icon and color based on title keywords
-        String title = item['title'].toLowerCase();
-        IconData icon = Icons.insights;
-        Color color = Colors.blue;
-        
-        for (var key in insightIcons.keys) {
-          if (title.contains(key)) {
-            icon = insightIcons[key]!;
-            color = insightColors[key]!;
-            break;
-          }
-        }
-        
-        insights.add({
-          'title': item['title'],
-          'description': item['description'],
-          'icon': icon,
-          'color': color,
-          'showChart': false,
-          'actionable': item['actionable'] ?? false,
-          'actionText': item['actionText'] ?? 'Learn More',
-        });
-      }
+      // Update cache
+      _cachedInsights = {'insights': insights};
+      _lastInsightUpdate = now;
       
       return insights;
     } catch (e) {
-      print('Error parsing Gemini response: $e');
-      return null;
+      debugPrint('Error generating insights: $e');
+      // Return fallback insights if API call fails
+      return _generateFallbackInsights(transactions, budgets);
     }
   }
 
-  // Get weekly spending trend
-  Map<String, dynamic> getWeeklyTrend(List<Transaction> transactions) {
-    final weeklySpendings = _getWeeklySpending(transactions);
+  // Generate a spending forecast based on historical data
+  Future<Map<String, dynamic>> generateSpendingForecast(List<Transaction> transactions) async {
+    try {
+      // Extract and prepare transaction data by date
+      final transactionsByDate = _groupTransactionsByDate(transactions);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructForecastPrompt(transactionsByDate);
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Parse forecast data
+      return _parseForecastFromResponse(response);
+    } catch (e) {
+      debugPrint('Error generating forecast: $e');
+      return _generateFallbackForecast(transactions);
+    }
+  }
+
+  // Generate budget recommendations based on spending patterns
+  Future<List<Map<String, dynamic>>> generateBudgetRecommendations(
+    List<Transaction> transactions, 
+    double monthlyIncome
+  ) async {
+    try {
+      // Categorize and sum transactions
+      final categorizedSpending = _categorizeTotalSpending(transactions);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructBudgetRecommendationPrompt(
+        categorizedSpending: categorizedSpending,
+        monthlyIncome: monthlyIncome,
+      );
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Parse budget recommendations
+      return _parseBudgetRecommendationsFromResponse(response);
+    } catch (e) {
+      debugPrint('Error generating budget recommendations: $e');
+      return _generateFallbackBudgetRecommendations(transactions, monthlyIncome);
+    }
+  }
+
+  // Analyze specific spending category in depth
+  Future<Map<String, dynamic>> analyzeCategorySpending(
+    List<Transaction> transactions,
+    String category
+  ) async {
+    try {
+      // Filter transactions by category
+      final categoryTransactions = transactions
+          .where((t) => t.category.toLowerCase() == category.toLowerCase())
+          .toList();
+      
+      // Prepare detailed category data
+      final categoryData = _prepareCategoryData(categoryTransactions, category);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructCategoryAnalysisPrompt(categoryData);
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Parse category analysis
+      return _parseCategoryAnalysisFromResponse(response, category);
+    } catch (e) {
+      debugPrint('Error analyzing category spending: $e');
+      return _generateFallbackCategoryAnalysis(transactions, category);
+    }
+  }
+
+  // Detect spending anomalies in transaction history
+  Future<List<Map<String, dynamic>>> detectSpendingAnomalies(List<Transaction> transactions) async {
+    try {
+      // Prepare transaction data for anomaly detection
+      final transactionData = _prepareTransactionData(transactions);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructAnomalyDetectionPrompt(transactionData);
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Parse anomalies
+      return _parseAnomaliesFromResponse(response);
+    } catch (e) {
+      debugPrint('Error detecting anomalies: $e');
+      return _generateFallbackAnomalies(transactions);
+    }
+  }
+
+  // Generate savings recommendations
+  Future<Map<String, dynamic>> generateSavingsRecommendations(
+    List<Transaction> transactions,
+    double monthlyIncome,
+    List<SavingsGoal>? savingsGoals
+  ) async {
+    try {
+      // Analyze income vs expenses
+      final incomeVsExpenses = _analyzeIncomeVsExpenses(transactions, monthlyIncome);
+      
+      // Prepare savings goals data
+      final savingsData = _prepareSavingsData(savingsGoals);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructSavingsRecommendationPrompt(
+        incomeVsExpenses: incomeVsExpenses,
+        savingsData: savingsData,
+      );
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Parse savings recommendations
+      return _parseSavingsRecommendationsFromResponse(response);
+    } catch (e) {
+      debugPrint('Error generating savings recommendations: $e');
+      return _generateFallbackSavingsRecommendations(transactions, monthlyIncome);
+    }
+  }
+
+  // Generate AI response to user question about finances
+  Future<String> answerFinancialQuestion(
+    String question,
+    List<Transaction> recentTransactions
+  ) async {
+    try {
+      // Prepare transaction context
+      final transactionContext = _prepareTransactionContextForQuestion(recentTransactions);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructQuestionAnswerPrompt(
+        question: question,
+        transactionContext: transactionContext,
+      );
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Extract answer
+      return _extractAnswerFromResponse(response);
+    } catch (e) {
+      debugPrint('Error answering financial question: $e');
+      return "I'm sorry, I couldn't process your question at the moment. Please try again later.";
+    }
+  }
+
+  // Helper methods for data preparation
+  Map<String, dynamic> _prepareTransactionData(List<Transaction> transactions) {
+    // Group transactions by categories
+    final categoriesMap = <String, List<Transaction>>{};
+    for (final transaction in transactions) {
+      final category = transaction.category;
+      if (!categoriesMap.containsKey(category)) {
+        categoriesMap[category] = [];
+      }
+      categoriesMap[category]!.add(transaction);
+    }
+
+    // Calculate metrics
+    final now = DateTime.now();
+    final oneMonthAgo = DateTime(now.year, now.month - 1, now.day);
+    final threeMonthsAgo = DateTime(now.year, now.month - 3, now.day);
+
+    final thisMonthTransactions = transactions
+        .where((t) => t.date.isAfter(oneMonthAgo))
+        .toList();
     
-    if (weeklySpendings.length < 2) {
+    final lastThreeMonthsTransactions = transactions
+        .where((t) => t.date.isAfter(threeMonthsAgo))
+        .toList();
+
+    // Total income and expenses
+    final thisMonthIncome = thisMonthTransactions
+        .where((t) => !t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    final thisMonthExpenses = thisMonthTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+
+    // Categorized spending
+    final categorizedSpending = <String, double>{};
+    for (final category in categoriesMap.keys) {
+      final categoryTransactions = categoriesMap[category]!
+          .where((t) => t.isExpense && t.date.isAfter(oneMonthAgo))
+          .toList();
+      
+      final totalSpent = categoryTransactions.fold(0.0, (sum, t) => sum + t.amount);
+      if (totalSpent > 0) {
+        categorizedSpending[category] = totalSpent;
+      }
+    }
+
+    // Weekly spending pattern
+    final weeklySpendings = <String, double>{};
+    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    for (final day in daysOfWeek) {
+      final dayTransactions = thisMonthTransactions
+          .where((t) => t.isExpense && _getDayOfWeek(t.date) == day)
+          .toList();
+      
+      weeklySpendings[day] = dayTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    }
+
+    // Monthly trend
+    final monthlyTrend = <String, Map<String, double>>{};
+    for (var i = 2; i >= 0; i--) {
+      final month = DateTime(now.year, now.month - i, 1);
+      final monthName = _getMonthName(month);
+      
+      final monthTransactions = transactions
+          .where((t) => 
+              t.date.year == month.year && 
+              t.date.month == month.month)
+          .toList();
+      
+      final income = monthTransactions
+          .where((t) => !t.isExpense)
+          .fold(0.0, (sum, t) => sum + t.amount);
+      
+      final expenses = monthTransactions
+          .where((t) => t.isExpense)
+          .fold(0.0, (sum, t) => sum + t.amount);
+      
+      monthlyTrend[monthName] = {
+        'income': income,
+        'expenses': expenses,
+        'savings': income - expenses
+      };
+    }
+
+    return {
+      'total_transactions': transactions.length,
+      'recent_transactions': thisMonthTransactions.length,
+      'this_month_income': thisMonthIncome,
+      'this_month_expenses': thisMonthExpenses,
+      'categorized_spending': categorizedSpending,
+      'weekly_pattern': weeklySpendings,
+      'monthly_trend': monthlyTrend,
+    };
+  }
+
+  Map<String, dynamic> _prepareBudgetData(List<Budget>? budgets) {
+    if (budgets == null || budgets.isEmpty) {
+      return {'has_budgets': false};
+    }
+
+    final budgetData = <String, dynamic>{
+      'has_budgets': true,
+      'budgets': <Map<String, dynamic>>[]
+    };
+
+    for (final budget in budgets) {
+      budgetData['budgets'].add({
+        'category': budget.category,
+        'amount': budget.amount,
+        'spent': budget.spent,
+        'remaining': budget.amount - budget.spent,
+        'progress': budget.spent / budget.amount
+      });
+    }
+
+    return budgetData;
+  }
+
+  Map<String, dynamic> _prepareSavingsData(List<SavingsGoal>? savingsGoals) {
+    if (savingsGoals == null || savingsGoals.isEmpty) {
+      return {'has_savings_goals': false};
+    }
+
+    final savingsData = <String, dynamic>{
+      'has_savings_goals': true,
+      'goals': <Map<String, dynamic>>[]
+    };
+
+   for (final goal in savingsGoals) {
+  savingsData['goals'].add({
+    'name': goal.title,  // Changed from goal.name to goal.title
+    'target_amount': goal.targetAmount,
+    'current_amount': goal.currentAmount,
+    'deadline': goal.targetDate.toIso8601String(),  // Changed from goal.deadline to goal.targetDate
+    'progress': goal.currentAmount / goal.targetAmount
+  });
+}
+
+    return savingsData;
+  }
+
+  Future<Map<String, dynamic>> _prepareBalanceData(double? currentBalance) async {
+    double balance = currentBalance ?? 0.0;
+    
+    if (balance == 0) {
+      balance = await BalanceService.instance.getCurrentBalance();
+    }
+    
+    return {
+      'current_balance': balance,
+      'has_balance': balance > 0,
+    };
+  }
+
+  // Helper methods for prompt construction
+  String _constructFinancialAnalysisPrompt({
+    required Map<String, dynamic> transactionData,
+    required Map<String, dynamic> budgetData,
+    required Map<String, dynamic> savingsData,
+    required Map<String, dynamic> balanceData,
+  }) {
+    return '''
+You are a financial analyst and advisor. Analyze the following financial data and provide clear, actionable insights and recommendations for the user.
+
+TRANSACTION DATA:
+${jsonEncode(transactionData)}
+
+BUDGET DATA:
+${jsonEncode(budgetData)}
+
+SAVINGS GOALS DATA:
+${jsonEncode(savingsData)}
+
+BALANCE DATA:
+${jsonEncode(balanceData)}
+
+Based on this data, provide 3-5 key insights and recommendations. Each insight should have:
+1. A short, clear title
+2. A brief explanation of the insight
+3. A specific, actionable recommendation
+4. A relevant icon name (material icon)
+5. A priority level (high, medium, low)
+
+Format your response as a JSON array of objects with the following structure:
+[
+  {
+    "title": "Insight title",
+    "description": "Brief explanation",
+    "recommendation": "Actionable advice",
+    "icon": "material_icon_name",
+    "priority": "priority_level",
+    "type": "insight_type" (spending, saving, budget, income, or balance)
+  }
+]
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructForecastPrompt(Map<DateTime, List<Transaction>> transactionsByDate) {
+    return '''
+You are a financial forecasting AI. Based on the following transaction history, predict spending patterns for the next 30 days.
+
+TRANSACTION HISTORY:
+${jsonEncode(transactionsByDate.map((k, v) => MapEntry(k.toIso8601String(), v.map((t) => {
+      'amount': t.amount,
+      'category': t.category,
+      'isExpense': t.isExpense,
+      'date': t.date.toIso8601String()
+    }).toList())))}
+
+Generate a 30-day spending forecast with the following:
+1. Daily spending predictions
+2. Expected major expenses
+3. Category breakdown of predicted spending
+4. Total month forecast amount
+5. Comparison to previous month
+
+Format your response as a JSON object with the following structure:
+{
+  "daily_forecast": [{"date": "YYYY-MM-DD", "amount": 000.00}],
+  "major_expenses": [{"category": "Category", "amount": 000.00, "likelihood": 0.X}],
+  "category_forecast": [{"category": "Category", "amount": 000.00, "percent": XX}],
+  "total_forecast": 000.00,
+  "previous_month_comparison": {"amount": 000.00, "percent_change": XX.X}
+}
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructBudgetRecommendationPrompt({
+    required Map<String, double> categorizedSpending,
+    required double monthlyIncome,
+  }) {
+    return '''
+You are a budget planning AI. Based on the following spending patterns and income, recommend optimal budget allocations.
+
+SPENDING BY CATEGORY:
+${jsonEncode(categorizedSpending)}
+
+MONTHLY INCOME: $monthlyIncome
+
+Provide budget recommendations following the 50/30/20 rule or other appropriate methods. Create budget categories that make sense for the user's spending patterns.
+
+Format your response as a JSON array of objects with the following structure:
+[
+  {
+    "category": "Category name",
+    "recommended_amount": 000.00,
+    "percent_of_income": XX.X,
+    "current_spending": 000.00,
+    "adjustment_needed": 000.00,
+    "icon": "material_icon_name",
+    "priority": "essential/wants/savings"
+  }
+]
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructCategoryAnalysisPrompt(Map<String, dynamic> categoryData) {
+    return '''
+You are a financial category analysis AI. Analyze the following spending in a specific category and provide insights.
+
+CATEGORY DATA:
+${jsonEncode(categoryData)}
+
+Provide a detailed analysis including:
+1. Spending trend over time
+2. Comparison to overall budget
+3. Top merchants/recipients in this category
+4. Recommendations for optimizing spending
+5. Potential savings opportunity
+
+Format your response as a JSON object with the following structure:
+{
+  "category": "Category name",
+  "total_spent": 000.00,
+  "average_transaction": 000.00,
+  "trend": "increasing/decreasing/stable",
+  "percent_change": XX.X,
+  "top_merchants": [{"name": "Merchant", "amount": 000.00, "percent": XX.X}],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
+  "savings_potential": 000.00,
+  "insight": "Brief insight about spending in this category"
+}
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructAnomalyDetectionPrompt(Map<String, dynamic> transactionData) {
+    return '''
+You are a financial anomaly detection AI. Analyze the following transaction data and identify potential anomalies or unusual spending patterns.
+
+TRANSACTION DATA:
+${jsonEncode(transactionData)}
+
+Identify 1-3 anomalies that might indicate:
+1. Unusually large transactions
+2. Unexpected spending patterns
+3. Potential duplicate payments
+4. Subscriptions or recurring charges that might be forgotten
+5. Categories with sudden increases in spending
+
+Format your response as a JSON array of objects with the following structure:
+[
+  {
+    "title": "Anomaly description",
+    "category": "Category affected",
+    "amount": 000.00,
+    "date": "YYYY-MM-DD" (or date range),
+    "severity": "high/medium/low",
+    "explanation": "Detailed explanation",
+    "recommendation": "Suggested action",
+    "icon": "material_icon_name"
+  }
+]
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructSavingsRecommendationPrompt({
+    required Map<String, dynamic> incomeVsExpenses,
+    required Map<String, dynamic> savingsData,
+  }) {
+    return '''
+You are a savings advisor AI. Based on the following financial data, provide recommendations for increasing savings.
+
+INCOME VS EXPENSES:
+${jsonEncode(incomeVsExpenses)}
+
+SAVINGS GOALS:
+${jsonEncode(savingsData)}
+
+Provide recommendations for:
+1. Optimal monthly savings amount
+2. Strategies to increase savings
+3. Timeline for meeting existing savings goals
+4. Suggestions for new savings goals
+5. Emergency fund recommendations
+
+Format your response as a JSON object with the following structure:
+{
+  "recommended_monthly_saving": 000.00,
+  "percent_of_income": XX.X,
+  "strategies": ["Strategy 1", "Strategy 2"],
+  "goal_timelines": [{"goal": "Goal name", "current_amount": 000.00, "target": 000.00, "estimated_completion": "YYYY-MM"}],
+  "suggested_new_goals": [{"name": "Goal name", "target": 000.00, "timeline": "X months", "monthly_contribution": 000.00}],
+  "emergency_fund": {"current": 000.00, "target": 000.00, "months_to_complete": X}
+}
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructQuestionAnswerPrompt({
+    required String question,
+    required Map<String, dynamic> transactionContext,
+  }) {
+    return '''
+You are a personal finance assistant. Answer the following question based on the user's financial data.
+
+USER QUESTION:
+$question
+
+FINANCIAL CONTEXT:
+${jsonEncode(transactionContext)}
+
+Provide a helpful, concise answer that directly addresses the user's question. If the question cannot be answered with the available data, clearly state what information is missing. Focus on providing actionable advice when possible.
+
+Format your response as plain text with no special formatting or JSON.
+''';
+  }
+
+  // API call function
+  Future<String> _callGeminiAPI(String prompt) async {
+    final url = '$_baseUrl/$_model:generateContent?key=$_apiKey';
+    
+    final payload = {
+      'contents': [
+        {
+          'parts': [
+            {'text': prompt}
+          ]
+        }
+      ],
+      'generationConfig': {
+        'temperature': 0.2,
+        'maxOutputTokens': 2048,
+        'topP': 0.8,
+        'topK': 40
+      }
+    };
+    
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+    
+    if (response.statusCode != 200) {
+      throw Exception('API call failed with status: ${response.statusCode}');
+    }
+    
+    final jsonResponse = jsonDecode(response.body);
+    return jsonResponse['candidates'][0]['content']['parts'][0]['text'];
+  }
+
+  // Response parsing functions
+  List<Map<String, dynamic>> _parseInsightsFromResponse(String response) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        final List<dynamic> decoded = jsonDecode(jsonStr!);
+        
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is List) {
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      throw Exception('Failed to parse insights response');
+    } catch (e) {
+      debugPrint('Error parsing insights: $e');
+      debugPrint('Raw response: $response');
+      return [];
+    }
+  }
+
+  Map<String, dynamic> _parseForecastFromResponse(String response) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        return Map<String, dynamic>.from(jsonDecode(jsonStr!));
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      
+      throw Exception('Failed to parse forecast response');
+    } catch (e) {
+      debugPrint('Error parsing forecast: $e');
+      return {};
+    }
+  }
+
+  List<Map<String, dynamic>> _parseBudgetRecommendationsFromResponse(String response) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        final List<dynamic> decoded = jsonDecode(jsonStr!);
+        
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is List) {
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      throw Exception('Failed to parse budget recommendations response');
+    } catch (e) {
+      debugPrint('Error parsing budget recommendations: $e');
+      return [];
+    }
+  }
+
+  Map<String, dynamic> _parseCategoryAnalysisFromResponse(String response, String category) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        return Map<String, dynamic>.from(jsonDecode(jsonStr!));
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      
+      throw Exception('Failed to parse category analysis response');
+    } catch (e) {
+      debugPrint('Error parsing category analysis: $e');
+      return {'category': category, 'error': true};
+    }
+  }
+
+  List<Map<String, dynamic>> _parseAnomaliesFromResponse(String response) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        final List<dynamic> decoded = jsonDecode(jsonStr!);
+        
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is List) {
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      throw Exception('Failed to parse anomalies response');
+    } catch (e) {
+      debugPrint('Error parsing anomalies: $e');
+      return [];
+    }
+  }
+
+  Map<String, dynamic> _parseSavingsRecommendationsFromResponse(String response) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        return Map<String, dynamic>.from(jsonDecode(jsonStr!));
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      
+      throw Exception('Failed to parse savings recommendations response');
+    } catch (e) {
+      debugPrint('Error parsing savings recommendations: $e');
+      return {};
+    }
+  }
+
+  String _extractAnswerFromResponse(String response) {
+    // Clean up the response if needed
+    return response.trim();
+  }
+
+  // Helper methods for fallback responses
+  List<Map<String, dynamic>> _generateFallbackInsights(
+    List<Transaction> transactions,
+    List<Budget>? budgets
+  ) {
+    final insights = <Map<String, dynamic>>[];
+    
+    // Group transactions by date (month)
+    final transactionsByMonth = <String, List<Transaction>>{};
+    for (final t in transactions) {
+      final monthKey = '${t.date.year}-${t.date.month}';
+      if (!transactionsByMonth.containsKey(monthKey)) {
+        transactionsByMonth[monthKey] = [];
+      }
+      transactionsByMonth[monthKey]!.add(t);
+    }
+    
+    // Calculate last month's spending
+    final now = DateTime.now();
+    final lastMonth = DateTime(now.year, now.month - 1);
+    final lastMonthKey = '${lastMonth.year}-${lastMonth.month}';
+    final lastMonthTransactions = transactionsByMonth[lastMonthKey] ?? [];
+    
+    final lastMonthExpenses = lastMonthTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    // Top spending category
+    final categorizedSpending = _categorizeTotalSpending(transactions);
+    String topCategory = 'Unknown';
+    double topAmount = 0;
+    
+    categorizedSpending.forEach((category, amount) {
+      if (amount > topAmount) {
+        topAmount = amount;
+        topCategory = category;
+      }
+    });
+    
+    // Add spending insight
+    insights.add({
+      'title': 'Monthly Spending Overview',
+      'description': 'Last month, you spent ${AppConfig.formatCurrency(lastMonthExpenses.toInt() * 100)}.',
+      'recommendation': 'Review your expenses to identify savings opportunities.',
+      'icon': 'trending_up',
+      'priority': 'medium',
+      'type': 'spending'
+    });
+    
+    // Add top category insight
+    if (topCategory != 'Unknown') {
+      insights.add({
+        'title': 'Top Spending Category',
+        'description': 'Your highest spending is in $topCategory (${AppConfig.formatCurrency(topAmount.toInt() * 100)}).',
+        'recommendation': 'Consider setting a budget for this category.',
+        'icon': 'category',
+        'priority': 'high',
+        'type': 'budget'
+      });
+    }
+    
+    // Add budget insight if available
+    if (budgets != null && budgets.isNotEmpty) {
+      final overBudgets = budgets.where((b) => b.spent > b.amount).toList();
+      
+      if (overBudgets.isNotEmpty) {
+        insights.add({
+          'title': 'Budget Alert',
+          "description": "You've exceeded your budget in ${overBudgets.length} categories.",
+          'recommendation': 'Adjust your spending or revise your budget goals.',
+          'icon': 'warning',
+          'priority': 'high',
+          'type': 'budget'
+        });
+      }
+    } else {
+      insights.add({
+        'title': 'Create Your First Budget',
+        'description': 'Setting budgets helps track and control your spending.',
+        'recommendation': 'Create a budget for your major spending categories.',
+        'icon': 'add_chart',
+        'priority': 'medium',
+        'type': 'budget'
+      });
+    }
+    
+    // Add savings insight
+    insights.add({
+      'title': 'Start Saving Regularly',
+      'description': 'Regular savings build financial security over time.',
+      'recommendation': 'Try to save at least 10-20% of your income each month.',
+      'icon': 'savings',
+      'priority': 'medium',
+      'type': 'saving'
+    });
+    
+    return insights;
+  }
+
+  Map<String, dynamic> _generateFallbackForecast(List<Transaction> transactions) {
+    // Simple forecast based on historical data
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd = DateTime(now.year, now.month + 1, 0);
+    
+    // Calculate average daily spending
+    final recentTransactions = transactions
+        .where((t) => t.date.isAfter(DateTime(now.year, now.month - 3)))
+        .where((t) => t.isExpense)
+        .toList();
+    
+    final totalSpent = recentTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    final daysCount = recentTransactions.isEmpty ? 1 : 90; // 3 months
+    final avgDailySpending = totalSpent / daysCount;
+    
+    // Generate daily forecast
+    final daysInMonth = monthEnd.day;
+    final dailyForecast = <Map<String, dynamic>>[];
+    
+    for (var i = 1; i <= daysInMonth; i++) {
+      final forecastDate = DateTime(now.year, now.month, i);
+      if (forecastDate.isBefore(now)) {
+        // Use actual data for past days
+        final dayTransactions = transactions
+            .where((t) => 
+                t.date.year == forecastDate.year && 
+                t.date.month == forecastDate.month &&
+                t.date.day == forecastDate.day &&
+                t.isExpense)
+            .toList();
+        
+        final actualSpent = dayTransactions.fold(0.0, (sum, t) => sum + t.amount);
+        
+        dailyForecast.add({
+          'date': forecastDate.toIso8601String().substring(0, 10),
+          'amount': actualSpent,
+          'actual': true
+        });
+      } else {
+        // Forecast future days
+        // Weekends might have higher spending
+        double modifier = 1.0;
+        if (forecastDate.weekday == DateTime.saturday) {
+          modifier = 1.5;
+        } else if (forecastDate.weekday == DateTime.sunday) {
+          modifier = 1.3;
+        }
+        
+        dailyForecast.add({
+          'date': forecastDate.toIso8601String().substring(0, 10),
+          'amount': avgDailySpending * modifier,
+          'actual': false
+        });
+      }
+    }
+    
+    // Major expenses (categories with highest spending)
+    final categorizedSpending = _categorizeTotalSpending(recentTransactions);
+    final majorExpenses = categorizedSpending.entries
+        .map((e) => {
+          'category': e.key,
+          'amount': e.value / 3, // Monthly average
+          'likelihood': 0.8
+        })
+        .toList();
+    
+    // Sort and limit to top 3
+    majorExpenses.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+    final top3Expenses = majorExpenses.take(3).toList();
+    
+    // Calculate total forecast
+    final daysLeftInMonth = monthEnd.difference(now).inDays + 1;
+    final spentSoFar = transactions
+        .where((t) => 
+            t.date.year == now.year && 
+            t.date.month == now.month &&
+            t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    final forecastRemaining = avgDailySpending * daysLeftInMonth;
+    final totalForecast = spentSoFar + forecastRemaining;
+    
+    // Previous month comparison
+    final lastMonth = DateTime(now.year, now.month - 1);
+    final lastMonthTransactions = transactions
+        .where((t) => 
+            t.date.year == lastMonth.year && 
+            t.date.month == lastMonth.month &&
+            t.isExpense)
+        .toList();
+    
+    final lastMonthTotal = lastMonthTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    final percentChange = lastMonthTotal > 0 
+        ? ((totalForecast - lastMonthTotal) / lastMonthTotal) * 100
+        : 0.0;
+    
+    return {
+      'daily_forecast': dailyForecast,
+      'major_expenses': top3Expenses,
+      'category_forecast': categorizedSpending.entries
+          .map((e) => {
+            'category': e.key,
+            'amount': e.value / 3, // Monthly average
+            'percent': (e.value / totalSpent) * 100
+          })
+          .toList(),
+      'total_forecast': totalForecast,
+      'previous_month_comparison': {
+        'amount': lastMonthTotal,
+        'percent_change': percentChange
+      }
+    };
+  }
+
+  List<Map<String, dynamic>> _generateFallbackBudgetRecommendations(
+    List<Transaction> transactions,
+    double monthlyIncome
+  ) {
+    // Apply 50/30/20 rule
+    final essentialsBudget = monthlyIncome * 0.5;
+    final wantsBudget = monthlyIncome * 0.3;
+    final savingsBudget = monthlyIncome * 0.2;
+    
+    // Categorize current spending
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    
+    final currentMonthTransactions = transactions
+        .where((t) => t.date.isAfter(monthStart) && t.isExpense)
+        .toList();
+    
+    final categorizedSpending = <String, double>{};
+    for (final t in currentMonthTransactions) {
+      if (!categorizedSpending.containsKey(t.category)) {
+        categorizedSpending[t.category] = 0;
+      }
+      categorizedSpending[t.category] = categorizedSpending[t.category]! + t.amount;
+    }
+    
+    // Map categories to priorities
+    final essentialCategories = [
+      'Housing', 'Rent', 'Mortgage', 'Utilities', 'Groceries', 
+      'Health', 'Healthcare', 'Insurance', 'Transport', 'Transportation',
+      'Debt', 'Loan'
+    ];
+    
+    final wantsCategories = [
+      'Entertainment', 'Dining', 'Shopping', 'Travel', 'Leisure',
+      'Subscription', 'Hobbies', 'Clothing', 'Personal'
+    ];
+    
+    final savingsCategories = [
+      'Savings', 'Investment', 'Emergency Fund', 'Retirement'
+    ];
+    
+    // Generate recommendations
+    final recommendations = <Map<String, dynamic>>[];
+    
+    // Essential categories
+    double totalEssentialsSpending = 0;
+    categorizedSpending.forEach((category, amount) {
+      if (essentialCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
+        totalEssentialsSpending += amount;
+      }
+    });
+    
+    recommendations.add({
+      'category': 'Essentials',
+      'recommended_amount': essentialsBudget,
+      'percent_of_income': 50.0,
+      'current_spending': totalEssentialsSpending,
+      'adjustment_needed': essentialsBudget - totalEssentialsSpending,
+      'icon': 'home',
+      'priority': 'essential'
+    });
+    
+    // Wants categories
+    double totalWantsSpending = 0;
+    categorizedSpending.forEach((category, amount) {
+      if (wantsCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
+        totalWantsSpending += amount;
+      }
+    });
+    
+    recommendations.add({
+      'category': 'Wants',
+      'recommended_amount': wantsBudget,
+      'percent_of_income': 30.0,
+      'current_spending': totalWantsSpending,
+      'adjustment_needed': wantsBudget - totalWantsSpending,
+      'icon': 'shopping_bag',
+      'priority': 'wants'
+    });
+    
+    // Savings categories
+    double totalSavingsSpending = 0;
+    categorizedSpending.forEach((category, amount) {
+      if (savingsCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
+        totalSavingsSpending += amount;
+      }
+    });
+    
+    recommendations.add({
+      'category': 'Savings',
+      'recommended_amount': savingsBudget,
+      'percent_of_income': 20.0,
+      'current_spending': totalSavingsSpending,
+      'adjustment_needed': savingsBudget - totalSavingsSpending,
+      'icon': 'savings',
+      'priority': 'savings'
+    });
+    
+    // Add specific category recommendations for top spending areas
+    final sortedCategories = categorizedSpending.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    for (var i = 0; i < 3 && i < sortedCategories.length; i++) {
+      final category = sortedCategories[i].key;
+      final amount = sortedCategories[i].value;
+      
+      String priority = 'wants';
+      IconData icon = Icons.category;
+      
+      if (essentialCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
+        priority = 'essential';
+        icon = Icons.home;
+      } else if (savingsCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
+        priority = 'savings';
+        icon = Icons.savings;
+      } else {
+        icon = _getCategoryIcon(category);
+      }
+      
+      // Recommend slight reduction for high spending categories
+      final recommendedAmount = amount * 0.9;
+      
+      recommendations.add({
+        'category': category,
+        'recommended_amount': recommendedAmount,
+        'percent_of_income': (recommendedAmount / monthlyIncome) * 100,
+        'current_spending': amount,
+        'adjustment_needed': recommendedAmount - amount,
+        'icon': icon.toString().replaceAll('IconData(', '').replaceAll(')', ''),
+        'priority': priority
+      });
+    }
+    
+    return recommendations;
+  }
+
+  Map<String, dynamic> _generateFallbackCategoryAnalysis(
+    List<Transaction> transactions,
+    String category
+  ) {
+    // Filter transactions for the category
+    final categoryTransactions = transactions
+        .where((t) => t.category.toLowerCase() == category.toLowerCase())
+        .toList();
+    
+    if (categoryTransactions.isEmpty) {
       return {
-        'isPositive': true,
-        'title': 'Not Enough Data',
-        'description': 'Add more transactions to see your weekly trends.',
+        'category': category,
+        'error': true,
+        'message': 'No transactions found for this category'
       };
     }
     
-    // Compare this week with last week
-    double thisWeek = weeklySpendings.last['amount'];
-    double lastWeek = weeklySpendings[weeklySpendings.length - 2]['amount'];
+    // Calculate metrics
+    final totalSpent = categoryTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    final avgTransaction = totalSpent / categoryTransactions.length;
     
-    bool isPositive = thisWeek < lastWeek; // Lower spending is positive
-    double percentChange = lastWeek > 0 
-        ? ((lastWeek - thisWeek) / lastWeek * 100).abs() 
-        : 0;
-    
-    String title = isPositive
-        ? 'Spending Decreased'
-        : 'Spending Increased';
-        
-    String description = isPositive
-        ? 'You spent ${percentChange.toStringAsFixed(0)}% less this week compared to last week.'
-        : 'You spent ${percentChange.toStringAsFixed(0)}% more this week compared to last week.';
-    
-    return {
-      'isPositive': isPositive,
-      'title': title,
-      'description': description,
-    };
-  }
-
-  // Get smart saving recommendation
-  Map<String, dynamic> getSmartSavingRecommendation(List<Transaction> transactions) {
-    // In production, this would analyze spending patterns to find saving opportunities
-    // For demo, we'll use a predefined recommendation
-    
-    return {
-      'amount': 65,
-      'title': 'Reduce dining out expenses',
-      'description': 'By cooking at home 2 out of 4 times instead of eating out, you can save roughly KSh 65 based on your previous spending.',
-      'category': 'Food',
-    };
-  }
-
-  // Get empty stats for initialization
-  Map<String, dynamic> _getEmptyStats() {
-    return {
-      'totalIncome': 0.0,
-      'totalExpenses': 0.0,
-      'totalSavings': 0.0,
-      'monthlySavings': 0.0,
-      'dailyAverage': 0.0,
-      'activeGoalsCount': 0,
-      'financialHealthScore': 50,
-      'savingsGrowthPercentage': 0.0,
-      'categoryBreakdown': [],
-      'weeklySpending': [],
-      'predictedSpending': [],
-      'spendingPatterns': [],
-    };
-  }
-
-  // Get financial advice from Gemini
-  Future<String> getFinancialAdvice(String question) async {
-    if (_model == null) {
-      return "I'm sorry, but the AI advisor is currently unavailable. Please try again later.";
+    // Group by month to determine trend
+    final byMonth = <String, double>{};
+    for (final t in categoryTransactions) {
+      final monthKey = '${t.date.year}-${t.date.month}';
+      if (!byMonth.containsKey(monthKey)) {
+        byMonth[monthKey] = 0;
+      }
+      byMonth[monthKey] = byMonth[monthKey]! + t.amount;
     }
     
-    try {
-      // Create prompt
-      String prompt = '''
-      You are a helpful financial advisor named Gemini. The user is asking for financial advice.
-      Answer their question in a friendly, helpful way. Keep your response concise (maximum 3 paragraphs).
-      Focus on practical, actionable advice. Here's their question:
+    // Determine trend (need at least 2 months of data)
+    String trend = 'stable';
+    double percentChange = 0;
+    
+    if (byMonth.length >= 2) {
+      final monthsSorted = byMonth.keys.toList()..sort();
+      final latestMonth = monthsSorted.last;
+      final previousMonth = monthsSorted[monthsSorted.length - 2];
       
-      "$question"
-      ''';
+      final latestAmount = byMonth[latestMonth]!;
+      final previousAmount = byMonth[previousMonth]!;
       
-      // Get response from Gemini
-      final content = [Content.text(prompt)];
-      final response = await _model!.generateContent(content);
-      final responseText = response.text ?? '';
+      percentChange = previousAmount > 0
+          ? ((latestAmount - previousAmount) / previousAmount) * 100
+          : 0;
       
-      if (responseText.isEmpty) {
-        return "I'm sorry, but I couldn't generate advice at this time. Please try asking in a different way.";
+      if (percentChange > 10) {
+        trend = 'increasing';
+      } else if (percentChange < -10) {
+        trend = 'decreasing';
+      }
+    }
+    
+    // Find top merchants
+    final byMerchant = <String, double>{};
+    for (final t in categoryTransactions) {
+      final merchant = t.business ?? t.recipient ?? t.sender ?? 'Unknown';
+      if (!byMerchant.containsKey(merchant)) {
+        byMerchant[merchant] = 0;
+      }
+      byMerchant[merchant] = byMerchant[merchant]! + t.amount;
+    }
+    
+    final topMerchants = byMerchant.entries
+        .map((e) => {
+          'name': e.key,
+          'amount': e.value,
+          'percent': (e.value / totalSpent) * 100
+        })
+        .toList()
+      ..sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+    
+    // Generate recommendations based on trend
+    final recommendations = <String>[];
+    double savingsPotential = 0;
+    
+    if (trend == 'increasing') {
+      recommendations.add('Your spending in this category is increasing. Consider setting a budget.');
+      recommendations.add('Review your recent transactions to identify unnecessary expenses.');
+      savingsPotential = totalSpent * 0.15; // Suggest 15% reduction
+    } else if (trend == 'stable' && totalSpent > 0) {
+      recommendations.add('Your spending is consistent. Consider if you can optimize any recurring expenses.');
+      savingsPotential = totalSpent * 0.1; // Suggest 10% reduction
+    } else if (trend == 'decreasing') {
+      recommendations.add('Great job reducing spending in this category! Keep it up.');
+      savingsPotential = totalSpent * 0.05; // Suggest 5% further reduction
+    }
+    
+    // Add category-specific recommendations
+    if (category.toLowerCase().contains('subscription') || 
+        category.toLowerCase().contains('entertainment')) {
+      recommendations.add('Review your subscriptions to identify services you no longer use.');
+      savingsPotential += totalSpent * 0.2;
+    } else if (category.toLowerCase().contains('dining') || 
+               category.toLowerCase().contains('food')) {
+      recommendations.add('Consider cooking more meals at home to reduce dining expenses.');
+      savingsPotential += totalSpent * 0.3;
+    }
+    
+    return {
+      'category': category,
+      'total_spent': totalSpent,
+      'average_transaction': avgTransaction,
+      'trend': trend,
+      'percent_change': percentChange,
+      'top_merchants': topMerchants.take(3).toList(),
+      'recommendations': recommendations,
+      'savings_potential': savingsPotential,
+      'insight': 'You spend an average of ${AppConfig.formatCurrency(avgTransaction.toInt() * 100)} per transaction in this category.'
+    };
+  }
+
+  List<Map<String, dynamic>> _generateFallbackAnomalies(List<Transaction> transactions) {
+    final anomalies = <Map<String, dynamic>>[];
+    
+    if (transactions.isEmpty) {
+      return anomalies;
+    }
+    
+    // Find unusually large transactions
+    final amounts = transactions.map((t) => t.amount).toList();
+    amounts.sort();
+    
+    final medianIndex = amounts.length ~/ 2;
+    final medianAmount = amounts.length.isOdd
+        ? amounts[medianIndex]
+        : (amounts[medianIndex - 1] + amounts[medianIndex]) / 2;
+    
+    // Consider amounts more than 3x the median as potentially anomalous
+    final threshold = medianAmount * 3;
+    final largeTransactions = transactions
+        .where((t) => t.amount > threshold && t.isExpense)
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date)); // Most recent first
+    
+    if (largeTransactions.isNotEmpty) {
+      final t = largeTransactions.first;
+      anomalies.add({
+        'title': 'Unusually Large Transaction',
+        'category': t.category,
+        'amount': t.amount,
+        'date': t.date.toIso8601String().substring(0, 10),
+        'severity': 'medium',
+        'explanation': 'This transaction is significantly larger than your typical spending in this category.',
+        'recommendation': 'Verify this transaction if it doesn\'t look familiar.',
+        'icon': 'warning'
+      });
+    }
+    
+    // Detect potential duplicate payments
+    final recentTransactions = transactions
+        .where((t) => t.date.isAfter(DateTime.now().subtract(const Duration(days: 30))))
+        .toList();
+    
+    for (var i = 0; i < recentTransactions.length; i++) {
+      for (var j = i + 1; j < recentTransactions.length; j++) {
+        final t1 = recentTransactions[i];
+        final t2 = recentTransactions[j];
+        
+        // Check if amounts match and they're close in time
+        if (t1.amount == t2.amount && 
+            t1.isExpense && 
+            t2.isExpense &&
+            t1.category == t2.category &&
+            t1.date.difference(t2.date).inHours.abs() < 48) {
+          
+          final recipient = t1.business ?? t1.recipient ?? 'same recipient';
+          
+          anomalies.add({
+            'title': 'Potential Duplicate Payment',
+            'category': t1.category,
+            'amount': t1.amount,
+            'date': '${t1.date.toIso8601String().substring(0, 10)} & ${t2.date.toIso8601String().substring(0, 10)}',
+            'severity': 'high',
+            'explanation': 'You made two identical payments of ${AppConfig.formatCurrency(t1.amount.toInt() * 100)} to $recipient within 48 hours.',
+            'recommendation': 'Check if one of these was a duplicate payment.',
+            'icon': 'content_copy'
+          });
+          
+          break; // Only report this pair once
+        }
+      }
+    }
+    
+    // Detect sudden category increases
+    final thisMonth = DateTime.now();
+    final lastMonth = DateTime(thisMonth.year, thisMonth.month - 1);
+    
+    final thisMonthTransactions = transactions
+        .where((t) => t.date.year == thisMonth.year && t.date.month == thisMonth.month)
+        .toList();
+    
+    final lastMonthTransactions = transactions
+        .where((t) => t.date.year == lastMonth.year && t.date.month == lastMonth.month)
+        .toList();
+    
+    final thisMonthByCategory = <String, double>{};
+    for (final t in thisMonthTransactions.where((t) => t.isExpense)) {
+      if (!thisMonthByCategory.containsKey(t.category)) {
+        thisMonthByCategory[t.category] = 0;
+      }
+      thisMonthByCategory[t.category] = thisMonthByCategory[t.category]! + t.amount;
+    }
+    
+    final lastMonthByCategory = <String, double>{};
+    for (final t in lastMonthTransactions.where((t) => t.isExpense)) {
+      if (!lastMonthByCategory.containsKey(t.category)) {
+        lastMonthByCategory[t.category] = 0;
+      }
+      lastMonthByCategory[t.category] = lastMonthByCategory[t.category]! + t.amount;
+    }
+    
+    thisMonthByCategory.forEach((category, amount) {
+      final lastMonthAmount = lastMonthByCategory[category] ?? 0;
+      
+      // Detect significant increases (>50%)
+      if (lastMonthAmount > 0 && amount > lastMonthAmount * 1.5) {
+        final increase = amount - lastMonthAmount;
+        final percentIncrease = (increase / lastMonthAmount) * 100;
+        
+        anomalies.add({
+          'title': 'Spending Increase',
+          'category': category,
+          'amount': increase,
+          'date': '${lastMonth.year}-${lastMonth.month.toString().padLeft(2, '0')} to ${thisMonth.year}-${thisMonth.month.toString().padLeft(2, '0')}',
+          'severity': percentIncrease > 100 ? 'high' : 'medium',
+          'explanation': 'Your spending in $category increased by ${percentIncrease.toStringAsFixed(0)}% compared to last month.',
+          'recommendation': 'Review your recent transactions in this category to identify the cause.',
+          'icon': 'trending_up'
+        });
+      }
+    });
+    
+    return anomalies;
+  }
+
+  Map<String, dynamic> _generateFallbackSavingsRecommendations(
+    List<Transaction> transactions,
+    double monthlyIncome
+  ) {
+    // Calculate average monthly expenses
+    final now = DateTime.now();
+    final threeMonthsAgo = DateTime(now.year, now.month - 3, now.day);
+    
+    final recentTransactions = transactions
+        .where((t) => t.date.isAfter(threeMonthsAgo))
+        .toList();
+    
+    final expenses = recentTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    final avgMonthlyExpenses = expenses / 3;
+    final currentSavingsRate = monthlyIncome > 0 
+        ? ((monthlyIncome - avgMonthlyExpenses) / monthlyIncome) * 100
+        : 0.0;
+    
+    // Recommended savings rate (aim for 20%)
+    final targetSavingsRate = 20.0;
+    final recommendedMonthlySaving = monthlyIncome * (targetSavingsRate / 100);
+    
+    // Strategies based on current savings rate
+    final strategies = <String>[];
+    
+    if (currentSavingsRate < 10) {
+      strategies.add('Reduce discretionary spending on entertainment and dining out');
+      strategies.add('Review and cancel unused subscriptions');
+      strategies.add('Consider a "no-spend" challenge for non-essential items');
+    } else if (currentSavingsRate < 20) {
+      strategies.add('Set up automatic transfers to your savings on payday');
+      strategies.add('Look for better deals on regular expenses like insurance');
+      strategies.add('Consider a side income to boost your savings rate');
+    } else {
+      strategies.add('Great job! Consider increasing investments for long-term growth');
+      strategies.add('Review your tax strategy to maximize returns');
+      strategies.add('Consider additional retirement contributions');
+    }
+    
+    // Emergency fund recommendation (3-6 months of expenses)
+    final recommendedEmergencyFund = avgMonthlyExpenses * 6;
+    
+    // Estimate current emergency fund (placeholder)
+    final estimatedCurrentEmergencyFund = 0.0; // Would need actual data
+    
+    final monthsToCompleteEmergencyFund = recommendedEmergencyFund > 0 && recommendedMonthlySaving > 0
+        ? (recommendedEmergencyFund - estimatedCurrentEmergencyFund) / recommendedMonthlySaving
+        : 0;
+    
+    // Suggested new goals
+    final suggestedNewGoals = <Map<String, dynamic>>[];
+    
+    if (estimatedCurrentEmergencyFund < recommendedEmergencyFund) {
+      suggestedNewGoals.add({
+        'name': 'Emergency Fund',
+        'target': recommendedEmergencyFund,
+        'timeline': '${monthsToCompleteEmergencyFund.ceil()} months',
+        'monthly_contribution': recommendedMonthlySaving
+      });
+    }
+    
+    suggestedNewGoals.add({
+      'name': 'Retirement Fund',
+      'target': monthlyIncome * 12 * 10, // 10 years of income as example
+      'timeline': '30 years',
+      'monthly_contribution': monthlyIncome * 0.15
+    });
+    
+    suggestedNewGoals.add({
+      'name': 'Vacation Fund',
+      'target': monthlyIncome * 2,
+      'timeline': '12 months',
+      'monthly_contribution': (monthlyIncome * 2) / 12
+    });
+    
+    return {
+      'recommended_monthly_saving': recommendedMonthlySaving,
+      'percent_of_income': targetSavingsRate,
+      'strategies': strategies,
+      'goal_timelines': [],
+      'suggested_new_goals': suggestedNewGoals,
+      'emergency_fund': {
+        'current': estimatedCurrentEmergencyFund,
+        'target': recommendedEmergencyFund,
+        'months_to_complete': monthsToCompleteEmergencyFund.ceil()
+      }
+    };
+  }
+
+  // Helper methods
+  Map<String, double> _categorizeTotalSpending(List<Transaction> transactions) {
+    final categorizedSpending = <String, double>{};
+    
+    for (final t in transactions.where((t) => t.isExpense)) {
+      if (!categorizedSpending.containsKey(t.category)) {
+        categorizedSpending[t.category] = 0;
+      }
+      categorizedSpending[t.category] = categorizedSpending[t.category]! + t.amount;
+    }
+    
+    return categorizedSpending;
+  }
+
+  Map<DateTime, List<Transaction>> _groupTransactionsByDate(List<Transaction> transactions) {
+    final result = <DateTime, List<Transaction>>{};
+    
+    for (final t in transactions) {
+      // Normalize to just the date part
+      final dateKey = DateTime(t.date.year, t.date.month, t.date.day);
+      
+      if (!result.containsKey(dateKey)) {
+        result[dateKey] = [];
       }
       
-      return responseText;
-    } catch (e) {
-      print('Error getting financial advice: $e');
-      return "I'm sorry, but I encountered an error while generating advice. Please try again later.";
+      result[dateKey]!.add(t);
+    }
+    
+    return result;
+  }
+
+  Map<String, dynamic> _prepareCategoryData(List<Transaction> transactions, String category) {
+    // Group by month
+    final byMonth = <String, double>{};
+    for (final t in transactions) {
+      final monthKey = '${t.date.year}-${t.date.month}';
+      if (!byMonth.containsKey(monthKey)) {
+        byMonth[monthKey] = 0;
+      }
+      byMonth[monthKey] = byMonth[monthKey]! + t.amount;
+    }
+    
+    // Group by merchant
+    final byMerchant = <String, double>{};
+    for (final t in transactions) {
+      final merchant = t.business ?? t.recipient ?? t.sender ?? 'Unknown';
+      if (!byMerchant.containsKey(merchant)) {
+        byMerchant[merchant] = 0;
+      }
+      byMerchant[merchant] = byMerchant[merchant]! + t.amount;
+    }
+    
+    return {
+      'category': category,
+      'transaction_count': transactions.length,
+      'total_amount': transactions.fold(0.0, (sum, t) => sum + t.amount),
+      'by_month': byMonth,
+      'by_merchant': byMerchant,
+      'transactions': transactions.map((t) => {
+        'amount': t.amount,
+        'date': t.date.toIso8601String(),
+        'merchant': t.business ?? t.recipient ?? t.sender ?? 'Unknown'
+      }).toList()
+    };
+  }
+
+  Map<String, dynamic> _analyzeIncomeVsExpenses(
+    List<Transaction> transactions,
+    double monthlyIncome
+  ) {
+    // Group by month
+    final byMonth = <String, Map<String, double>>{};
+    
+    for (final t in transactions) {
+      final monthKey = '${t.date.year}-${t.date.month}';
+      
+      if (!byMonth.containsKey(monthKey)) {
+        byMonth[monthKey] = {'income': 0, 'expenses': 0};
+      }
+      
+      if (t.isExpense) {
+        byMonth[monthKey]!['expenses'] = byMonth[monthKey]!['expenses']! + t.amount;
+      } else {
+        byMonth[monthKey]!['income'] = byMonth[monthKey]!['income']! + t.amount;
+      }
+    }
+    
+    // Calculate savings rate
+    final savingsRates = <String, double>{};
+    for (final month in byMonth.keys) {
+      final income = byMonth[month]!['income']!;
+      final expenses = byMonth[month]!['expenses']!;
+      
+      savingsRates[month] = income > 0 ? ((income - expenses) / income) * 100 : 0;
+    }
+    
+    return {
+      'monthly_data': byMonth,
+      'savings_rates': savingsRates,
+      'reported_monthly_income': monthlyIncome,
+      'average_expenses': byMonth.isNotEmpty 
+          ? byMonth.values.fold(0.0, (sum, m) => sum + m['expenses']!) / byMonth.length
+          : 0.0
+    };
+  }
+
+  Map<String, dynamic> _prepareTransactionContextForQuestion(List<Transaction> transactions) {
+    // Group transactions by date
+    final byDate = _groupTransactionsByDate(transactions);
+    
+    // Calculate current month metrics
+    final now = DateTime.now();
+    final currentMonthTransactions = transactions
+        .where((t) => t.date.year == now.year && t.date.month == now.month)
+        .toList();
+    
+    final currentMonthIncome = currentMonthTransactions
+        .where((t) => !t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    final currentMonthExpenses = currentMonthTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    // Get recent balance
+    final balance = BalanceService.instance.getCurrentBalance();
+    
+    // Get top spending categories
+    final categorizedSpending = _categorizeTotalSpending(transactions);
+    final topCategories = categorizedSpending.entries
+        .map((e) => {'category': e.key, 'amount': e.value})
+        .toList()
+      ..sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+    
+    return {
+      'transaction_count': transactions.length,
+      'current_month': {
+        'income': currentMonthIncome,
+        'expenses': currentMonthExpenses,
+        'balance': currentMonthIncome - currentMonthExpenses
+      },
+      'current_balance': balance,
+      'top_spending_categories': topCategories.take(5).toList(),
+      'recent_transactions': transactions
+          .take(10)
+          .map((t) => {
+            'amount': t.amount,
+            'category': t.category,
+            'date': t.date.toIso8601String(),
+            'is_expense': t.isExpense,
+            'title': t.title
+          })
+          .toList()
+    };
+  }
+
+  // Helper functions
+  String _getDayOfWeek(DateTime date) {
+    switch (date.weekday) {
+      case 1: return 'Monday';
+      case 2: return 'Tuesday';
+      case 3: return 'Wednesday';
+      case 4: return 'Thursday';
+      case 5: return 'Friday';
+      case 6: return 'Saturday';
+      case 7: return 'Sunday';
+      default: return '';
+    }
+  }
+
+  String _getMonthName(DateTime date) {
+    switch (date.month) {
+      case 1: return 'January';
+      case 2: return 'February';
+      case 3: return 'March';
+      case 4: return 'April';
+      case 5: return 'May';
+      case 6: return 'June';
+      case 7: return 'July';
+      case 8: return 'August';
+      case 9: return 'September';
+      case 10: return 'October';
+      case 11: return 'November';
+      case 12: return 'December';
+      default: return '';
+    }
+  }
+
+  IconData _getCategoryIcon(String category) {
+    final categoryLower = category.toLowerCase();
+    
+    if (categoryLower.contains('food') || categoryLower.contains('dining') || 
+        categoryLower.contains('restaurant')) {
+      return Icons.restaurant;
+    } else if (categoryLower.contains('transport') || categoryLower.contains('travel') || 
+              categoryLower.contains('uber')) {
+      return Icons.directions_car;
+    } else if (categoryLower.contains('shopping') || categoryLower.contains('clothing')) {
+      return Icons.shopping_bag;
+    } else if (categoryLower.contains('entertainment') || categoryLower.contains('movie')) {
+      return Icons.movie;
+    } else if (categoryLower.contains('health') || categoryLower.contains('medical')) {
+      return Icons.health_and_safety;
+    } else if (categoryLower.contains('education') || categoryLower.contains('school')) {
+      return Icons.school;
+    } else if (categoryLower.contains('home') || categoryLower.contains('rent') || 
+              categoryLower.contains('mortgage')) {
+      return Icons.home;
+    } else if (categoryLower.contains('utilities') || categoryLower.contains('electric') || 
+              categoryLower.contains('water')) {
+      return Icons.electrical_services;
+    } else if (categoryLower.contains('phone') || categoryLower.contains('mobile')) {
+      return Icons.phone_android;
+    } else if (categoryLower.contains('savings') || categoryLower.contains('investment')) {
+      return Icons.savings;
+    } else {
+      return Icons.category;
     }
   }
 }
