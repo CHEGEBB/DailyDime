@@ -2555,9 +2555,9 @@ const SizedBox(height: 16),
       backgroundColor: themeService.primaryColor,
       foregroundColor: Colors.white,
       icon: Image.asset(
-        'assets/images/gemini_logo.png',
-        width: 20,
-        height: 20,
+        'assets/images/logo.png',
+        width: 60,
+        height: 60,
         color: Colors.white,
       ),
       label: Text(
@@ -2602,7 +2602,7 @@ const SizedBox(height: 16),
               child: Row(
                 children: [
                   Image.asset(
-                    'assets/images/gemini_logo.png',
+                    'assets/images/logo.png',
                     width: 24,
                     height: 24,
                   ),
