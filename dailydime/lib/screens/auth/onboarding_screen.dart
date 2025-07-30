@@ -256,13 +256,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
     
     if (themeService.isDarkMode) {
-      final backgrounds = [
-        const Color(0xFF1E3A8A), // Dark blue
-        const Color(0xFF581C87), // Dark purple
-        const Color(0xFF92400E), // Dark amber
-        const Color(0xFF991B1B), // Dark red
-      ];
-      return backgrounds[index % backgrounds.length];
+      // Use consistent dark theme background for all pages
+      return const Color(0xFF0D1B2A); // Same dark background as returning user
     } else {
       final backgrounds = [
         const Color(0xFFDBEAFE), // Light blue
@@ -271,6 +266,27 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         const Color(0xFFFEE2E2), // Light red
       ];
       return backgrounds[index % backgrounds.length];
+    }
+  }
+  
+  // Helper method to get colors based on theme mode
+  Color _getPrimaryColor(OnboardingItem item, ThemeService themeService) {
+    if (themeService.isDarkMode) {
+      // Use consistent theme colors in dark mode
+      return themeService.primaryColor; // Teal/Emerald
+    } else {
+      // Use item-specific colors in light mode
+      return item.primaryColor;
+    }
+  }
+  
+  Color _getSecondaryColor(OnboardingItem item, ThemeService themeService) {
+    if (themeService.isDarkMode) {
+      // Use consistent theme colors in dark mode
+      return themeService.secondaryColor;
+    } else {
+      // Use item-specific colors in light mode
+      return item.secondaryColor;
     }
   }
   
@@ -313,8 +329,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           backgroundColor = _getBackgroundColor(0, themeService);
         } else {
           final currentItem = _onboardingItems[_currentPage];
-          primaryColor = currentItem.primaryColor;
-          secondaryColor = currentItem.secondaryColor;
+          primaryColor = _getPrimaryColor(currentItem, themeService);
+          secondaryColor = _getSecondaryColor(currentItem, themeService);
           backgroundColor = _getBackgroundColor(_currentPage, themeService);
         }
         
@@ -654,6 +670,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     Size screenSize, 
     ThemeService themeService,
   ) {
+    // Get theme-appropriate colors
+    final primaryColor = _getPrimaryColor(item, themeService);
+    final secondaryColor = _getSecondaryColor(item, themeService);
+    
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
@@ -685,12 +705,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: item.primaryColor.withOpacity(0.1),
+                      color: primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
                       item.iconData,
-                      color: item.primaryColor,
+                      color: primaryColor,
                       size: 28,
                     ),
                   ),
@@ -737,12 +757,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: item.primaryColor.withOpacity(0.1),
+                                  color: primaryColor.withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
                                   Icons.check,
-                                  color: item.primaryColor,
+                                  color: primaryColor,
                                   size: 14,
                                 ),
                               ),
