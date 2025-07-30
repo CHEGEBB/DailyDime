@@ -1828,28 +1828,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 ),
             ],
             lineTouchData: LineTouchData(
-              touchTooltipData: LineTouchTooltipData(
-                tooltipBgColor: themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-                tooltipRoundedRadius: 8,
-                getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                  return touchedBarSpots.map((barSpot) {
-                    final flSpot = barSpot;
-                    final index = flSpot.x.toInt();
-                    final forecast = dailyForecast[index] as Map<String, dynamic>;
-                    final date = forecast['date'] as String;
-                    final isActual = forecast['actual'] as bool? ?? false;
-                    
-                    return LineTooltipItem(
-                      '${date}\n${isActual ? 'Actual' : 'Forecast'}: ${AppConfig.formatCurrency(flSpot.y.toInt() * 100)}',
-                      TextStyle(
-                        color: themeService.isDarkMode ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    );
-                  }).toList();
-                },
-              ),
-            ),
+  touchTooltipData: LineTouchTooltipData(
+    getTooltipColor: (touchedSpot) => themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
+    // Remove tooltipRoundedRadius if it causes issues
+    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+      return touchedBarSpots.map((barSpot) {
+        final flSpot = barSpot;
+        final index = flSpot.x.toInt();
+        final forecast = dailyForecast[index] as Map<String, dynamic>;
+        final date = forecast['date'] as String;
+        final isActual = forecast['actual'] as bool? ?? false;
+        
+        return LineTooltipItem(
+          '${date}\n${isActual ? 'Actual' : 'Forecast'}: ${AppConfig.formatCurrency(flSpot.y.toInt() * 100)}',
+          TextStyle(
+            color: themeService.isDarkMode ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+      }).toList();
+    },
+  ),
+),
           ),
         ),
       ),
