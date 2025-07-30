@@ -298,9 +298,9 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
               // Background pattern
               Positioned.fill(
                 child: Opacity(
-                  opacity: 0.15,
+                  opacity: 0.25,
                   child: Image.asset(
-                    'assets/images/pattern12.png',
+                    'assets/images/pattern11.png',
                     fit: BoxFit.cover,
                   ),
                 ),
