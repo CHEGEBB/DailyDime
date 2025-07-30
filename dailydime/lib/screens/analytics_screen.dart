@@ -924,28 +924,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                 ),
               ],
               lineTouchData: LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  tooltipBgColor: themeService.isDarkMode 
-                      ? Colors.grey[800]! 
-                      : Colors.white,
-                  tooltipRoundedRadius: 8,
-                  getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                    return touchedBarSpots.map((barSpot) {
-                      final flSpot = barSpot;
-                      final weekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][flSpot.x.toInt()];
-                      return LineTooltipItem(
-                        '$weekday\n${AppConfig.formatCurrency(flSpot.y.toInt() * 100)}',
-                        TextStyle(
-                          color: themeService.isDarkMode 
-                              ? Colors.white 
-                              : Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    }).toList();
-                  },
-                ),
-              ),
+  touchTooltipData: LineTouchTooltipData(
+    getTooltipColor: (touchedSpot) => themeService.isDarkMode 
+        ? Colors.grey[800]! 
+        : Colors.white,  // Changed to 'getTooltipColor'
+    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+      return touchedBarSpots.map((barSpot) {
+        final flSpot = barSpot;
+        final weekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][flSpot.x.toInt()];
+        return LineTooltipItem(
+          '$weekday\n${AppConfig.formatCurrency(flSpot.y.toInt() * 100)}',
+          TextStyle(
+            color: themeService.isDarkMode 
+                ? Colors.white 
+                : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+      }).toList();
+    },
+  ),
+),
             ),
           ),
         ),

@@ -350,15 +350,15 @@ class AIInsightService {
       'goals': <Map<String, dynamic>>[]
     };
 
-    for (final goal in savingsGoals) {
-      savingsData['goals'].add({
-        'name': goal.name,
-        'target_amount': goal.targetAmount,
-        'current_amount': goal.currentAmount,
-        'deadline': goal.deadline?.toIso8601String(),
-        'progress': goal.currentAmount / goal.targetAmount
-      });
-    }
+   for (final goal in savingsGoals) {
+  savingsData['goals'].add({
+    'name': goal.title,  // Changed from goal.name to goal.title
+    'target_amount': goal.targetAmount,
+    'current_amount': goal.currentAmount,
+    'deadline': goal.targetDate.toIso8601String(),  // Changed from goal.deadline to goal.targetDate
+    'progress': goal.currentAmount / goal.targetAmount
+  });
+}
 
     return savingsData;
   }
