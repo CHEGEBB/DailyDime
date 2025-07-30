@@ -90,40 +90,39 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _initializeData() async {
-    setState(() {
-      _isLoading = true;
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    // Initialize balance service
+    await BalanceService.instance.initialize();
+
+    // Listen to balance updates
+    _balanceSubscription = BalanceService.instance.balanceStream.listen((
+      balance,
+    ) {
+      setState(() {
+        _currentBalance = balance;
+        _balanceController.text = NumberFormat(
+          '#,##0',
+          'en_US',
+        ).format(balance.round());
+        _lastUpdateTime = DateFormat(
+          'dd/MM/yyyy',
+        ).format(BalanceService.instance.getLastUpdateTime());
+      });
     });
 
-    try {
-      // Initialize balance service
-      await BalanceService.instance.initialize();
-
-      // Listen to balance updates
-      _balanceSubscription = BalanceService.instance.balanceStream.listen((
-        balance,
-      ) {
-        setState(() {
-          _currentBalance = balance;
-          _balanceController.text = NumberFormat(
-            '#,##0',
-            'en_US',
-          ).format(balance.round());
-          _lastUpdateTime = DateFormat(
-            'dd/MM/yyyy',
-          ).format(BalanceService.instance.getLastUpdateTime());
-        });
-      });
-
-      // Get initial balance
-      _currentBalance = BalanceService.instance.getCurrentBalance();
-      _balanceController.text = NumberFormat(
-        '#,##0',
-        'en_US',
-      ).format(_currentBalance.round());
-      _lastUpdateTime = DateFormat(
-        'dd/MM/yyyy',
-      ).format(BalanceService.instance.getLastUpdateTime());
-
+    // Get initial balance - await the Future
+    _currentBalance = await BalanceService.instance.getCurrentBalance();
+    _balanceController.text = NumberFormat(
+      '#,##0',
+      'en_US',
+    ).format(_currentBalance.round());
+    _lastUpdateTime = DateFormat(
+      'dd/MM/yyyy',
+    ).format(BalanceService.instance.getLastUpdateTime());
       // Load recent transactions
       await _loadRecentTransactions();
 

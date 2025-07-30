@@ -72,7 +72,6 @@ class _AIInsightsScreenState extends State<AIInsightsScreen> with TickerProvider
     _chatScrollController.dispose();
     super.dispose();
   }
-  
   Future<void> _loadData() async {
   setState(() {
     _isLoading = true;
@@ -80,19 +79,13 @@ class _AIInsightsScreenState extends State<AIInsightsScreen> with TickerProvider
   });
   
   try {
-    // Load user data
-    final transactionsFuture = _appwriteService.getTransactions();
-    final budgetsFuture = _appwriteService.getBudgets();
-    final savingsGoalsFuture = _appwriteService.getSavingsGoals();
-    final balanceFuture = BalanceService.instance.getCurrentBalance();
-    
-    // Wait for all data to load - Fixed the casting issue
-    final results = await Future.wait([
-      transactionsFuture,
-      budgetsFuture,
-      savingsGoalsFuture,
-      balanceFuture,
-    ] as Iterable<Future>);
+    // Load user data - Using Future.wait with explicit type parameter
+    final results = await Future.wait<dynamic>([
+      _appwriteService.getTransactions(),
+      _appwriteService.getBudgets(),
+      _appwriteService.getSavingsGoals(),
+      BalanceService.instance.getCurrentBalance(),
+    ]);
     
     _transactions = results[0] as List<Transaction>;
     _budgets = results[1] as List<Budget>;
@@ -115,6 +108,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen> with TickerProvider
     });
   }
 }
+
   Future<void> _generateInsights() async {
     if (_transactions.isEmpty) return;
     

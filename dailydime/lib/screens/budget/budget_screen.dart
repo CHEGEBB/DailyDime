@@ -66,10 +66,13 @@ void initState() {
   try {
     await BalanceService.instance.initialize();
     
-    // Get current balance
+    // Get current balance - await the Future
+    final currentBalance = await BalanceService.instance.getCurrentBalance();
+    final lastUpdate = BalanceService.instance.getLastUpdateTime();
+    
     setState(() {
-      _currentBalance = BalanceService.instance.getCurrentBalance();
-      _lastBalanceUpdate = BalanceService.instance.getLastUpdateTime();
+      _currentBalance = currentBalance;
+      _lastBalanceUpdate = lastUpdate;
     });
     
     // Listen to balance updates
@@ -77,7 +80,7 @@ void initState() {
       if (mounted) {
         setState(() {
           _currentBalance = newBalance;
-          _lastBalanceUpdate = BalanceService.instance.getLastUpdateTime();
+          _lastBalanceUpdate = DateTime.now();
         });
       }
     });

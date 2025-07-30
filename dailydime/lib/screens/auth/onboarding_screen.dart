@@ -35,13 +35,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late Animation<double> _scaleAnimation;
   late Animation<double> _buttonScaleAnimation;
   
-  // Define the onboarding items with modern financial Lottie animations
+  // Define the onboarding items with their specific color schemes
   final List<OnboardingItem> _onboardingItems = [
     OnboardingItem(
       title: 'Track Your Expenses',
       description: 'Monitor your spending habits and get insights into where your money goes with powerful analytics',
       lottieAsset: 'assets/animations/money_coins.json',
       iconData: Icons.bar_chart_rounded,
+      primaryColor: const Color(0xFF3B82F6), // Blue
+      secondaryColor: const Color(0xFF1D4ED8), // Blue variant
       featureTexts: [
         'Smart expense categorization',
         'Real-time transaction monitoring',
@@ -53,6 +55,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       description: 'Set personalized budgets with AI-powered recommendations based on your spending habits',
       lottieAsset: 'assets/animations/budgeting.json',
       iconData: Icons.account_balance_wallet_rounded,
+      primaryColor: const Color(0xFF8B5CF6), // Purple
+      secondaryColor: const Color(0xFF7C3AED), // Purple variant
       featureTexts: [
         'Customizable budget categories',
         'AI-powered spending recommendations',
@@ -64,6 +68,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       description: 'Set savings goals and track your progress with visual indicators and milestone celebrations',
       lottieAsset: 'assets/animations/goals.json',
       iconData: Icons.emoji_events_rounded,
+      primaryColor: const Color(0xFFF59E0B), // Amber/Gold
+      secondaryColor: const Color(0xFFD97706), // Amber variant
       featureTexts: [
         'Visual progress trackers',
         'Milestone celebrations',
@@ -75,6 +81,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       description: 'Connect with M-Pesa and other payment platforms for automatic transaction tracking',
       lottieAsset: 'assets/animations/payment.json',
       iconData: Icons.sync_rounded,
+      primaryColor: const Color(0xFFEF4444), // Red/Orange
+      secondaryColor: const Color(0xFFDC2626), // Red variant
       featureTexts: [
         'M-Pesa integration',
         'Automated transaction syncing',
@@ -83,7 +91,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     ),
   ];
   
-  // For returning users - updated with teal/emerald colors
+  // For returning users - teal/emerald colors only
   final ReturningUserContent _returningUserContent = ReturningUserContent(
     mainLottieAsset: 'assets/animations/Login.json',
     welcomeText: 'Welcome Back!',
@@ -240,6 +248,32 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
   
+  Color _getBackgroundColor(int index, ThemeService themeService) {
+    if (_isReturningUser) {
+      return themeService.isDarkMode 
+          ? const Color(0xFF0D1B2A) // Dark teal background
+          : const Color(0xFFE6FFFA); // Light teal background
+    }
+    
+    if (themeService.isDarkMode) {
+      final backgrounds = [
+        const Color(0xFF1E3A8A), // Dark blue
+        const Color(0xFF581C87), // Dark purple
+        const Color(0xFF92400E), // Dark amber
+        const Color(0xFF991B1B), // Dark red
+      ];
+      return backgrounds[index % backgrounds.length];
+    } else {
+      final backgrounds = [
+        const Color(0xFFDBEAFE), // Light blue
+        const Color(0xFFEDE9FE), // Light purple
+        const Color(0xFFFEF3C7), // Light amber
+        const Color(0xFFFEE2E2), // Light red
+      ];
+      return backgrounds[index % backgrounds.length];
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeService>(
@@ -268,71 +302,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         
         final screenSize = MediaQuery.of(context).size;
         
-        // Get theme-appropriate colors for onboarding items
-        Color getPrimaryColor(int index) {
-          if (_isReturningUser) {
-            return themeService.primaryColor; // Use teal/emerald from theme
-          }
-          
-          final colors = [
-            themeService.primaryColor, // Teal/Emerald
-            const Color(0xFF0AB3B8), // Teal
-            const Color(0xFF059669), // Emerald
-            themeService.secondaryColor,
-          ];
-          return colors[index % colors.length];
-        }
+        // Get colors for current page/state
+        Color primaryColor;
+        Color secondaryColor;
+        Color backgroundColor;
         
-        Color getSecondaryColor(int index) {
-          if (_isReturningUser) {
-            return themeService.secondaryColor;
-          }
-          
-          final colors = [
-            themeService.secondaryColor,
-            themeService.primaryColor,
-            const Color(0xFF10B981),
-            const Color(0xFF059669),
-          ];
-          return colors[index % colors.length];
+        if (_isReturningUser) {
+          primaryColor = themeService.primaryColor; // Teal/Emerald
+          secondaryColor = themeService.secondaryColor;
+          backgroundColor = _getBackgroundColor(0, themeService);
+        } else {
+          final currentItem = _onboardingItems[_currentPage];
+          primaryColor = currentItem.primaryColor;
+          secondaryColor = currentItem.secondaryColor;
+          backgroundColor = _getBackgroundColor(_currentPage, themeService);
         }
-        
-        Color getBackgroundColor(int index) {
-          if (_isReturningUser) {
-            return themeService.isDarkMode 
-                ? const Color(0xFF0D1B2A) // Dark teal background
-                : const Color(0xFFE6FFFA); // Light teal background
-          }
-          
-          if (themeService.isDarkMode) {
-            final backgrounds = [
-              const Color(0xFF0F1419), // Dark emerald
-              const Color(0xFF0D1B2A), // Dark teal
-              const Color(0xFF1A0B2E), // Dark purple
-              const Color(0xFF2D1B1B), // Dark red
-            ];
-            return backgrounds[index % backgrounds.length];
-          } else {
-            final backgrounds = [
-              const Color(0xFFF0FDF4), // Light emerald
-              const Color(0xFFE6FFFA), // Light teal
-              const Color(0xFFF5F3FF), // Light purple
-              const Color(0xFFFEF2F2), // Light red
-            ];
-            return backgrounds[index % backgrounds.length];
-          }
-        }
-        
-        final currentItem = _isReturningUser ? null : _onboardingItems[_currentPage];
-        final primaryColor = _isReturningUser 
-            ? themeService.primaryColor 
-            : getPrimaryColor(_currentPage);
-        final secondaryColor = _isReturningUser 
-            ? themeService.secondaryColor 
-            : getSecondaryColor(_currentPage);
-        final backgroundColor = _isReturningUser 
-            ? getBackgroundColor(0)
-            : getBackgroundColor(_currentPage);
         
         return Scaffold(
           body: Container(
@@ -356,7 +340,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     ),
                   ),
                   
-                  // Remove bottom left decorative element for returning users
+                  // Bottom left decorative element (only for new users)
                   if (!_isReturningUser)
                     Positioned(
                       bottom: -40,
@@ -433,7 +417,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 child: FadeTransition(
                                   opacity: _fadeAnimation,
                                   child: TextButton(
-                                    onPressed: _navigateToLogin, // Changed to navigate to login
+                                    onPressed: _navigateToLogin,
                                     style: TextButton.styleFrom(
                                       foregroundColor: primaryColor,
                                       backgroundColor: primaryColor.withOpacity(0.1),
@@ -463,7 +447,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       // Main content area
                       Expanded(
                         child: _isReturningUser
-                            ? _buildReturningUserContent(screenSize, themeService)
+                            ? _buildReturningUserContent(screenSize, themeService, primaryColor, secondaryColor)
                             : PageView.builder(
                                 controller: _pageController,
                                 itemCount: _onboardingItems.length,
@@ -473,8 +457,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                   return _buildOnboardingPage(
                                     _onboardingItems[index], 
                                     screenSize,
-                                    getPrimaryColor(index),
-                                    getSecondaryColor(index),
                                     themeService,
                                   );
                                 },
@@ -670,8 +652,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget _buildOnboardingPage(
     OnboardingItem item, 
     Size screenSize, 
-    Color primaryColor, 
-    Color secondaryColor,
     ThemeService themeService,
   ) {
     return FadeTransition(
@@ -705,12 +685,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.1),
+                      color: item.primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
                       item.iconData,
-                      color: primaryColor,
+                      color: item.primaryColor,
                       size: 28,
                     ),
                   ),
@@ -757,12 +737,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: primaryColor.withOpacity(0.1),
+                                  color: item.primaryColor.withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
                                   Icons.check,
-                                  color: primaryColor,
+                                  color: item.primaryColor,
                                   size: 14,
                                 ),
                               ),
@@ -791,10 +771,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
   
-  Widget _buildReturningUserContent(Size screenSize, ThemeService themeService) {
-    final primaryColor = themeService.primaryColor;
-    final secondaryColor = themeService.secondaryColor;
-    
+  Widget _buildReturningUserContent(Size screenSize, ThemeService themeService, Color primaryColor, Color secondaryColor) {
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
@@ -872,19 +849,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   
                   const SizedBox(height: 32),
                   
-                  // Card with what's new
+                  // Card with what's new - removed white background
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: themeService.cardColor,
+                      color: Colors.transparent,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryColor.withOpacity(0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+                      border: Border.all(
+                        color: primaryColor.withOpacity(0.2),
+                        width: 1,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -960,6 +934,8 @@ class OnboardingItem {
   final String description;
   final String lottieAsset;
   final IconData iconData;
+  final Color primaryColor;
+  final Color secondaryColor;
   final List<String>? featureTexts;
 
   OnboardingItem({
@@ -967,6 +943,8 @@ class OnboardingItem {
     required this.description,
     required this.lottieAsset,
     required this.iconData,
+    required this.primaryColor,
+    required this.secondaryColor,
     this.featureTexts,
   });
 }

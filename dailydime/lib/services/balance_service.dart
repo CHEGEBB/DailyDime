@@ -41,8 +41,17 @@ class BalanceService {
     }
   }
   
-  // Get the current balance
-  double getCurrentBalance() {
+  // Get the current balance - now returns Future<double>
+  Future<double> getCurrentBalance() async {
+    // Ensure service is initialized
+    if (!_isInitialized) {
+      await initialize();
+    }
+    return _currentBalance;
+  }
+  
+  // If you still need synchronous access, keep this method
+  double getCurrentBalanceSync() {
     return _currentBalance;
   }
   
