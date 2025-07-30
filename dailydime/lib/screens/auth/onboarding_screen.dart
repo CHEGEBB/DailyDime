@@ -4,7 +4,9 @@ import 'package:lottie/lottie.dart';
 import 'package:dailydime/screens/auth/login_screen.dart';
 import 'package:dailydime/screens/auth/register_screen.dart';
 import 'package:dailydime/services/auth_service.dart';
+import 'package:dailydime/services/theme_service.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'dart:ui';
 
 class OnboardingScreen extends StatefulWidget {
@@ -39,9 +41,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       title: 'Track Your Expenses',
       description: 'Monitor your spending habits and get insights into where your money goes with powerful analytics',
       lottieAsset: 'assets/animations/money_coins.json',
-      backgroundColor: const Color(0xFFF0FDF4),
-      primaryColor: const Color(0xFF10B981),
-      secondaryColor: const Color(0xFF059669),
       iconData: Icons.bar_chart_rounded,
       featureTexts: [
         'Smart expense categorization',
@@ -53,9 +52,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       title: 'Smart Budgeting',
       description: 'Set personalized budgets with AI-powered recommendations based on your spending habits',
       lottieAsset: 'assets/animations/budgeting.json',
-      backgroundColor: const Color(0xFFEFF6FF),
-      primaryColor: const Color(0xFF1E3A8A),
-      secondaryColor: const Color(0xFF3B82F6),
       iconData: Icons.account_balance_wallet_rounded,
       featureTexts: [
         'Customizable budget categories',
@@ -67,9 +63,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       title: 'Achieve Your Goals',
       description: 'Set savings goals and track your progress with visual indicators and milestone celebrations',
       lottieAsset: 'assets/animations/goals.json',
-      backgroundColor: const Color(0xFFF5F3FF),
-      primaryColor: const Color(0xFF7C3AED),
-      secondaryColor: const Color(0xFFA855F7),
       iconData: Icons.emoji_events_rounded,
       featureTexts: [
         'Visual progress trackers',
@@ -81,9 +74,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       title: 'Seamless Payments',
       description: 'Connect with M-Pesa and other payment platforms for automatic transaction tracking',
       lottieAsset: 'assets/animations/payment.json',
-      backgroundColor: const Color(0xFFFEF2F2),
-      primaryColor: const Color(0xFFEF4444),
-      secondaryColor: const Color(0xFFF97316),
       iconData: Icons.sync_rounded,
       featureTexts: [
         'M-Pesa integration',
@@ -93,20 +83,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     ),
   ];
   
-  // For returning users - more elaborate welcome back screen
+  // For returning users - updated with teal/emerald colors
   final ReturningUserContent _returningUserContent = ReturningUserContent(
     mainLottieAsset: 'assets/animations/Login.json',
-    secondaryLottieAssets: [
-      'assets/animations/growth.json',
-      'assets/animations/management.json',
-      'assets/animations/savings_goal.json',
-    ],
     welcomeText: 'Welcome Back!',
     subtitle: 'Continue your journey to financial freedom',
     description: 'Your financial insights and budgets are ready for you. Sign in to access your DailyDime dashboard.',
-    primaryColor: const Color(0xFF0EA5E9),
-    secondaryColor: const Color(0xFF0284C7),
-    backgroundColor: const Color(0xFFE0F2FE),
     recentUpdates: [
       'New AI-powered insights',
       'Enhanced budget tracking',
@@ -117,12 +99,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-      ),
-    );
     
     // Initialize animation controllers
     _slideController = AnimationController(
@@ -235,7 +211,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         curve: Curves.easeInOut,
       );
     } else {
-      _navigateToSignup();
+      // Always navigate to login instead of register
+      _navigateToLogin();
     }
   }
   
@@ -265,361 +242,438 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   
   @override
   Widget build(BuildContext context) {
-    // Handle loading state with a nice animation
-    if (_isLoading) {
-      return Scaffold(
-        body: Center(
-          child: Lottie.asset(
-            'assets/animations/loading2.json',
-            width: 120,
-            height: 120,
+    return Consumer<ThemeService>(
+      builder: (context, themeService, child) {
+        // Update system UI based on theme
+        SystemChrome.setSystemUIOverlayStyle(
+          SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: themeService.isDarkMode ? Brightness.light : Brightness.dark,
           ),
-        ),
-      );
-    }
-    
-    final screenSize = MediaQuery.of(context).size;
-    final currentItem = _isReturningUser 
-        ? null 
-        : _onboardingItems[_currentPage];
-    final primaryColor = _isReturningUser 
-        ? _returningUserContent.primaryColor 
-        : currentItem!.primaryColor;
-    final secondaryColor = _isReturningUser 
-        ? _returningUserContent.secondaryColor 
-        : currentItem!.secondaryColor;
-    final backgroundColor = _isReturningUser 
-        ? _returningUserContent.backgroundColor 
-        : currentItem!.backgroundColor;
-    
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-        ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              // Top right decorative element
-              Positioned(
-                top: -20,
-                right: -20,
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: primaryColor.withOpacity(0.1),
-                  ),
-                ),
+        );
+        
+        // Handle loading state with a nice animation
+        if (_isLoading) {
+          return Scaffold(
+            backgroundColor: themeService.backgroundColor,
+            body: Center(
+              child: Lottie.asset(
+                'assets/animations/loading2.json',
+                width: 120,
+                height: 120,
               ),
-              
-              // Bottom left decorative element
-              Positioned(
-                bottom: -40,
-                left: -40,
-                child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: secondaryColor.withOpacity(0.1),
-                  ),
-                ),
-              ),
-              
-              // Main content
-              Column(
+            ),
+          );
+        }
+        
+        final screenSize = MediaQuery.of(context).size;
+        
+        // Get theme-appropriate colors for onboarding items
+        Color getPrimaryColor(int index) {
+          if (_isReturningUser) {
+            return themeService.primaryColor; // Use teal/emerald from theme
+          }
+          
+          final colors = [
+            themeService.primaryColor, // Teal/Emerald
+            const Color(0xFF0AB3B8), // Teal
+            const Color(0xFF059669), // Emerald
+            themeService.secondaryColor,
+          ];
+          return colors[index % colors.length];
+        }
+        
+        Color getSecondaryColor(int index) {
+          if (_isReturningUser) {
+            return themeService.secondaryColor;
+          }
+          
+          final colors = [
+            themeService.secondaryColor,
+            themeService.primaryColor,
+            const Color(0xFF10B981),
+            const Color(0xFF059669),
+          ];
+          return colors[index % colors.length];
+        }
+        
+        Color getBackgroundColor(int index) {
+          if (_isReturningUser) {
+            return themeService.isDarkMode 
+                ? const Color(0xFF0D1B2A) // Dark teal background
+                : const Color(0xFFE6FFFA); // Light teal background
+          }
+          
+          if (themeService.isDarkMode) {
+            final backgrounds = [
+              const Color(0xFF0F1419), // Dark emerald
+              const Color(0xFF0D1B2A), // Dark teal
+              const Color(0xFF1A0B2E), // Dark purple
+              const Color(0xFF2D1B1B), // Dark red
+            ];
+            return backgrounds[index % backgrounds.length];
+          } else {
+            final backgrounds = [
+              const Color(0xFFF0FDF4), // Light emerald
+              const Color(0xFFE6FFFA), // Light teal
+              const Color(0xFFF5F3FF), // Light purple
+              const Color(0xFFFEF2F2), // Light red
+            ];
+            return backgrounds[index % backgrounds.length];
+          }
+        }
+        
+        final currentItem = _isReturningUser ? null : _onboardingItems[_currentPage];
+        final primaryColor = _isReturningUser 
+            ? themeService.primaryColor 
+            : getPrimaryColor(_currentPage);
+        final secondaryColor = _isReturningUser 
+            ? themeService.secondaryColor 
+            : getSecondaryColor(_currentPage);
+        final backgroundColor = _isReturningUser 
+            ? getBackgroundColor(0)
+            : getBackgroundColor(_currentPage);
+        
+        return Scaffold(
+          body: Container(
+            decoration: BoxDecoration(
+              color: backgroundColor,
+            ),
+            child: SafeArea(
+              child: Stack(
                 children: [
-                  // Header with app logo and skip button
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // App logo/name with subtle animation
-                        SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(-0.5, 0),
-                            end: Offset.zero,
-                          ).animate(CurvedAnimation(
-                            parent: _fadeController,
-                            curve: Curves.easeOut,
-                          )),
-                          child: FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: primaryColor.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(
-                                    Icons.account_balance_wallet,
-                                    color: primaryColor,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'DailyDime',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: primaryColor,
-                                    fontFamily: 'DMsans',
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        
-                        // Skip button (only for new users)
-                        if (!_isReturningUser)
-                          SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0.5, 0),
-                              end: Offset.zero,
-                            ).animate(CurvedAnimation(
-                              parent: _fadeController,
-                              curve: Curves.easeOut,
-                            )),
-                            child: FadeTransition(
-                              opacity: _fadeAnimation,
-                              child: TextButton(
-                                onPressed: _navigateToSignup,
-                                style: TextButton.styleFrom(
-                                  foregroundColor: primaryColor,
-                                  backgroundColor: primaryColor.withOpacity(0.1),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, 
-                                    vertical: 8,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Skip',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    fontFamily: 'DMsans',
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                  // Top right decorative element
+                  Positioned(
+                    top: -20,
+                    right: -20,
+                    child: Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: primaryColor.withOpacity(0.1),
+                      ),
                     ),
                   ),
                   
-                  // Main content area
-                  Expanded(
-                    child: _isReturningUser
-                        ? _buildReturningUserContent(screenSize)
-                        : PageView.builder(
-                            controller: _pageController,
-                            itemCount: _onboardingItems.length,
-                            onPageChanged: _onPageChanged,
-                            physics: const BouncingScrollPhysics(),
-                            itemBuilder: (context, index) {
-                              return _buildOnboardingPage(
-                                _onboardingItems[index], 
-                                screenSize
-                              );
-                            },
-                          ),
-                  ),
+                  // Remove bottom left decorative element for returning users
+                  if (!_isReturningUser)
+                    Positioned(
+                      bottom: -40,
+                      left: -40,
+                      child: Container(
+                        width: 200,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: secondaryColor.withOpacity(0.1),
+                        ),
+                      ),
+                    ),
                   
-                  // Bottom navigation area
-                  Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      children: [
-                        // Page indicators (only for new users)
-                        if (!_isReturningUser)
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(
-                                _onboardingItems.length,
-                                (index) => AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                                  width: _currentPage == index ? 24 : 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: _currentPage == index
-                                        ? primaryColor
-                                        : primaryColor.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
+                  // Main content
+                  Column(
+                    children: [
+                      // Header with app logo and skip button
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // App logo/name with subtle animation
+                            SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(-0.5, 0),
+                                end: Offset.zero,
+                              ).animate(CurvedAnimation(
+                                parent: _fadeController,
+                                curve: Curves.easeOut,
+                              )),
+                              child: FadeTransition(
+                                opacity: _fadeAnimation,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: primaryColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.account_balance_wallet,
+                                        color: primaryColor,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'DailyDime',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryColor,
+                                        fontFamily: 'DMsans',
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                          ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Action button
-                        FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: ScaleTransition(
-                            scale: _scaleAnimation,
-                            child: GestureDetector(
-                              onTapDown: (_) => _buttonAnimationController.forward(),
-                              onTapUp: (_) {
-                                _buttonAnimationController.reverse();
-                                _nextPage();
-                              },
-                              onTapCancel: () => _buttonAnimationController.reverse(),
-                              child: AnimatedBuilder(
-                                animation: _buttonAnimationController,
-                                builder: (context, child) {
-                                  return Transform.scale(
-                                    scale: _buttonScaleAnimation.value,
-                                    child: Container(
-                                      width: double.infinity,
-                                      height: 56,
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            primaryColor,
-                                            secondaryColor,
-                                          ],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        ),
-                                        borderRadius: BorderRadius.circular(28),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: primaryColor.withOpacity(0.3),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
+                            
+                            // Skip button (only for new users)
+                            if (!_isReturningUser)
+                              SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0.5, 0),
+                                  end: Offset.zero,
+                                ).animate(CurvedAnimation(
+                                  parent: _fadeController,
+                                  curve: Curves.easeOut,
+                                )),
+                                child: FadeTransition(
+                                  opacity: _fadeAnimation,
+                                  child: TextButton(
+                                    onPressed: _navigateToLogin, // Changed to navigate to login
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: primaryColor,
+                                      backgroundColor: primaryColor.withOpacity(0.1),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, 
+                                        vertical: 8,
                                       ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            _isReturningUser
-                                                ? 'Continue to Login'
-                                                : (_currentPage < _onboardingItems.length - 1
-                                                    ? 'Next'
-                                                    : 'Get Started'),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              fontFamily: 'DMsans',
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Icon(
-                                            _isReturningUser
-                                                ? Icons.login_rounded
-                                                : (_currentPage < _onboardingItems.length - 1
-                                                    ? Icons.arrow_forward_rounded
-                                                    : Icons.check_circle_outline_rounded),
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                        ],
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
                                     ),
+                                    child: const Text(
+                                      'Skip',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                        fontFamily: 'DMsans',
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Main content area
+                      Expanded(
+                        child: _isReturningUser
+                            ? _buildReturningUserContent(screenSize, themeService)
+                            : PageView.builder(
+                                controller: _pageController,
+                                itemCount: _onboardingItems.length,
+                                onPageChanged: _onPageChanged,
+                                physics: const BouncingScrollPhysics(),
+                                itemBuilder: (context, index) {
+                                  return _buildOnboardingPage(
+                                    _onboardingItems[index], 
+                                    screenSize,
+                                    getPrimaryColor(index),
+                                    getSecondaryColor(index),
+                                    themeService,
                                   );
                                 },
                               ),
+                      ),
+                      
+                      // Bottom navigation area
+                      Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          children: [
+                            // Page indicators (only for new users)
+                            if (!_isReturningUser)
+                              FadeTransition(
+                                opacity: _fadeAnimation,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: List.generate(
+                                    _onboardingItems.length,
+                                    (index) => AnimatedContainer(
+                                      duration: const Duration(milliseconds: 300),
+                                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                                      width: _currentPage == index ? 24 : 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: _currentPage == index
+                                            ? primaryColor
+                                            : primaryColor.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Action button
+                            FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: ScaleTransition(
+                                scale: _scaleAnimation,
+                                child: GestureDetector(
+                                  onTapDown: (_) => _buttonAnimationController.forward(),
+                                  onTapUp: (_) {
+                                    _buttonAnimationController.reverse();
+                                    _nextPage();
+                                  },
+                                  onTapCancel: () => _buttonAnimationController.reverse(),
+                                  child: AnimatedBuilder(
+                                    animation: _buttonAnimationController,
+                                    builder: (context, child) {
+                                      return Transform.scale(
+                                        scale: _buttonScaleAnimation.value,
+                                        child: Container(
+                                          width: double.infinity,
+                                          height: 56,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                primaryColor,
+                                                secondaryColor,
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                            borderRadius: BorderRadius.circular(28),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: primaryColor.withOpacity(0.3),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                _isReturningUser
+                                                    ? 'Continue to Login'
+                                                    : (_currentPage < _onboardingItems.length - 1
+                                                        ? 'Next'
+                                                        : 'Get Started'),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontFamily: 'DMsans',
+                                                  letterSpacing: 0.5,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Icon(
+                                                _isReturningUser
+                                                    ? Icons.login_rounded
+                                                    : (_currentPage < _onboardingItems.length - 1
+                                                        ? Icons.arrow_forward_rounded
+                                                        : Icons.check_circle_outline_rounded),
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                            
+                            // Login/Signup option (modified for new users on last page)
+                            if (!_isReturningUser && _currentPage == _onboardingItems.length - 1)
+                              FadeTransition(
+                                opacity: _fadeAnimation,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 16),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Already have an account? ',
+                                        style: TextStyle(
+                                          color: themeService.subtextColor,
+                                          fontSize: 14,
+                                          fontFamily: 'DMsans',
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: _navigateToLogin,
+                                        child: Text(
+                                          'Login',
+                                          style: TextStyle(
+                                            color: primaryColor,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                            fontFamily: 'DMsans',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            
+                            // Sign up option (only for returning users)
+                            if (_isReturningUser)
+                              FadeTransition(
+                                opacity: _fadeAnimation,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 16),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Need a new account? ',
+                                        style: TextStyle(
+                                          color: themeService.subtextColor,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: _navigateToSignup,
+                                        child: Text(
+                                          'Sign Up',
+                                          style: TextStyle(
+                                            color: primaryColor,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                            fontFamily: 'DMsans',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                        
-                        // Login/Signup option (only for new users on last page)
-                        if (!_isReturningUser && _currentPage == _onboardingItems.length - 1)
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 16),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text(
-                                    'Already have an account? ',
-                                    style: TextStyle(
-                                      color: Color(0xFF6B7280),
-                                      fontSize: 14,
-                                      fontFamily: 'DMsans',
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: _navigateToLogin,
-                                    child: Text(
-                                      'Login',
-                                      style: TextStyle(
-                                        color: primaryColor,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                        fontFamily: 'DMsans',
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        
-                        // Sign up option (only for returning users)
-                        if (_isReturningUser)
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 16),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text(
-                                    'Need a new account? ',
-                                    style: TextStyle(
-                                      color: Color(0xFF6B7280),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: _navigateToSignup,
-                                    child: Text(
-                                      'Sign Up',
-                                      style: TextStyle(
-                                        color: primaryColor,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                        fontFamily: 'DMsans',
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
   
-  Widget _buildOnboardingPage(OnboardingItem item, Size screenSize) {
+  Widget _buildOnboardingPage(
+    OnboardingItem item, 
+    Size screenSize, 
+    Color primaryColor, 
+    Color secondaryColor,
+    ThemeService themeService,
+  ) {
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
@@ -651,12 +705,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: item.primaryColor.withOpacity(0.1),
+                      color: primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
                       item.iconData,
-                      color: item.primaryColor,
+                      color: primaryColor,
                       size: 28,
                     ),
                   ),
@@ -666,11 +720,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   // Title
                   Text(
                     item.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'DMsans',
-                      color: Color(0xFF1F2937),
+                      color: themeService.textColor,
                       letterSpacing: -0.5,
                     ),
                     textAlign: TextAlign.center,
@@ -681,9 +735,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   // Description
                   Text(
                     item.description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF6B7280),
+                      color: themeService.subtextColor,
                       fontFamily: 'DMsans',
                       height: 1.5,
                     ),
@@ -703,12 +757,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: item.primaryColor.withOpacity(0.1),
+                                  color: primaryColor.withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
                                   Icons.check,
-                                  color: item.primaryColor,
+                                  color: primaryColor,
                                   size: 14,
                                 ),
                               ),
@@ -716,10 +770,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               Expanded(
                                 child: Text(
                                   feature,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontFamily: 'DMsans',
-                                    color: Color(0xFF4B5563),
+                                    color: themeService.subtextColor,
                                   ),
                                 ),
                               ),
@@ -737,7 +791,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
   
-  Widget _buildReturningUserContent(Size screenSize) {
+  Widget _buildReturningUserContent(Size screenSize, ThemeService themeService) {
+    final primaryColor = themeService.primaryColor;
+    final secondaryColor = themeService.secondaryColor;
+    
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
@@ -752,7 +809,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 children: [
                   // Main Lottie animation
                   SizedBox(
-                    height: screenSize.height * 0.3,
+                    height: screenSize.height * 0.35,
                     child: Lottie.asset(
                       _returningUserContent.mainLottieAsset,
                       fit: BoxFit.contain,
@@ -768,8 +825,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ShaderMask(
                     shaderCallback: (bounds) => LinearGradient(
                       colors: [
-                        _returningUserContent.primaryColor,
-                        _returningUserContent.secondaryColor,
+                        primaryColor,
+                        secondaryColor,
                       ],
                     ).createShader(bounds),
                     child: Text(
@@ -790,11 +847,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   // Subtitle
                   Text(
                     _returningUserContent.subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       fontFamily: 'DMsans',
-                      color: Color(0xFF1F2937),
+                      color: themeService.textColor,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -804,9 +861,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   // Description
                   Text(
                     _returningUserContent.description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF6B7280),
+                      color: themeService.subtextColor,
                       fontFamily: 'DMsans',
                       height: 1.5,
                     ),
@@ -819,11 +876,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: themeService.cardColor,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: _returningUserContent.primaryColor.withOpacity(0.1),
+                          color: primaryColor.withOpacity(0.1),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -836,7 +893,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           children: [
                             Icon(
                               Icons.new_releases_outlined,
-                              color: _returningUserContent.primaryColor,
+                              color: primaryColor,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -845,7 +902,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 fontFamily: 'DMsans',
-                                color: _returningUserContent.primaryColor,
+                                color: primaryColor,
                               ),
                             ),
                           ],
@@ -863,7 +920,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                     width: 6,
                                     height: 6,
                                     decoration: BoxDecoration(
-                                      color: _returningUserContent.secondaryColor,
+                                      color: secondaryColor,
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -871,10 +928,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                   Expanded(
                                     child: Text(
                                       update,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14,
                                         fontFamily: 'DMsans',
-                                        color: Color(0xFF4B5563),
+                                        color: themeService.subtextColor,
                                       ),
                                     ),
                                   ),
@@ -887,41 +944,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     ),
                   ),
                   
-                  const SizedBox(height: 24),
-                  
-                  // Secondary animations in horizontal cards
-                  SizedBox(
-                    height: 120,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: _returningUserContent.secondaryLottieAssets.length,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          width: 140,
-                          margin: const EdgeInsets.only(right: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _returningUserContent.primaryColor.withOpacity(0.08),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Lottie.asset(
-                              _returningUserContent.secondaryLottieAssets[index],
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -936,9 +959,6 @@ class OnboardingItem {
   final String title;
   final String description;
   final String lottieAsset;
-  final Color backgroundColor;
-  final Color primaryColor;
-  final Color secondaryColor;
   final IconData iconData;
   final List<String>? featureTexts;
 
@@ -946,9 +966,6 @@ class OnboardingItem {
     required this.title,
     required this.description,
     required this.lottieAsset,
-    required this.backgroundColor,
-    required this.primaryColor,
-    required this.secondaryColor,
     required this.iconData,
     this.featureTexts,
   });
@@ -956,24 +973,16 @@ class OnboardingItem {
 
 class ReturningUserContent {
   final String mainLottieAsset;
-  final List<String> secondaryLottieAssets;
   final String welcomeText;
   final String subtitle;
   final String description;
-  final Color backgroundColor;
-  final Color primaryColor;
-  final Color secondaryColor;
   final List<String> recentUpdates;
 
   ReturningUserContent({
     required this.mainLottieAsset,
-    required this.secondaryLottieAssets,
     required this.welcomeText,
     required this.subtitle,
     required this.description,
-    required this.backgroundColor,
-    required this.primaryColor,
-    required this.secondaryColor,
     required this.recentUpdates,
   });
 }

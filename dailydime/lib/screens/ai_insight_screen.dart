@@ -1,2372 +1,1686 @@
-// lib/screens/ai_insight_screen.dart
-import 'dart:math';
-import 'dart:ui';
+// lib/services/ai_insight_service.dart
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:dailydime/services/ai_insight_service.dart';
-import 'package:dailydime/services/appwrite_service.dart';
-import 'package:dailydime/services/sms_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/models/transaction.dart';
-import 'package:dailydime/screens/chat_screen.dart';
-import 'package:dailydime/screens/savings/savings_screen.dart';
-import 'package:dailydime/widgets/financial_score_card.dart';
-import 'package:dailydime/widgets/charts/charts_widget.dart';
-import 'package:lottie/lottie.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:dailydime/models/budget.dart';
+import 'package:dailydime/models/savings_goal.dart';
+import 'package:dailydime/services/balance_service.dart';
 
-class AIInsightScreen extends StatefulWidget {
-  const AIInsightScreen({Key? key}) : super(key: key);
+class AIInsightService {
+  static final AIInsightService _instance = AIInsightService._internal();
+  factory AIInsightService() => _instance;
+  AIInsightService._internal();
 
-  @override
-  State<AIInsightScreen> createState() => _AIInsightScreenState();
-}
+  final String _apiKey = AppConfig.geminiApiKey;
+  final String _model = AppConfig.geminiModel;
+  final String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-class _AIInsightScreenState extends State<AIInsightScreen> with SingleTickerProviderStateMixin {
-  AIInsightService? _aiService;
-  SmsService? _smsService;
-  bool _isLoading = true;
-  bool _hasError = false;
-  String _errorMessage = '';
-  Map<String, dynamic> _insightData = {};
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
+  // Cache insights to reduce API calls
+  Map<String, dynamic> _cachedInsights = {};
+  DateTime? _lastInsightUpdate;
 
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
-      ),
-    );
-    _initializeServices();
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _initializeServices() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _hasError = false;
-      });
-
-      // Initialize services
-      final appwriteService = AppwriteService();
-      _aiService = AIInsightService(appwriteService);
-      _smsService = SmsService();
-      
-      // Initialize SMS service to get real-time transaction data
-      if (_smsService != null) {
-        await _smsService!.initialize();
-        
-        // Subscribe to transaction stream for real-time updates
-        _smsService!.transactionStream.listen((transaction) {
-          // When new transaction detected, refresh insights
-          _loadInsights();
-        });
-      }
-      
-      await _loadInsights();
-    } catch (e) {
-      print('Error initializing services: $e');
-      setState(() {
-        _hasError = true;
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadInsights() async {
-    if (_aiService == null) {
-      setState(() {
-        _hasError = true;
-        _errorMessage = 'AI Service not initialized';
-        _isLoading = false;
-      });
-      return;
+  // Generate financial insights based on transaction data
+  Future<List<Map<String, dynamic>>> generateInsights({
+    required List<Transaction> transactions,
+    List<Budget>? budgets,
+    List<SavingsGoal>? savingsGoals,
+    double? currentBalance,
+  }) async {
+    // Check if cache is valid (less than 6 hours old)
+    final now = DateTime.now();
+    if (_lastInsightUpdate != null && 
+        now.difference(_lastInsightUpdate!).inHours < 6 &&
+        _cachedInsights.isNotEmpty) {
+      return _cachedInsights['insights'] ?? [];
     }
 
     try {
-      setState(() {
-        _isLoading = true;
-        _hasError = false;
-      });
+      // Prepare transaction data for AI analysis
+      final transactionData = _prepareTransactionData(transactions);
+      final budgetData = _prepareBudgetData(budgets);
+      final savingsData = _prepareSavingsData(savingsGoals);
+      final balanceData = await _prepareBalanceData(currentBalance);
+
+      // Construct prompt for Gemini
+      final prompt = _constructFinancialAnalysisPrompt(
+        transactionData: transactionData,
+        budgetData: budgetData,
+        savingsData: savingsData,
+        balanceData: balanceData,
+      );
+
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
       
-      final data = await _aiService!.fetchFinancialData();
+      // Parse insights from response
+      final insights = _parseInsightsFromResponse(response);
       
-      // Ensure proper type conversion for transactions
-      if (data['transactions'] != null) {
-        final List<dynamic> rawTransactions = data['transactions'] as List<dynamic>;
-        final List<Transaction> transactions = rawTransactions
-            .map((item) => item is Transaction ? item : Transaction.fromJson(item as Map<String, dynamic>))
-            .toList();
-        data['transactions'] = transactions;
-      }
+      // Update cache
+      _cachedInsights = {'insights': insights};
+      _lastInsightUpdate = now;
       
-      // Generate smart savings opportunities and other AI insights
-      if (_aiService != null && data['transactions'] != null) {
-        data['smartSavings'] = _generateSmartSavings(data['transactions'] as List<Transaction>);
-        data['financialTips'] = _generateFinancialTips(data);
-        data['anomalies'] = _detectAnomalies(data['transactions'] as List<Transaction>);
-      }
-      
-      setState(() {
-        _insightData = data;
-        _isLoading = false;
-      });
+      return insights;
     } catch (e) {
-      print('Error loading insights: $e');
-      setState(() {
-        _hasError = true;
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+      debugPrint('Error generating insights: $e');
+      // Return fallback insights if API call fails
+      return _generateFallbackInsights(transactions, budgets);
     }
   }
 
-  List<Map<String, dynamic>> _generateSmartSavings(List<Transaction> transactions) {
-    // Generate multiple smart saving opportunities
-    final opportunities = <Map<String, dynamic>>[];
-    
-    // Example: Dining out reduction suggestion
-    if (transactions.any((t) => t.category?.toLowerCase().contains('food') == true || 
-                        t.category?.toLowerCase().contains('restaurant') == true)) {
-      opportunities.add({
-        'title': 'Reduce dining expenses',
-        'description': 'You can save \${AppConfig.currencySymbol} 65 this week. By cooking at home 2 out of 4 times instead of eating out, you can save roughly ksh 65 based on your previous spending.',
-        'amount': 65,
-        'icon': Icons.restaurant,
-        'color': Colors.orange,
-        'actionText': 'Save ${AppConfig.currencySymbol} 65',
-      });
+  // Generate a spending forecast based on historical data
+  Future<Map<String, dynamic>> generateSpendingForecast(List<Transaction> transactions) async {
+    try {
+      // Extract and prepare transaction data by date
+      final transactionsByDate = _groupTransactionsByDate(transactions);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructForecastPrompt(transactionsByDate);
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Parse forecast data
+      return _parseForecastFromResponse(response);
+    } catch (e) {
+      debugPrint('Error generating forecast: $e');
+      return _generateFallbackForecast(transactions);
     }
-    
-    // Example: Subscription optimization
-    if (transactions.any((t) => t.category?.toLowerCase().contains('subscription') == true || 
-                        t.title.toLowerCase().contains('subscription') == true)) {
-      opportunities.add({
-        'title': 'Optimize subscriptions',
-        'description': 'You can save ${AppConfig.currencySymbol} 30 monthly by consolidating your streaming services. Consider rotating services instead of having multiple active at once.',
-        'amount': 30,
-        'icon': Icons.subscriptions,
-        'color': Colors.purple,
-        'actionText': 'Review Subscriptions',
-      });
-    }
-    
-    // Example: Transport savings
-    if (transactions.any((t) => t.category?.toLowerCase().contains('transport') == true || 
-                        t.category?.toLowerCase().contains('fuel') == true)) {
-      opportunities.add({
-        'title': 'Transport savings',
-        'description': 'You can save ${AppConfig.currencySymbol} 45 weekly by carpooling or using public transport twice a week based on your regular commute patterns.',
-        'amount': 45,
-        'icon': Icons.directions_car,
-        'color': Colors.blue,
-        'actionText': 'Save ${AppConfig.currencySymbol} 45',
-      });
-    }
-    
-    // If no specific opportunities found, provide a generic one
-    if (opportunities.isEmpty) {
-      opportunities.add({
-        'title': 'Start a savings challenge',
-        'description': 'Try the 50/30/20 rule: 50% on needs, 30% on wants, and 20% on savings. This could help you save up to ${AppConfig.currencySymbol} 100 monthly.',
-        'amount': 100,
-        'icon': Icons.savings,
-        'color': Colors.green,
-        'actionText': 'Start Challenge',
-      });
-    }
-    
-    return opportunities;
   }
 
-  List<Map<String, dynamic>> _generateFinancialTips(Map<String, dynamic> data) {
-    final tips = <Map<String, dynamic>>[];
-    final stats = data['stats'] ?? {};
-    
-    // Add financial health tips based on the data
-    if ((stats['financialHealthScore'] as int? ?? 0) < 70) {
-      tips.add({
-        'title': 'Improve Your Financial Health',
-        'description': 'Setting up an emergency fund covering 3-6 months of expenses can significantly improve your financial security.',
-        'icon': Icons.health_and_safety,
-        'color': Colors.red,
-        'actionable': true,
-        'actionText': 'Create Emergency Fund',
-      });
+  // Generate budget recommendations based on spending patterns
+  Future<List<Map<String, dynamic>>> generateBudgetRecommendations(
+    List<Transaction> transactions, 
+    double monthlyIncome
+  ) async {
+    try {
+      // Categorize and sum transactions
+      final categorizedSpending = _categorizeTotalSpending(transactions);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructBudgetRecommendationPrompt(
+        categorizedSpending: categorizedSpending,
+        monthlyIncome: monthlyIncome,
+      );
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Parse budget recommendations
+      return _parseBudgetRecommendationsFromResponse(response);
+    } catch (e) {
+      debugPrint('Error generating budget recommendations: $e');
+      return _generateFallbackBudgetRecommendations(transactions, monthlyIncome);
     }
-    
-    // Add budget tip
-    if ((stats['totalExpenses'] as double? ?? 0) > (stats['totalIncome'] as double? ?? 0) * 0.8) {
-      tips.add({
-        'title': 'Budget Adjustment Needed',
-        'description': 'Your expenses are approaching your income level. Consider creating a stricter budget to increase your savings rate.',
-        'icon': Icons.account_balance_wallet,
-        'color': Colors.amber,
-        'actionable': true,
-        'actionText': 'Adjust Budget',
-        'showChart': true,
-        'chartData': [
-          {'label': 'Income', 'value': stats['totalIncome'] ?? 0},
-          {'label': 'Expenses', 'value': stats['totalExpenses'] ?? 0},
-        ],
-      });
-    }
-    
-    // Add investment tip
-    tips.add({
-      'title': 'Investment Opportunity',
-      'description': 'Based on your savings pattern, you could invest ${AppConfig.currencySymbol} ${((stats['totalSavings'] as double? ?? 0) * 0.3).round()} without affecting your liquidity needs.',
-      'icon': Icons.trending_up,
-      'color': Colors.blue,
-      'actionable': true,
-      'actionText': 'Explore Investments',
-    });
-    
-    // Add savings tip
-    tips.add({
-      'title': 'Savings Goal Potential',
-      'description': 'At your current rate, you could save an additional ${AppConfig.currencySymbol} ${((stats['totalIncome'] as double? ?? 0) * 0.1).round()} monthly by optimizing your spending patterns.',
-      'icon': Icons.savings,
-      'color': Colors.green,
-      'actionable': true,
-      'actionText': 'Set Savings Goal',
-    });
-    
-    return tips;
   }
 
-  List<Map<String, dynamic>> _detectAnomalies(List<Transaction> transactions) {
-    final anomalies = <Map<String, dynamic>>[];
-    
-    if (transactions.isEmpty) return anomalies;
-    
-    // Sort transactions by date (newest first)
-    transactions.sort((a, b) => b.date.compareTo(a.date));
-    
-    // Look for unusually large transactions (in the top 10% of transaction amounts)
-    final amounts = transactions.map((t) => t.amount).toList()..sort();
-    final threshold = amounts.isEmpty ? 0 : amounts[(amounts.length * 0.9).floor()];
-    
-    // Find recent large transactions
-    final recentLargeTransactions = transactions
-        .where((t) => t.amount > threshold && t.date.isAfter(DateTime.now().subtract(const Duration(days: 30))))
-        .take(3)
+  // Analyze specific spending category in depth
+  Future<Map<String, dynamic>> analyzeCategorySpending(
+    List<Transaction> transactions,
+    String category
+  ) async {
+    try {
+      // Filter transactions by category
+      final categoryTransactions = transactions
+          .where((t) => t.category.toLowerCase() == category.toLowerCase())
+          .toList();
+      
+      // Prepare detailed category data
+      final categoryData = _prepareCategoryData(categoryTransactions, category);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructCategoryAnalysisPrompt(categoryData);
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Parse category analysis
+      return _parseCategoryAnalysisFromResponse(response, category);
+    } catch (e) {
+      debugPrint('Error analyzing category spending: $e');
+      return _generateFallbackCategoryAnalysis(transactions, category);
+    }
+  }
+
+  // Detect spending anomalies in transaction history
+  Future<List<Map<String, dynamic>>> detectSpendingAnomalies(List<Transaction> transactions) async {
+    try {
+      // Prepare transaction data for anomaly detection
+      final transactionData = _prepareTransactionData(transactions);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructAnomalyDetectionPrompt(transactionData);
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Parse anomalies
+      return _parseAnomaliesFromResponse(response);
+    } catch (e) {
+      debugPrint('Error detecting anomalies: $e');
+      return _generateFallbackAnomalies(transactions);
+    }
+  }
+
+  // Generate savings recommendations
+  Future<Map<String, dynamic>> generateSavingsRecommendations(
+    List<Transaction> transactions,
+    double monthlyIncome,
+    List<SavingsGoal>? savingsGoals
+  ) async {
+    try {
+      // Analyze income vs expenses
+      final incomeVsExpenses = _analyzeIncomeVsExpenses(transactions, monthlyIncome);
+      
+      // Prepare savings goals data
+      final savingsData = _prepareSavingsData(savingsGoals);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructSavingsRecommendationPrompt(
+        incomeVsExpenses: incomeVsExpenses,
+        savingsData: savingsData,
+      );
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Parse savings recommendations
+      return _parseSavingsRecommendationsFromResponse(response);
+    } catch (e) {
+      debugPrint('Error generating savings recommendations: $e');
+      return _generateFallbackSavingsRecommendations(transactions, monthlyIncome);
+    }
+  }
+
+  // Generate AI response to user question about finances
+  Future<String> answerFinancialQuestion(
+    String question,
+    List<Transaction> recentTransactions
+  ) async {
+    try {
+      // Prepare transaction context
+      final transactionContext = _prepareTransactionContextForQuestion(recentTransactions);
+      
+      // Construct prompt for Gemini
+      final prompt = _constructQuestionAnswerPrompt(
+        question: question,
+        transactionContext: transactionContext,
+      );
+      
+      // Call Gemini API
+      final response = await _callGeminiAPI(prompt);
+      
+      // Extract answer
+      return _extractAnswerFromResponse(response);
+    } catch (e) {
+      debugPrint('Error answering financial question: $e');
+      return "I'm sorry, I couldn't process your question at the moment. Please try again later.";
+    }
+  }
+
+  // Helper methods for data preparation
+  Map<String, dynamic> _prepareTransactionData(List<Transaction> transactions) {
+    // Group transactions by categories
+    final categoriesMap = <String, List<Transaction>>{};
+    for (final transaction in transactions) {
+      final category = transaction.category;
+      if (!categoriesMap.containsKey(category)) {
+        categoriesMap[category] = [];
+      }
+      categoriesMap[category]!.add(transaction);
+    }
+
+    // Calculate metrics
+    final now = DateTime.now();
+    final oneMonthAgo = DateTime(now.year, now.month - 1, now.day);
+    final threeMonthsAgo = DateTime(now.year, now.month - 3, now.day);
+
+    final thisMonthTransactions = transactions
+        .where((t) => t.date.isAfter(oneMonthAgo))
         .toList();
     
-    for (final transaction in recentLargeTransactions) {
-      anomalies.add({
-        'title': 'Unusual Transaction',
-        'description': '${transaction.title} (${AppConfig.formatCurrency(transaction.amount as int)}) on ${_formatDate(transaction.date)} is larger than 90% of your transactions.',
-        'icon': Icons.warning_amber,
-        'color': Colors.orange,
-        'date': transaction.date,
-        'amount': transaction.amount,
-        'actionable': true,
-        'actionText': 'Review Transaction',
+    final lastThreeMonthsTransactions = transactions
+        .where((t) => t.date.isAfter(threeMonthsAgo))
+        .toList();
+
+    // Total income and expenses
+    final thisMonthIncome = thisMonthTransactions
+        .where((t) => !t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    final thisMonthExpenses = thisMonthTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+
+    // Categorized spending
+    final categorizedSpending = <String, double>{};
+    for (final category in categoriesMap.keys) {
+      final categoryTransactions = categoriesMap[category]!
+          .where((t) => t.isExpense && t.date.isAfter(oneMonthAgo))
+          .toList();
+      
+      final totalSpent = categoryTransactions.fold(0.0, (sum, t) => sum + t.amount);
+      if (totalSpent > 0) {
+        categorizedSpending[category] = totalSpent;
+      }
+    }
+
+    // Weekly spending pattern
+    final weeklySpendings = <String, double>{};
+    final daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    for (final day in daysOfWeek) {
+      final dayTransactions = thisMonthTransactions
+          .where((t) => t.isExpense && _getDayOfWeek(t.date) == day)
+          .toList();
+      
+      weeklySpendings[day] = dayTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    }
+
+    // Monthly trend
+    final monthlyTrend = <String, Map<String, double>>{};
+    for (var i = 2; i >= 0; i--) {
+      final month = DateTime(now.year, now.month - i, 1);
+      final monthName = _getMonthName(month);
+      
+      final monthTransactions = transactions
+          .where((t) => 
+              t.date.year == month.year && 
+              t.date.month == month.month)
+          .toList();
+      
+      final income = monthTransactions
+          .where((t) => !t.isExpense)
+          .fold(0.0, (sum, t) => sum + t.amount);
+      
+      final expenses = monthTransactions
+          .where((t) => t.isExpense)
+          .fold(0.0, (sum, t) => sum + t.amount);
+      
+      monthlyTrend[monthName] = {
+        'income': income,
+        'expenses': expenses,
+        'savings': income - expenses
+      };
+    }
+
+    return {
+      'total_transactions': transactions.length,
+      'recent_transactions': thisMonthTransactions.length,
+      'this_month_income': thisMonthIncome,
+      'this_month_expenses': thisMonthExpenses,
+      'categorized_spending': categorizedSpending,
+      'weekly_pattern': weeklySpendings,
+      'monthly_trend': monthlyTrend,
+    };
+  }
+
+  Map<String, dynamic> _prepareBudgetData(List<Budget>? budgets) {
+    if (budgets == null || budgets.isEmpty) {
+      return {'has_budgets': false};
+    }
+
+    final budgetData = <String, dynamic>{
+      'has_budgets': true,
+      'budgets': <Map<String, dynamic>>[]
+    };
+
+    for (final budget in budgets) {
+      budgetData['budgets'].add({
+        'category': budget.category,
+        'amount': budget.amount,
+        'spent': budget.spent,
+        'remaining': budget.amount - budget.spent,
+        'progress': budget.spent / budget.amount
+      });
+    }
+
+    return budgetData;
+  }
+
+  Map<String, dynamic> _prepareSavingsData(List<SavingsGoal>? savingsGoals) {
+    if (savingsGoals == null || savingsGoals.isEmpty) {
+      return {'has_savings_goals': false};
+    }
+
+    final savingsData = <String, dynamic>{
+      'has_savings_goals': true,
+      'goals': <Map<String, dynamic>>[]
+    };
+
+    for (final goal in savingsGoals) {
+      savingsData['goals'].add({
+        'name': goal.name,
+        'target_amount': goal.targetAmount,
+        'current_amount': goal.currentAmount,
+        'deadline': goal.deadline?.toIso8601String(),
+        'progress': goal.currentAmount / goal.targetAmount
+      });
+    }
+
+    return savingsData;
+  }
+
+  Future<Map<String, dynamic>> _prepareBalanceData(double? currentBalance) async {
+    double balance = currentBalance ?? 0.0;
+    
+    if (balance == 0) {
+      balance = await BalanceService.instance.getCurrentBalance();
+    }
+    
+    return {
+      'current_balance': balance,
+      'has_balance': balance > 0,
+    };
+  }
+
+  // Helper methods for prompt construction
+  String _constructFinancialAnalysisPrompt({
+    required Map<String, dynamic> transactionData,
+    required Map<String, dynamic> budgetData,
+    required Map<String, dynamic> savingsData,
+    required Map<String, dynamic> balanceData,
+  }) {
+    return '''
+You are a financial analyst and advisor. Analyze the following financial data and provide clear, actionable insights and recommendations for the user.
+
+TRANSACTION DATA:
+${jsonEncode(transactionData)}
+
+BUDGET DATA:
+${jsonEncode(budgetData)}
+
+SAVINGS GOALS DATA:
+${jsonEncode(savingsData)}
+
+BALANCE DATA:
+${jsonEncode(balanceData)}
+
+Based on this data, provide 3-5 key insights and recommendations. Each insight should have:
+1. A short, clear title
+2. A brief explanation of the insight
+3. A specific, actionable recommendation
+4. A relevant icon name (material icon)
+5. A priority level (high, medium, low)
+
+Format your response as a JSON array of objects with the following structure:
+[
+  {
+    "title": "Insight title",
+    "description": "Brief explanation",
+    "recommendation": "Actionable advice",
+    "icon": "material_icon_name",
+    "priority": "priority_level",
+    "type": "insight_type" (spending, saving, budget, income, or balance)
+  }
+]
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructForecastPrompt(Map<DateTime, List<Transaction>> transactionsByDate) {
+    return '''
+You are a financial forecasting AI. Based on the following transaction history, predict spending patterns for the next 30 days.
+
+TRANSACTION HISTORY:
+${jsonEncode(transactionsByDate.map((k, v) => MapEntry(k.toIso8601String(), v.map((t) => {
+      'amount': t.amount,
+      'category': t.category,
+      'isExpense': t.isExpense,
+      'date': t.date.toIso8601String()
+    }).toList())))}
+
+Generate a 30-day spending forecast with the following:
+1. Daily spending predictions
+2. Expected major expenses
+3. Category breakdown of predicted spending
+4. Total month forecast amount
+5. Comparison to previous month
+
+Format your response as a JSON object with the following structure:
+{
+  "daily_forecast": [{"date": "YYYY-MM-DD", "amount": 000.00}],
+  "major_expenses": [{"category": "Category", "amount": 000.00, "likelihood": 0.X}],
+  "category_forecast": [{"category": "Category", "amount": 000.00, "percent": XX}],
+  "total_forecast": 000.00,
+  "previous_month_comparison": {"amount": 000.00, "percent_change": XX.X}
+}
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructBudgetRecommendationPrompt({
+    required Map<String, double> categorizedSpending,
+    required double monthlyIncome,
+  }) {
+    return '''
+You are a budget planning AI. Based on the following spending patterns and income, recommend optimal budget allocations.
+
+SPENDING BY CATEGORY:
+${jsonEncode(categorizedSpending)}
+
+MONTHLY INCOME: $monthlyIncome
+
+Provide budget recommendations following the 50/30/20 rule or other appropriate methods. Create budget categories that make sense for the user's spending patterns.
+
+Format your response as a JSON array of objects with the following structure:
+[
+  {
+    "category": "Category name",
+    "recommended_amount": 000.00,
+    "percent_of_income": XX.X,
+    "current_spending": 000.00,
+    "adjustment_needed": 000.00,
+    "icon": "material_icon_name",
+    "priority": "essential/wants/savings"
+  }
+]
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructCategoryAnalysisPrompt(Map<String, dynamic> categoryData) {
+    return '''
+You are a financial category analysis AI. Analyze the following spending in a specific category and provide insights.
+
+CATEGORY DATA:
+${jsonEncode(categoryData)}
+
+Provide a detailed analysis including:
+1. Spending trend over time
+2. Comparison to overall budget
+3. Top merchants/recipients in this category
+4. Recommendations for optimizing spending
+5. Potential savings opportunity
+
+Format your response as a JSON object with the following structure:
+{
+  "category": "Category name",
+  "total_spent": 000.00,
+  "average_transaction": 000.00,
+  "trend": "increasing/decreasing/stable",
+  "percent_change": XX.X,
+  "top_merchants": [{"name": "Merchant", "amount": 000.00, "percent": XX.X}],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
+  "savings_potential": 000.00,
+  "insight": "Brief insight about spending in this category"
+}
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructAnomalyDetectionPrompt(Map<String, dynamic> transactionData) {
+    return '''
+You are a financial anomaly detection AI. Analyze the following transaction data and identify potential anomalies or unusual spending patterns.
+
+TRANSACTION DATA:
+${jsonEncode(transactionData)}
+
+Identify 1-3 anomalies that might indicate:
+1. Unusually large transactions
+2. Unexpected spending patterns
+3. Potential duplicate payments
+4. Subscriptions or recurring charges that might be forgotten
+5. Categories with sudden increases in spending
+
+Format your response as a JSON array of objects with the following structure:
+[
+  {
+    "title": "Anomaly description",
+    "category": "Category affected",
+    "amount": 000.00,
+    "date": "YYYY-MM-DD" (or date range),
+    "severity": "high/medium/low",
+    "explanation": "Detailed explanation",
+    "recommendation": "Suggested action",
+    "icon": "material_icon_name"
+  }
+]
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructSavingsRecommendationPrompt({
+    required Map<String, dynamic> incomeVsExpenses,
+    required Map<String, dynamic> savingsData,
+  }) {
+    return '''
+You are a savings advisor AI. Based on the following financial data, provide recommendations for increasing savings.
+
+INCOME VS EXPENSES:
+${jsonEncode(incomeVsExpenses)}
+
+SAVINGS GOALS:
+${jsonEncode(savingsData)}
+
+Provide recommendations for:
+1. Optimal monthly savings amount
+2. Strategies to increase savings
+3. Timeline for meeting existing savings goals
+4. Suggestions for new savings goals
+5. Emergency fund recommendations
+
+Format your response as a JSON object with the following structure:
+{
+  "recommended_monthly_saving": 000.00,
+  "percent_of_income": XX.X,
+  "strategies": ["Strategy 1", "Strategy 2"],
+  "goal_timelines": [{"goal": "Goal name", "current_amount": 000.00, "target": 000.00, "estimated_completion": "YYYY-MM"}],
+  "suggested_new_goals": [{"name": "Goal name", "target": 000.00, "timeline": "X months", "monthly_contribution": 000.00}],
+  "emergency_fund": {"current": 000.00, "target": 000.00, "months_to_complete": X}
+}
+
+Only include the JSON in your response, with no additional text.
+''';
+  }
+
+  String _constructQuestionAnswerPrompt({
+    required String question,
+    required Map<String, dynamic> transactionContext,
+  }) {
+    return '''
+You are a personal finance assistant. Answer the following question based on the user's financial data.
+
+USER QUESTION:
+$question
+
+FINANCIAL CONTEXT:
+${jsonEncode(transactionContext)}
+
+Provide a helpful, concise answer that directly addresses the user's question. If the question cannot be answered with the available data, clearly state what information is missing. Focus on providing actionable advice when possible.
+
+Format your response as plain text with no special formatting or JSON.
+''';
+  }
+
+  // API call function
+  Future<String> _callGeminiAPI(String prompt) async {
+    final url = '$_baseUrl/$_model:generateContent?key=$_apiKey';
+    
+    final payload = {
+      'contents': [
+        {
+          'parts': [
+            {'text': prompt}
+          ]
+        }
+      ],
+      'generationConfig': {
+        'temperature': 0.2,
+        'maxOutputTokens': 2048,
+        'topP': 0.8,
+        'topK': 40
+      }
+    };
+    
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+    
+    if (response.statusCode != 200) {
+      throw Exception('API call failed with status: ${response.statusCode}');
+    }
+    
+    final jsonResponse = jsonDecode(response.body);
+    return jsonResponse['candidates'][0]['content']['parts'][0]['text'];
+  }
+
+  // Response parsing functions
+  List<Map<String, dynamic>> _parseInsightsFromResponse(String response) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        final List<dynamic> decoded = jsonDecode(jsonStr!);
+        
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is List) {
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      throw Exception('Failed to parse insights response');
+    } catch (e) {
+      debugPrint('Error parsing insights: $e');
+      debugPrint('Raw response: $response');
+      return [];
+    }
+  }
+
+  Map<String, dynamic> _parseForecastFromResponse(String response) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        return Map<String, dynamic>.from(jsonDecode(jsonStr!));
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      
+      throw Exception('Failed to parse forecast response');
+    } catch (e) {
+      debugPrint('Error parsing forecast: $e');
+      return {};
+    }
+  }
+
+  List<Map<String, dynamic>> _parseBudgetRecommendationsFromResponse(String response) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        final List<dynamic> decoded = jsonDecode(jsonStr!);
+        
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is List) {
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      throw Exception('Failed to parse budget recommendations response');
+    } catch (e) {
+      debugPrint('Error parsing budget recommendations: $e');
+      return [];
+    }
+  }
+
+  Map<String, dynamic> _parseCategoryAnalysisFromResponse(String response, String category) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        return Map<String, dynamic>.from(jsonDecode(jsonStr!));
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      
+      throw Exception('Failed to parse category analysis response');
+    } catch (e) {
+      debugPrint('Error parsing category analysis: $e');
+      return {'category': category, 'error': true};
+    }
+  }
+
+  List<Map<String, dynamic>> _parseAnomaliesFromResponse(String response) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        final List<dynamic> decoded = jsonDecode(jsonStr!);
+        
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is List) {
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      }
+      
+      throw Exception('Failed to parse anomalies response');
+    } catch (e) {
+      debugPrint('Error parsing anomalies: $e');
+      return [];
+    }
+  }
+
+  Map<String, dynamic> _parseSavingsRecommendationsFromResponse(String response) {
+    try {
+      // Extract JSON from response
+      final jsonMatch = RegExp(r'\{.*\}', dotAll: true).firstMatch(response);
+      
+      if (jsonMatch != null) {
+        final jsonStr = jsonMatch.group(0);
+        return Map<String, dynamic>.from(jsonDecode(jsonStr!));
+      }
+      
+      // Alternative approach if regex fails
+      final decoded = jsonDecode(response);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      
+      throw Exception('Failed to parse savings recommendations response');
+    } catch (e) {
+      debugPrint('Error parsing savings recommendations: $e');
+      return {};
+    }
+  }
+
+  String _extractAnswerFromResponse(String response) {
+    // Clean up the response if needed
+    return response.trim();
+  }
+
+  // Helper methods for fallback responses
+  List<Map<String, dynamic>> _generateFallbackInsights(
+    List<Transaction> transactions,
+    List<Budget>? budgets
+  ) {
+    final insights = <Map<String, dynamic>>[];
+    
+    // Group transactions by date (month)
+    final transactionsByMonth = <String, List<Transaction>>{};
+    for (final t in transactions) {
+      final monthKey = '${t.date.year}-${t.date.month}';
+      if (!transactionsByMonth.containsKey(monthKey)) {
+        transactionsByMonth[monthKey] = [];
+      }
+      transactionsByMonth[monthKey]!.add(t);
+    }
+    
+    // Calculate last month's spending
+    final now = DateTime.now();
+    final lastMonth = DateTime(now.year, now.month - 1);
+    final lastMonthKey = '${lastMonth.year}-${lastMonth.month}';
+    final lastMonthTransactions = transactionsByMonth[lastMonthKey] ?? [];
+    
+    final lastMonthExpenses = lastMonthTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    // Top spending category
+    final categorizedSpending = _categorizeTotalSpending(transactions);
+    String topCategory = 'Unknown';
+    double topAmount = 0;
+    
+    categorizedSpending.forEach((category, amount) {
+      if (amount > topAmount) {
+        topAmount = amount;
+        topCategory = category;
+      }
+    });
+    
+    // Add spending insight
+    insights.add({
+      'title': 'Monthly Spending Overview',
+      'description': 'Last month, you spent ${AppConfig.formatCurrency(lastMonthExpenses.toInt() * 100)}.',
+      'recommendation': 'Review your expenses to identify savings opportunities.',
+      'icon': 'trending_up',
+      'priority': 'medium',
+      'type': 'spending'
+    });
+    
+    // Add top category insight
+    if (topCategory != 'Unknown') {
+      insights.add({
+        'title': 'Top Spending Category',
+        'description': 'Your highest spending is in $topCategory (${AppConfig.formatCurrency(topAmount.toInt() * 100)}).',
+        'recommendation': 'Consider setting a budget for this category.',
+        'icon': 'category',
+        'priority': 'high',
+        'type': 'budget'
       });
     }
     
-    // Detect duplicated transactions (similar amount and description within 48 hours)
-    final potentialDuplicates = <Transaction>[];
-    for (int i = 0; i < transactions.length - 1; i++) {
-      for (int j = i + 1; j < transactions.length; j++) {
-        final t1 = transactions[i];
-        final t2 = transactions[j];
+    // Add budget insight if available
+    if (budgets != null && budgets.isNotEmpty) {
+      final overBudgets = budgets.where((b) => b.spent > b.amount).toList();
+      
+      if (overBudgets.isNotEmpty) {
+        insights.add({
+          'title': 'Budget Alert',
+          "description": "You've exceeded your budget in ${overBudgets.length} categories.",
+          'recommendation': 'Adjust your spending or revise your budget goals.',
+          'icon': 'warning',
+          'priority': 'high',
+          'type': 'budget'
+        });
+      }
+    } else {
+      insights.add({
+        'title': 'Create Your First Budget',
+        'description': 'Setting budgets helps track and control your spending.',
+        'recommendation': 'Create a budget for your major spending categories.',
+        'icon': 'add_chart',
+        'priority': 'medium',
+        'type': 'budget'
+      });
+    }
+    
+    // Add savings insight
+    insights.add({
+      'title': 'Start Saving Regularly',
+      'description': 'Regular savings build financial security over time.',
+      'recommendation': 'Try to save at least 10-20% of your income each month.',
+      'icon': 'savings',
+      'priority': 'medium',
+      'type': 'saving'
+    });
+    
+    return insights;
+  }
+
+  Map<String, dynamic> _generateFallbackForecast(List<Transaction> transactions) {
+    // Simple forecast based on historical data
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd = DateTime(now.year, now.month + 1, 0);
+    
+    // Calculate average daily spending
+    final recentTransactions = transactions
+        .where((t) => t.date.isAfter(DateTime(now.year, now.month - 3)))
+        .where((t) => t.isExpense)
+        .toList();
+    
+    final totalSpent = recentTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    final daysCount = recentTransactions.isEmpty ? 1 : 90; // 3 months
+    final avgDailySpending = totalSpent / daysCount;
+    
+    // Generate daily forecast
+    final daysInMonth = monthEnd.day;
+    final dailyForecast = <Map<String, dynamic>>[];
+    
+    for (var i = 1; i <= daysInMonth; i++) {
+      final forecastDate = DateTime(now.year, now.month, i);
+      if (forecastDate.isBefore(now)) {
+        // Use actual data for past days
+        final dayTransactions = transactions
+            .where((t) => 
+                t.date.year == forecastDate.year && 
+                t.date.month == forecastDate.month &&
+                t.date.day == forecastDate.day &&
+                t.isExpense)
+            .toList();
         
+        final actualSpent = dayTransactions.fold(0.0, (sum, t) => sum + t.amount);
+        
+        dailyForecast.add({
+          'date': forecastDate.toIso8601String().substring(0, 10),
+          'amount': actualSpent,
+          'actual': true
+        });
+      } else {
+        // Forecast future days
+        // Weekends might have higher spending
+        double modifier = 1.0;
+        if (forecastDate.weekday == DateTime.saturday) {
+          modifier = 1.5;
+        } else if (forecastDate.weekday == DateTime.sunday) {
+          modifier = 1.3;
+        }
+        
+        dailyForecast.add({
+          'date': forecastDate.toIso8601String().substring(0, 10),
+          'amount': avgDailySpending * modifier,
+          'actual': false
+        });
+      }
+    }
+    
+    // Major expenses (categories with highest spending)
+    final categorizedSpending = _categorizeTotalSpending(recentTransactions);
+    final majorExpenses = categorizedSpending.entries
+        .map((e) => {
+          'category': e.key,
+          'amount': e.value / 3, // Monthly average
+          'likelihood': 0.8
+        })
+        .toList();
+    
+    // Sort and limit to top 3
+    majorExpenses.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+    final top3Expenses = majorExpenses.take(3).toList();
+    
+    // Calculate total forecast
+    final daysLeftInMonth = monthEnd.difference(now).inDays + 1;
+    final spentSoFar = transactions
+        .where((t) => 
+            t.date.year == now.year && 
+            t.date.month == now.month &&
+            t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    final forecastRemaining = avgDailySpending * daysLeftInMonth;
+    final totalForecast = spentSoFar + forecastRemaining;
+    
+    // Previous month comparison
+    final lastMonth = DateTime(now.year, now.month - 1);
+    final lastMonthTransactions = transactions
+        .where((t) => 
+            t.date.year == lastMonth.year && 
+            t.date.month == lastMonth.month &&
+            t.isExpense)
+        .toList();
+    
+    final lastMonthTotal = lastMonthTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    final percentChange = lastMonthTotal > 0 
+        ? ((totalForecast - lastMonthTotal) / lastMonthTotal) * 100
+        : 0.0;
+    
+    return {
+      'daily_forecast': dailyForecast,
+      'major_expenses': top3Expenses,
+      'category_forecast': categorizedSpending.entries
+          .map((e) => {
+            'category': e.key,
+            'amount': e.value / 3, // Monthly average
+            'percent': (e.value / totalSpent) * 100
+          })
+          .toList(),
+      'total_forecast': totalForecast,
+      'previous_month_comparison': {
+        'amount': lastMonthTotal,
+        'percent_change': percentChange
+      }
+    };
+  }
+
+  List<Map<String, dynamic>> _generateFallbackBudgetRecommendations(
+    List<Transaction> transactions,
+    double monthlyIncome
+  ) {
+    // Apply 50/30/20 rule
+    final essentialsBudget = monthlyIncome * 0.5;
+    final wantsBudget = monthlyIncome * 0.3;
+    final savingsBudget = monthlyIncome * 0.2;
+    
+    // Categorize current spending
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    
+    final currentMonthTransactions = transactions
+        .where((t) => t.date.isAfter(monthStart) && t.isExpense)
+        .toList();
+    
+    final categorizedSpending = <String, double>{};
+    for (final t in currentMonthTransactions) {
+      if (!categorizedSpending.containsKey(t.category)) {
+        categorizedSpending[t.category] = 0;
+      }
+      categorizedSpending[t.category] = categorizedSpending[t.category]! + t.amount;
+    }
+    
+    // Map categories to priorities
+    final essentialCategories = [
+      'Housing', 'Rent', 'Mortgage', 'Utilities', 'Groceries', 
+      'Health', 'Healthcare', 'Insurance', 'Transport', 'Transportation',
+      'Debt', 'Loan'
+    ];
+    
+    final wantsCategories = [
+      'Entertainment', 'Dining', 'Shopping', 'Travel', 'Leisure',
+      'Subscription', 'Hobbies', 'Clothing', 'Personal'
+    ];
+    
+    final savingsCategories = [
+      'Savings', 'Investment', 'Emergency Fund', 'Retirement'
+    ];
+    
+    // Generate recommendations
+    final recommendations = <Map<String, dynamic>>[];
+    
+    // Essential categories
+    double totalEssentialsSpending = 0;
+    categorizedSpending.forEach((category, amount) {
+      if (essentialCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
+        totalEssentialsSpending += amount;
+      }
+    });
+    
+    recommendations.add({
+      'category': 'Essentials',
+      'recommended_amount': essentialsBudget,
+      'percent_of_income': 50.0,
+      'current_spending': totalEssentialsSpending,
+      'adjustment_needed': essentialsBudget - totalEssentialsSpending,
+      'icon': 'home',
+      'priority': 'essential'
+    });
+    
+    // Wants categories
+    double totalWantsSpending = 0;
+    categorizedSpending.forEach((category, amount) {
+      if (wantsCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
+        totalWantsSpending += amount;
+      }
+    });
+    
+    recommendations.add({
+      'category': 'Wants',
+      'recommended_amount': wantsBudget,
+      'percent_of_income': 30.0,
+      'current_spending': totalWantsSpending,
+      'adjustment_needed': wantsBudget - totalWantsSpending,
+      'icon': 'shopping_bag',
+      'priority': 'wants'
+    });
+    
+    // Savings categories
+    double totalSavingsSpending = 0;
+    categorizedSpending.forEach((category, amount) {
+      if (savingsCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
+        totalSavingsSpending += amount;
+      }
+    });
+    
+    recommendations.add({
+      'category': 'Savings',
+      'recommended_amount': savingsBudget,
+      'percent_of_income': 20.0,
+      'current_spending': totalSavingsSpending,
+      'adjustment_needed': savingsBudget - totalSavingsSpending,
+      'icon': 'savings',
+      'priority': 'savings'
+    });
+    
+    // Add specific category recommendations for top spending areas
+    final sortedCategories = categorizedSpending.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    for (var i = 0; i < 3 && i < sortedCategories.length; i++) {
+      final category = sortedCategories[i].key;
+      final amount = sortedCategories[i].value;
+      
+      String priority = 'wants';
+      IconData icon = Icons.category;
+      
+      if (essentialCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
+        priority = 'essential';
+        icon = Icons.home;
+      } else if (savingsCategories.any((c) => category.toLowerCase().contains(c.toLowerCase()))) {
+        priority = 'savings';
+        icon = Icons.savings;
+      } else {
+        icon = _getCategoryIcon(category);
+      }
+      
+      // Recommend slight reduction for high spending categories
+      final recommendedAmount = amount * 0.9;
+      
+      recommendations.add({
+        'category': category,
+        'recommended_amount': recommendedAmount,
+        'percent_of_income': (recommendedAmount / monthlyIncome) * 100,
+        'current_spending': amount,
+        'adjustment_needed': recommendedAmount - amount,
+        'icon': icon.toString().replaceAll('IconData(', '').replaceAll(')', ''),
+        'priority': priority
+      });
+    }
+    
+    return recommendations;
+  }
+
+  Map<String, dynamic> _generateFallbackCategoryAnalysis(
+    List<Transaction> transactions,
+    String category
+  ) {
+    // Filter transactions for the category
+    final categoryTransactions = transactions
+        .where((t) => t.category.toLowerCase() == category.toLowerCase())
+        .toList();
+    
+    if (categoryTransactions.isEmpty) {
+      return {
+        'category': category,
+        'error': true,
+        'message': 'No transactions found for this category'
+      };
+    }
+    
+    // Calculate metrics
+    final totalSpent = categoryTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    final avgTransaction = totalSpent / categoryTransactions.length;
+    
+    // Group by month to determine trend
+    final byMonth = <String, double>{};
+    for (final t in categoryTransactions) {
+      final monthKey = '${t.date.year}-${t.date.month}';
+      if (!byMonth.containsKey(monthKey)) {
+        byMonth[monthKey] = 0;
+      }
+      byMonth[monthKey] = byMonth[monthKey]! + t.amount;
+    }
+    
+    // Determine trend (need at least 2 months of data)
+    String trend = 'stable';
+    double percentChange = 0;
+    
+    if (byMonth.length >= 2) {
+      final monthsSorted = byMonth.keys.toList()..sort();
+      final latestMonth = monthsSorted.last;
+      final previousMonth = monthsSorted[monthsSorted.length - 2];
+      
+      final latestAmount = byMonth[latestMonth]!;
+      final previousAmount = byMonth[previousMonth]!;
+      
+      percentChange = previousAmount > 0
+          ? ((latestAmount - previousAmount) / previousAmount) * 100
+          : 0;
+      
+      if (percentChange > 10) {
+        trend = 'increasing';
+      } else if (percentChange < -10) {
+        trend = 'decreasing';
+      }
+    }
+    
+    // Find top merchants
+    final byMerchant = <String, double>{};
+    for (final t in categoryTransactions) {
+      final merchant = t.business ?? t.recipient ?? t.sender ?? 'Unknown';
+      if (!byMerchant.containsKey(merchant)) {
+        byMerchant[merchant] = 0;
+      }
+      byMerchant[merchant] = byMerchant[merchant]! + t.amount;
+    }
+    
+    final topMerchants = byMerchant.entries
+        .map((e) => {
+          'name': e.key,
+          'amount': e.value,
+          'percent': (e.value / totalSpent) * 100
+        })
+        .toList()
+      ..sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+    
+    // Generate recommendations based on trend
+    final recommendations = <String>[];
+    double savingsPotential = 0;
+    
+    if (trend == 'increasing') {
+      recommendations.add('Your spending in this category is increasing. Consider setting a budget.');
+      recommendations.add('Review your recent transactions to identify unnecessary expenses.');
+      savingsPotential = totalSpent * 0.15; // Suggest 15% reduction
+    } else if (trend == 'stable' && totalSpent > 0) {
+      recommendations.add('Your spending is consistent. Consider if you can optimize any recurring expenses.');
+      savingsPotential = totalSpent * 0.1; // Suggest 10% reduction
+    } else if (trend == 'decreasing') {
+      recommendations.add('Great job reducing spending in this category! Keep it up.');
+      savingsPotential = totalSpent * 0.05; // Suggest 5% further reduction
+    }
+    
+    // Add category-specific recommendations
+    if (category.toLowerCase().contains('subscription') || 
+        category.toLowerCase().contains('entertainment')) {
+      recommendations.add('Review your subscriptions to identify services you no longer use.');
+      savingsPotential += totalSpent * 0.2;
+    } else if (category.toLowerCase().contains('dining') || 
+               category.toLowerCase().contains('food')) {
+      recommendations.add('Consider cooking more meals at home to reduce dining expenses.');
+      savingsPotential += totalSpent * 0.3;
+    }
+    
+    return {
+      'category': category,
+      'total_spent': totalSpent,
+      'average_transaction': avgTransaction,
+      'trend': trend,
+      'percent_change': percentChange,
+      'top_merchants': topMerchants.take(3).toList(),
+      'recommendations': recommendations,
+      'savings_potential': savingsPotential,
+      'insight': 'You spend an average of ${AppConfig.formatCurrency(avgTransaction.toInt() * 100)} per transaction in this category.'
+    };
+  }
+
+  List<Map<String, dynamic>> _generateFallbackAnomalies(List<Transaction> transactions) {
+    final anomalies = <Map<String, dynamic>>[];
+    
+    if (transactions.isEmpty) {
+      return anomalies;
+    }
+    
+    // Find unusually large transactions
+    final amounts = transactions.map((t) => t.amount).toList();
+    amounts.sort();
+    
+    final medianIndex = amounts.length ~/ 2;
+    final medianAmount = amounts.length.isOdd
+        ? amounts[medianIndex]
+        : (amounts[medianIndex - 1] + amounts[medianIndex]) / 2;
+    
+    // Consider amounts more than 3x the median as potentially anomalous
+    final threshold = medianAmount * 3;
+    final largeTransactions = transactions
+        .where((t) => t.amount > threshold && t.isExpense)
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date)); // Most recent first
+    
+    if (largeTransactions.isNotEmpty) {
+      final t = largeTransactions.first;
+      anomalies.add({
+        'title': 'Unusually Large Transaction',
+        'category': t.category,
+        'amount': t.amount,
+        'date': t.date.toIso8601String().substring(0, 10),
+        'severity': 'medium',
+        'explanation': 'This transaction is significantly larger than your typical spending in this category.',
+        'recommendation': 'Verify this transaction if it doesn\'t look familiar.',
+        'icon': 'warning'
+      });
+    }
+    
+    // Detect potential duplicate payments
+    final recentTransactions = transactions
+        .where((t) => t.date.isAfter(DateTime.now().subtract(const Duration(days: 30))))
+        .toList();
+    
+    for (var i = 0; i < recentTransactions.length; i++) {
+      for (var j = i + 1; j < recentTransactions.length; j++) {
+        final t1 = recentTransactions[i];
+        final t2 = recentTransactions[j];
+        
+        // Check if amounts match and they're close in time
         if (t1.amount == t2.amount && 
-            t1.title.toLowerCase().contains(t2.title.toLowerCase()) &&
+            t1.isExpense && 
+            t2.isExpense &&
+            t1.category == t2.category &&
             t1.date.difference(t2.date).inHours.abs() < 48) {
-          potentialDuplicates.add(t2);
+          
+          final recipient = t1.business ?? t1.recipient ?? 'same recipient';
+          
+          anomalies.add({
+            'title': 'Potential Duplicate Payment',
+            'category': t1.category,
+            'amount': t1.amount,
+            'date': '${t1.date.toIso8601String().substring(0, 10)} & ${t2.date.toIso8601String().substring(0, 10)}',
+            'severity': 'high',
+            'explanation': 'You made two identical payments of ${AppConfig.formatCurrency(t1.amount.toInt() * 100)} to $recipient within 48 hours.',
+            'recommendation': 'Check if one of these was a duplicate payment.',
+            'icon': 'content_copy'
+          });
+          
+          break; // Only report this pair once
         }
       }
     }
     
-    for (final duplicate in potentialDuplicates.take(2)) {
-      anomalies.add({
-        'title': 'Potential Duplicate',
-        'description': 'Transaction ${duplicate.title} (${AppConfig.formatCurrency(duplicate.amount as int)}) on ${_formatDate(duplicate.date)} may be a duplicate payment.',
-        'icon': Icons.copy,
-        'color': Colors.red,
-        'date': duplicate.date,
-        'amount': duplicate.amount,
-        'actionable': true,
-        'actionText': 'Check Transaction',
-      });
+    // Detect sudden category increases
+    final thisMonth = DateTime.now();
+    final lastMonth = DateTime(thisMonth.year, thisMonth.month - 1);
+    
+    final thisMonthTransactions = transactions
+        .where((t) => t.date.year == thisMonth.year && t.date.month == thisMonth.month)
+        .toList();
+    
+    final lastMonthTransactions = transactions
+        .where((t) => t.date.year == lastMonth.year && t.date.month == lastMonth.month)
+        .toList();
+    
+    final thisMonthByCategory = <String, double>{};
+    for (final t in thisMonthTransactions.where((t) => t.isExpense)) {
+      if (!thisMonthByCategory.containsKey(t.category)) {
+        thisMonthByCategory[t.category] = 0;
+      }
+      thisMonthByCategory[t.category] = thisMonthByCategory[t.category]! + t.amount;
     }
+    
+    final lastMonthByCategory = <String, double>{};
+    for (final t in lastMonthTransactions.where((t) => t.isExpense)) {
+      if (!lastMonthByCategory.containsKey(t.category)) {
+        lastMonthByCategory[t.category] = 0;
+      }
+      lastMonthByCategory[t.category] = lastMonthByCategory[t.category]! + t.amount;
+    }
+    
+    thisMonthByCategory.forEach((category, amount) {
+      final lastMonthAmount = lastMonthByCategory[category] ?? 0;
+      
+      // Detect significant increases (>50%)
+      if (lastMonthAmount > 0 && amount > lastMonthAmount * 1.5) {
+        final increase = amount - lastMonthAmount;
+        final percentIncrease = (increase / lastMonthAmount) * 100;
+        
+        anomalies.add({
+          'title': 'Spending Increase',
+          'category': category,
+          'amount': increase,
+          'date': '${lastMonth.year}-${lastMonth.month.toString().padLeft(2, '0')} to ${thisMonth.year}-${thisMonth.month.toString().padLeft(2, '0')}',
+          'severity': percentIncrease > 100 ? 'high' : 'medium',
+          'explanation': 'Your spending in $category increased by ${percentIncrease.toStringAsFixed(0)}% compared to last month.',
+          'recommendation': 'Review your recent transactions in this category to identify the cause.',
+          'icon': 'trending_up'
+        });
+      }
+    });
     
     return anomalies;
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: _isLoading
-          ? _buildLoadingState()
-          : _hasError
-              ? _buildErrorState()
-              : _insightData.isEmpty
-                  ? _buildEmptyState()
-                  : _buildInsightDashboard(),
-      floatingActionButton: _aiService != null && !_isLoading && !_hasError
-          ? FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatScreen(aiService: _aiService!),
-                  ),
-                );
-              },
-              backgroundColor: const Color(0xFF32CD32),
-              child: const Icon(Icons.chat_outlined, color: Colors.white),
-            )
-          : null,
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Lottie.asset(
-            'assets/animations/ai_loading.json',
-            width: 200,
-            height: 200,
-            fit: BoxFit.contain,
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Analyzing your finances...',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Gemini AI is working its magic',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Lottie.asset(
-              'assets/animations/error_state.json',
-              width: 150,
-              height: 150,
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Something went wrong',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _errorMessage,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: _initializeServices,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF32CD32),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: const Text('Try Again'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Lottie.asset(
-            'assets/animations/empty_goals.json',
-            width: 200,
-            height: 200,
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'No financial data yet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              'Add some transactions to get personalized AI insights about your finances',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
-          const SizedBox(height: 30),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Go back to add transactions
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF32CD32),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-            ),
-            child: const Text('Add Your First Transaction'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInsightDashboard() {
-    final stats = _insightData['stats'] ?? {};
-    final smartSavings = _insightData['smartSavings'] ?? [];
-    final financialTips = _insightData['financialTips'] ?? [];
-    final anomalies = _insightData['anomalies'] ?? [];
+  Map<String, dynamic> _generateFallbackSavingsRecommendations(
+    List<Transaction> transactions,
+    double monthlyIncome
+  ) {
+    // Calculate average monthly expenses
+    final now = DateTime.now();
+    final threeMonthsAgo = DateTime(now.year, now.month - 3, now.day);
     
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: Stack(
-        children: [
-          // Background pattern
-          Positioned.fill(
-            child: _buildBackgroundPattern(),
-          ),
-          
-          // Main scrollable content
-          RefreshIndicator(
-            onRefresh: _loadInsights,
-            color: const Color(0xFF32CD32),
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                // Floating app bar with pattern background
-                SliverAppBar(
-                  expandedHeight: 180,
-                  pinned: true,
-                  stretch: true,
-                  backgroundColor: Colors.transparent,
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            const Color(0xFF32CD32),
-                            const Color(0xFF32CD32).withOpacity(0.8),
-                            const Color(0xFF1E88E5).withOpacity(0.9),
-                          ],
-                        ),
-                      ),
-                      child: Stack(
-                        children: [
-                          // Pattern overlay
-                          Positioned.fill(
-                            child: Opacity(
-                              opacity: 0.2,
-                              child: CustomPaint(
-                                painter: PatternPainter(),
-                              ),
-                            ),
-                          ),
-                          
-                          // Content
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.auto_graph,
-                                        color: Colors.white,
-                                        size: 28,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 15),
-                                    const Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Your Savings',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        SizedBox(height: 4),
-                                        Text(
-                                          'Powered by Gemini AI',
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                Row(
-                                  children: [
-                                    Text(
-                                      'Ksh ${(stats['totalSavings'] as double? ?? 0).toInt()}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            (stats['savingsChange'] as double? ?? 0) >= 0 
-                                                ? Icons.arrow_upward 
-                                                : Icons.arrow_downward,
-                                            color: Colors.white,
-                                            size: 12,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${(stats['savingsChange'] as double? ?? 0).abs().toStringAsFixed(1)}%',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                
-                // Main content cards
-                SliverPadding(
-                  padding: const EdgeInsets.only(top: 16),
-                  sliver: SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildQuickStatsRow(stats),
-                    ),
-                  ),
-                ),
-                
-                SliverPadding(
-                  padding: const EdgeInsets.only(top: 24, left: 16, right: 16),
-                  sliver: SliverToBoxAdapter(
-                    child: _buildSmartSavingSuggestionCard(
-                      smartSavings.isNotEmpty ? smartSavings[0] : null
-                    ),
-                  ),
-                ),
-                
-                SliverPadding(
-                  padding: const EdgeInsets.only(top: 24, left: 16),
-                  sliver: SliverToBoxAdapter(
-                    child: _buildSectionHeader('Savings Goals', 'This Month'),
-                  ),
-                ),
-                
-                SliverPadding(
-                  padding: const EdgeInsets.only(top: 8),
-                  sliver: SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 170,
-                      child: ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        children: [
-                          _buildSavingsGoalCard('Vacation', 3500, 1200, 0.34, Colors.blue),
-                          _buildSavingsGoalCard('New Phone', 2500, 2000, 0.8, Colors.purple),
-                          _buildSavingsGoalCard('Emergency', 10000, 5000, 0.5, Colors.orange),
-                          _buildNewGoalCard(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                
-                SliverPadding(
-                  padding: const EdgeInsets.only(top: 24, left: 16),
-                  sliver: SliverToBoxAdapter(
-                    child: _buildSectionHeader('AI Smart Saving', 'Opportunities'),
-                  ),
-                ),
-                
-                SliverPadding(
-                  padding: const EdgeInsets.only(top: 8),
-                  sliver: SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 160,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: smartSavings.length,
-                        itemBuilder: (context, index) {
-                          return _buildSmartSavingCard(smartSavings[index]);
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-                
-                if (anomalies.isNotEmpty) ...[
-                  SliverPadding(
-                    padding: const EdgeInsets.only(top: 24, left: 16),
-                    sliver: SliverToBoxAdapter(
-                      child: _buildSectionHeader('Attention Needed', 'Potential Issues'),
-                    ),
-                  ),
-                  
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    sliver: SliverToBoxAdapter(
-                      child: _buildAttentionCard(anomalies.first),
-                    ),
-                  ),
-                ],
-                
-                SliverPadding(
-                  padding: const EdgeInsets.only(top: 24, left: 16),
-                  sliver: SliverToBoxAdapter(
-                    child: _buildSectionHeader('Financial Insights', 'Personalized for You'),
-                  ),
-                ),
-                
-                SliverPadding(
-                  padding: const EdgeInsets.only(top: 8),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        return AnimationConfiguration.staggeredList(
-                          position: index,
-                          duration: const Duration(milliseconds: 500),
-                          child: SlideAnimation(
-                            verticalOffset: 50.0,
-                            child: FadeInAnimation(
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                                child: _buildInsightCard(financialTips[index]),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      childCount: financialTips.length,
-                    ),
-                  ),
-                ),
-                
-                SliverPadding(
-                  padding: const EdgeInsets.only(top: 24, left: 16),
-                  sliver: SliverToBoxAdapter(
-                    child: _buildSectionHeader('Spending Analysis', 'AI-Powered'),
-                  ),
-                ),
-                
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSpendingTrendsCard(stats),
-                        const SizedBox(height: 20),
-                        _buildCategoryAnalysisCard(stats),
-                        const SizedBox(height: 20),
-                        _buildFinancialHealthCard(stats),
-                        const SizedBox(height: 20),
-                        _buildFuturePredictionCard(),
-                        const SizedBox(height: 100), // Bottom padding for FAB
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBackgroundPattern() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-      ),
-      child: Opacity(
-        opacity: 0.3,
-        child: CustomPaint(
-          painter: BackgroundPainter(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title, String subtitle) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickStatsRow(Map<String, dynamic> stats) {
-    return Row(
-      children: [
-        _buildQuickStatCard(
-          'This Month',
-          'Ksh ${(stats['monthlySpending'] as double? ?? 0).toInt()}',
-          Icons.calendar_today,
-          Colors.blue.withOpacity(0.8),
-        ),
-        const SizedBox(width: 16),
-        _buildQuickStatCard(
-          'Total Goals',
-          '${(stats['activeGoalsCount'] as int? ?? 0)} Active',
-          Icons.flag,
-          Colors.orange.withOpacity(0.8),
-        ),
-        const SizedBox(width: 16),
-        _buildQuickStatCard(
-          'Average',
-          'Ksh ${(stats['dailyAverage'] as double? ?? 0).toInt()}/day',
-          Icons.trending_up,
-          Colors.green.withOpacity(0.8),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickStatCard(String title, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: color,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmartSavingSuggestionCard(Map<String, dynamic>? suggestion) {
-    if (suggestion == null) {
-      return Container(); // Return empty container if no suggestion
-    }
+    final recentTransactions = transactions
+        .where((t) => t.date.isAfter(threeMonthsAgo))
+        .toList();
     
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.lightbulb_outline,
-                  color: Colors.green,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AI Smart Saving',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Gemini-powered suggestion',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  // Close suggestion
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(
-                    Icons.close,
-                    color: Colors.grey[400],
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Text(
-            'You can save Ksh ${suggestion['amount']} today! ${suggestion['description']}',
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    // Skip this suggestion
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.grey[700],
-                    side: BorderSide(color: Colors.grey[300]!),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text('Skip'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Navigate to savings screen
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SavingsScreen(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF32CD32),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: Text('Save Ksh ${suggestion['amount']}'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSavingsGoalCard(String name, double target, double current, double progress, Color color) {
-    return Container(
-      width: 150,
-      margin: const EdgeInsets.only(right: 12, top: 4, bottom: 4, left: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.savings_outlined,
-                    color: color,
-                    size: 16,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${(progress * 100).toInt()}%',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: progress > 0.5 ? Colors.green : Colors.grey[700],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              name,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Ksh ${target.toInt()}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: progress,
-              backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-              borderRadius: BorderRadius.circular(10),
-              minHeight: 6,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Ksh ${current.toInt()}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'of ${target.toInt()}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNewGoalCard() {
-    return Container(
-      width: 150,
-      margin: const EdgeInsets.only(right: 12, top: 4, bottom: 4, left: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(
-          color: Colors.grey[200]!,
-          width: 1,
-        ),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.add,
-                color: Colors.grey[700],
-                size: 24,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'New Goal',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: Colors.grey[800],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Create a savings goal',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmartSavingCard(Map<String, dynamic> saving) {
-    return Container(
-      width: 250,
-      margin: const EdgeInsets.only(right: 12, top: 4, bottom: 4, left: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Background plant decoration
-          Positioned(
-            right: -10,
-            top: 30,
-            bottom: 0,
-            child: Opacity(
-              opacity: 0.2,
-              child: Image.asset(
-                'assets/images/pattern5.png',
-                width: 80,
-              ),
-            ),
-          ),
-          
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: (saving['color'] as Color).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    saving['icon'] as IconData,
-                    color: saving['color'] as Color,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  saving['title'] as String,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  saving['description'] as String,
-                  style: TextStyle(
-                    color: Colors.grey[700],
-                    fontSize: 12,
-                    height: 1.3,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      // Navigate to savings screen
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SavingsScreen(),
-                        ),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: saving['color'] as Color,
-                      side: BorderSide(color: (saving['color'] as Color).withOpacity(0.5)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    child: Text(saving['actionText'] as String),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAttentionCard(Map<String, dynamic> anomaly) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: Colors.orange.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.warning_amber,
-                  color: Colors.orange,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      anomaly['title'] as String,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Detected by Gemini AI',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Text(
-            anomaly['description'] as String,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.4,
-              color: Colors.grey[800],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () {
-                  // Dismiss
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey[700],
-                ),
-                child: const Text('Dismiss'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () {
-                  // Check transaction
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-                child: Text(anomaly['actionText'] as String),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInsightCard(Map<String, dynamic> insight) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: (insight['color'] as Color).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  insight['icon'] as IconData,
-                  color: insight['color'] as Color,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  insight['title'] as String,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Text(
-            insight['description'] as String,
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.4,
-            ),
-          ),
-          if (insight['showChart'] == true && insight['chartData'] != null) ...[
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 120,
-              child: _buildSimpleChart(insight['chartData']),
-            ),
-          ],
-          if (insight['actionable'] == true) ...[
-            const SizedBox(height: 15),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton(
-                onPressed: () {
-                  // Action based on insight
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: insight['color'] as Color,
-                  side: BorderSide(color: (insight['color'] as Color).withOpacity(0.5)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                ),
-                child: Text(insight['actionText'] as String),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSimpleChart(List<dynamic>? data) {
-    if (data == null || data.isEmpty) return const SizedBox.shrink();
+    final expenses = recentTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
     
-    // Simple bar chart visualization for demo
-    return Row(
-      children: List.generate(data.length, (index) {
-        final item = data[index] as Map<String, dynamic>;
-        final double maxValue = data
-            .map<double>((e) => (e['value'] as num).toDouble())
-            .reduce((value, element) => value > element ? value : element);
-        
-        final double normalizedValue = (item['value'] as num).toDouble() / maxValue;
-        
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Container(
-                  height: 90 * normalizedValue,
-                  decoration: BoxDecoration(
-                    color: index == 0 ? Colors.blue : Colors.orange,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  item['label'] as String,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[700],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildSpendingTrendsCard(Map<String, dynamic> stats) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Weekly Spending Trends',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      size: 12,
-                      color: Colors.grey[700],
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Last 4 weeks',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Spending by Week',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: List.generate(4, (index) {
-                        final weekValues = [0.7, 0.9, 0.6, 0.8];
-                        final labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-                        
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                AnimatedContainer(
-                                  duration: Duration(milliseconds: 700 + (index * 100)),
-                                  height: 100 * weekValues[index],
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.blue[300]!,
-                                        Colors.blue[600]!,
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  labels[index],
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Ksh ${(weekValues[index] * 1000).toInt()}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 15),
-          if (_aiService != null && _insightData['transactions'] != null)
-            _buildWeeklyTrendInfo(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWeeklyTrendInfo() {
-    try {
-      final List<Transaction> transactions;
-      final List<dynamic> rawTransactions = _insightData['transactions'] as List<dynamic>;
-      transactions = rawTransactions
-          .where((item) => item is Transaction || item is Map<String, dynamic>)
-          .map((item) => item is Transaction ? item : Transaction.fromJson(item as Map<String, dynamic>))
-          .toList();
-      
-      final weeklyTrend = _aiService!.getWeeklyTrend(transactions);
-      
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: weeklyTrend['isPositive'] 
-              ? Colors.green.withOpacity(0.1) 
-              : Colors.red.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                weeklyTrend['isPositive'] 
-                    ? Icons.trending_down 
-                    : Icons.trending_up,
-                color: weeklyTrend['isPositive'] 
-                    ? Colors.green 
-                    : Colors.red,
-                size: 16,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                weeklyTrend['description'] ?? 'No trend data available',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: weeklyTrend['isPositive'] 
-                      ? Colors.green[800] 
-                      : Colors.red[800],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      print('Error building weekly trend info: $e');
-      return const SizedBox.shrink();
-    }
-  }
-
-  Widget _buildCategoryAnalysisCard(Map<String, dynamic> stats) {
-    final categories = [
-      {'name': 'Food & Dining', 'amount': 520, 'color': Colors.orange},
-      {'name': 'Transport', 'amount': 350, 'color': Colors.blue},
-      {'name': 'Shopping', 'amount': 280, 'color': Colors.purple},
-      {'name': 'Entertainment', 'amount': 170, 'color': Colors.red},
-      {'name': 'Others', 'amount': 210, 'color': Colors.grey},
-    ];
+    final avgMonthlyExpenses = expenses / 3;
+    final currentSavingsRate = monthlyIncome > 0 
+        ? ((monthlyIncome - avgMonthlyExpenses) / monthlyIncome) * 100
+        : 0.0;
     
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Top Expense Categories',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 180,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: CustomPaint(
-                      size: const Size(150, 150),
-                      painter: PieChartPainter(
-                        categories: categories,
-                        animationValue: 1.0,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  flex: 4,
-                  child: Column(
-                    children: categories.map((category) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: category['color'] as Color,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                category['name'] as String,
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                            ),
-                            Text(
-                              'Ksh ${(category['amount'] as int).toString()}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 15),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  color: Colors.blue[700],
-                  size: 18,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Your highest spending category is Food & Dining. Consider meal planning to reduce expenses in this area.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.blue[900],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFinancialHealthCard(Map<String, dynamic> stats) {
-    final score = (stats['financialHealthScore'] as int? ?? 50);
+    // Recommended savings rate (aim for 20%)
+    final targetSavingsRate = 20.0;
+    final recommendedMonthlySaving = monthlyIncome * (targetSavingsRate / 100);
     
-    Color scoreColor;
-    String healthStatus;
+    // Strategies based on current savings rate
+    final strategies = <String>[];
     
-    if (score >= 80) {
-      scoreColor = Colors.green;
-      healthStatus = 'Excellent';
-    } else if (score >= 60) {
-      scoreColor = Colors.amber;
-      healthStatus = 'Good';
-    } else if (score >= 40) {
-      scoreColor = Colors.orange;
-      healthStatus = 'Fair';
+    if (currentSavingsRate < 10) {
+      strategies.add('Reduce discretionary spending on entertainment and dining out');
+      strategies.add('Review and cancel unused subscriptions');
+      strategies.add('Consider a "no-spend" challenge for non-essential items');
+    } else if (currentSavingsRate < 20) {
+      strategies.add('Set up automatic transfers to your savings on payday');
+      strategies.add('Look for better deals on regular expenses like insurance');
+      strategies.add('Consider a side income to boost your savings rate');
     } else {
-      scoreColor = Colors.red;
-      healthStatus = 'Needs Attention';
+      strategies.add('Great job! Consider increasing investments for long-term growth');
+      strategies.add('Review your tax strategy to maximize returns');
+      strategies.add('Consider additional retirement contributions');
     }
     
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [scoreColor.withOpacity(0.8), scoreColor.withOpacity(0.6)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: scoreColor.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Financial Health Score',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  healthStatus,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              SizedBox(
-                height: 80,
-                width: 80,
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 0, end: score / 100),
-                  duration: const Duration(milliseconds: 1500),
-                  builder: (context, value, child) {
-                    return Stack(
-                      children: [
-                        SizedBox(
-                          height: 80,
-                          width: 80,
-                          child: CircularProgressIndicator(
-                            value: value,
-                            strokeWidth: 8,
-                            backgroundColor: Colors.white.withOpacity(0.3),
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        ),
-                        Center(
-                          child: Text(
-                            '${(value * 100).toInt()}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildScoreIndicator(
-                      'Savings', 
-                      (stats['totalSavings'] != null && (stats['totalSavings'] as double) > 0) ? 
-                        min((stats['totalSavings'] as double) / 5000, 1.0).toDouble() : 0.1,
-                    ),
-                    const SizedBox(height: 10),
-                    _buildScoreIndicator(
-                      'Expenses', 
-                      (stats['totalIncome'] != null && (stats['totalIncome'] as double) > 0) ? 
-                        min(1 - ((stats['totalExpenses'] as double? ?? 0) / (stats['totalIncome'] as double)), 1.0).toDouble() : 0.5,
-                    ),
-                    const SizedBox(height: 10),
-                    _buildScoreIndicator(
-                      'Goals', 
-                      min((stats['activeGoalsCount'] as int? ?? 0) / 3, 1.0).toDouble(),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  color: Colors.white,
-                  size: 18,
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Increasing your savings rate by 5% could improve your score by 10 points in the next 3 months.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    // Emergency fund recommendation (3-6 months of expenses)
+    final recommendedEmergencyFund = avgMonthlyExpenses * 6;
+    
+    // Estimate current emergency fund (placeholder)
+    final estimatedCurrentEmergencyFund = 0.0; // Would need actual data
+    
+    final monthsToCompleteEmergencyFund = recommendedEmergencyFund > 0 && recommendedMonthlySaving > 0
+        ? (recommendedEmergencyFund - estimatedCurrentEmergencyFund) / recommendedMonthlySaving
+        : 0;
+    
+    // Suggested new goals
+    final suggestedNewGoals = <Map<String, dynamic>>[];
+    
+    if (estimatedCurrentEmergencyFund < recommendedEmergencyFund) {
+      suggestedNewGoals.add({
+        'name': 'Emergency Fund',
+        'target': recommendedEmergencyFund,
+        'timeline': '${monthsToCompleteEmergencyFund.ceil()} months',
+        'monthly_contribution': recommendedMonthlySaving
+      });
+    }
+    
+    suggestedNewGoals.add({
+      'name': 'Retirement Fund',
+      'target': monthlyIncome * 12 * 10, // 10 years of income as example
+      'timeline': '30 years',
+      'monthly_contribution': monthlyIncome * 0.15
+    });
+    
+    suggestedNewGoals.add({
+      'name': 'Vacation Fund',
+      'target': monthlyIncome * 2,
+      'timeline': '12 months',
+      'monthly_contribution': (monthlyIncome * 2) / 12
+    });
+    
+    return {
+      'recommended_monthly_saving': recommendedMonthlySaving,
+      'percent_of_income': targetSavingsRate,
+      'strategies': strategies,
+      'goal_timelines': [],
+      'suggested_new_goals': suggestedNewGoals,
+      'emergency_fund': {
+        'current': estimatedCurrentEmergencyFund,
+        'target': recommendedEmergencyFund,
+        'months_to_complete': monthsToCompleteEmergencyFund.ceil()
+      }
+    };
   }
 
-  Widget _buildScoreIndicator(String label, double value) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: 0, end: value),
-      duration: const Duration(milliseconds: 1000),
-      builder: (context, value, child) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  '${(value * 100).toInt()}%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: value,
-              backgroundColor: Colors.white.withOpacity(0.2),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-              minHeight: 5,
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ],
-        );
+  // Helper methods
+  Map<String, double> _categorizeTotalSpending(List<Transaction> transactions) {
+    final categorizedSpending = <String, double>{};
+    
+    for (final t in transactions.where((t) => t.isExpense)) {
+      if (!categorizedSpending.containsKey(t.category)) {
+        categorizedSpending[t.category] = 0;
+      }
+      categorizedSpending[t.category] = categorizedSpending[t.category]! + t.amount;
+    }
+    
+    return categorizedSpending;
+  }
+
+  Map<DateTime, List<Transaction>> _groupTransactionsByDate(List<Transaction> transactions) {
+    final result = <DateTime, List<Transaction>>{};
+    
+    for (final t in transactions) {
+      // Normalize to just the date part
+      final dateKey = DateTime(t.date.year, t.date.month, t.date.day);
+      
+      if (!result.containsKey(dateKey)) {
+        result[dateKey] = [];
+      }
+      
+      result[dateKey]!.add(t);
+    }
+    
+    return result;
+  }
+
+  Map<String, dynamic> _prepareCategoryData(List<Transaction> transactions, String category) {
+    // Group by month
+    final byMonth = <String, double>{};
+    for (final t in transactions) {
+      final monthKey = '${t.date.year}-${t.date.month}';
+      if (!byMonth.containsKey(monthKey)) {
+        byMonth[monthKey] = 0;
+      }
+      byMonth[monthKey] = byMonth[monthKey]! + t.amount;
+    }
+    
+    // Group by merchant
+    final byMerchant = <String, double>{};
+    for (final t in transactions) {
+      final merchant = t.business ?? t.recipient ?? t.sender ?? 'Unknown';
+      if (!byMerchant.containsKey(merchant)) {
+        byMerchant[merchant] = 0;
+      }
+      byMerchant[merchant] = byMerchant[merchant]! + t.amount;
+    }
+    
+    return {
+      'category': category,
+      'transaction_count': transactions.length,
+      'total_amount': transactions.fold(0.0, (sum, t) => sum + t.amount),
+      'by_month': byMonth,
+      'by_merchant': byMerchant,
+      'transactions': transactions.map((t) => {
+        'amount': t.amount,
+        'date': t.date.toIso8601String(),
+        'merchant': t.business ?? t.recipient ?? t.sender ?? 'Unknown'
+      }).toList()
+    };
+  }
+
+  Map<String, dynamic> _analyzeIncomeVsExpenses(
+    List<Transaction> transactions,
+    double monthlyIncome
+  ) {
+    // Group by month
+    final byMonth = <String, Map<String, double>>{};
+    
+    for (final t in transactions) {
+      final monthKey = '${t.date.year}-${t.date.month}';
+      
+      if (!byMonth.containsKey(monthKey)) {
+        byMonth[monthKey] = {'income': 0, 'expenses': 0};
+      }
+      
+      if (t.isExpense) {
+        byMonth[monthKey]!['expenses'] = byMonth[monthKey]!['expenses']! + t.amount;
+      } else {
+        byMonth[monthKey]!['income'] = byMonth[monthKey]!['income']! + t.amount;
+      }
+    }
+    
+    // Calculate savings rate
+    final savingsRates = <String, double>{};
+    for (final month in byMonth.keys) {
+      final income = byMonth[month]!['income']!;
+      final expenses = byMonth[month]!['expenses']!;
+      
+      savingsRates[month] = income > 0 ? ((income - expenses) / income) * 100 : 0;
+    }
+    
+    return {
+      'monthly_data': byMonth,
+      'savings_rates': savingsRates,
+      'reported_monthly_income': monthlyIncome,
+      'average_expenses': byMonth.isNotEmpty 
+          ? byMonth.values.fold(0.0, (sum, m) => sum + m['expenses']!) / byMonth.length
+          : 0.0
+    };
+  }
+
+  Map<String, dynamic> _prepareTransactionContextForQuestion(List<Transaction> transactions) {
+    // Group transactions by date
+    final byDate = _groupTransactionsByDate(transactions);
+    
+    // Calculate current month metrics
+    final now = DateTime.now();
+    final currentMonthTransactions = transactions
+        .where((t) => t.date.year == now.year && t.date.month == now.month)
+        .toList();
+    
+    final currentMonthIncome = currentMonthTransactions
+        .where((t) => !t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    final currentMonthExpenses = currentMonthTransactions
+        .where((t) => t.isExpense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+    
+    // Get recent balance
+    final balance = BalanceService.instance.getCurrentBalance();
+    
+    // Get top spending categories
+    final categorizedSpending = _categorizeTotalSpending(transactions);
+    final topCategories = categorizedSpending.entries
+        .map((e) => {'category': e.key, 'amount': e.value})
+        .toList()
+      ..sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+    
+    return {
+      'transaction_count': transactions.length,
+      'current_month': {
+        'income': currentMonthIncome,
+        'expenses': currentMonthExpenses,
+        'balance': currentMonthIncome - currentMonthExpenses
       },
-    );
+      'current_balance': balance,
+      'top_spending_categories': topCategories.take(5).toList(),
+      'recent_transactions': transactions
+          .take(10)
+          .map((t) => {
+            'amount': t.amount,
+            'category': t.category,
+            'date': t.date.toIso8601String(),
+            'is_expense': t.isExpense,
+            'title': t.title
+          })
+          .toList()
+    };
   }
 
-  Widget _buildFuturePredictionCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF6A5AE0), Color(0xFF9C42F5)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.purple.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.auto_awesome,
-                color: Colors.white,
-                size: 24,
-              ),
-              SizedBox(width: 12),
-              Text(
-                'Goal Timeline Prediction',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Timeline visualization with animation
-          Container(
-            height: 120,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  top: 10,
-                  bottom: 10,
-                  child: Container(
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'Today',
-                      style: TextStyle(
-                        color: Colors.purple,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                // Laptop goal marker
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 1000),
-                  curve: Curves.easeInOut,
-                  left: 120,
-                  top: 0,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.computer,
-                          color: Colors.purple,
-                          size: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        'Laptop Goal',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const Text(
-                        '3 months',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // House goal marker
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 1200),
-                  curve: Curves.easeInOut,
-                  right: 20,
-                  top: 0,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.home,
-                          color: Colors.purple,
-                          size: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        'House Down Payment',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const Text(
-                        '2 years',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 15),
-          const Text(
-            'Based on your current saving rate, Gemini predicts you\'ll reach your laptop goal in 3 months and house down payment in 2 years.',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 15),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    // View goals
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text('View Details'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Navigate to savings screen
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SavingsScreen(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.purple,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text('Optimize Goals'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Background pattern painter
-class BackgroundPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.grey[200]!
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-    
-    // Draw grid pattern
-    final double spacing = 20;
-    for (double i = 0; i < size.width; i += spacing) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double i = 0; i < size.height; i += spacing) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-    
-    // Draw some circles for decoration
-    final circlePaint = Paint()
-      ..color = Colors.grey[300]!
-      ..style = PaintingStyle.fill;
-    
-    canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.3), 30, circlePaint);
-    canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.7), 50, circlePaint);
-    canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.9), 40, circlePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// Header pattern painter
-class PatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    
-    // Draw curved lines
-    for (int i = 0; i < 10; i++) {
-      final path = Path();
-      path.moveTo(0, size.height - (i * 20));
-      path.quadraticBezierTo(
-        size.width * 0.5, 
-        size.height - (i * 20) - 100 + (i * 10), 
-        size.width, 
-        size.height - (i * 20)
-      );
-      canvas.drawPath(path, paint);
+  // Helper functions
+  String _getDayOfWeek(DateTime date) {
+    switch (date.weekday) {
+      case 1: return 'Monday';
+      case 2: return 'Tuesday';
+      case 3: return 'Wednesday';
+      case 4: return 'Thursday';
+      case 5: return 'Friday';
+      case 6: return 'Saturday';
+      case 7: return 'Sunday';
+      default: return '';
     }
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// Pie chart painter
-class PieChartPainter extends CustomPainter {
-  final List<Map<String, dynamic>> categories;
-  final double animationValue;
-  
-  PieChartPainter({
-    required this.categories,
-    required this.animationValue,
-  });
-  
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = min(size.width, size.height) / 2;
-    
-    double total = 0;
-    for (var category in categories) {
-      total += (category['amount'] as int).toDouble();
+  String _getMonthName(DateTime date) {
+    switch (date.month) {
+      case 1: return 'January';
+      case 2: return 'February';
+      case 3: return 'March';
+      case 4: return 'April';
+      case 5: return 'May';
+      case 6: return 'June';
+      case 7: return 'July';
+      case 8: return 'August';
+      case 9: return 'September';
+      case 10: return 'October';
+      case 11: return 'November';
+      case 12: return 'December';
+      default: return '';
     }
-    
-    double startAngle = -pi / 2;
-    
-    for (int i = 0; i < categories.length; i++) {
-      final category = categories[i];
-      final sweepAngle = (2 * pi * (category['amount'] as int) / total) * animationValue;
-      
-      final paint = Paint()
-        ..color = category['color'] as Color
-        ..style = PaintingStyle.fill;
-      
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        true,
-        paint,
-      );
-      
-      startAngle += sweepAngle;
-    }
-    
-    // Draw white circle in the middle for donut effect
-    final centerPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    
-    canvas.drawCircle(center, radius * 0.6, centerPaint);
   }
 
-  @override
-  bool shouldRepaint(covariant PieChartPainter oldDelegate) {
-    return oldDelegate.animationValue != animationValue ||
-           oldDelegate.categories != categories;
+  IconData _getCategoryIcon(String category) {
+    final categoryLower = category.toLowerCase();
+    
+    if (categoryLower.contains('food') || categoryLower.contains('dining') || 
+        categoryLower.contains('restaurant')) {
+      return Icons.restaurant;
+    } else if (categoryLower.contains('transport') || categoryLower.contains('travel') || 
+              categoryLower.contains('uber')) {
+      return Icons.directions_car;
+    } else if (categoryLower.contains('shopping') || categoryLower.contains('clothing')) {
+      return Icons.shopping_bag;
+    } else if (categoryLower.contains('entertainment') || categoryLower.contains('movie')) {
+      return Icons.movie;
+    } else if (categoryLower.contains('health') || categoryLower.contains('medical')) {
+      return Icons.health_and_safety;
+    } else if (categoryLower.contains('education') || categoryLower.contains('school')) {
+      return Icons.school;
+    } else if (categoryLower.contains('home') || categoryLower.contains('rent') || 
+              categoryLower.contains('mortgage')) {
+      return Icons.home;
+    } else if (categoryLower.contains('utilities') || categoryLower.contains('electric') || 
+              categoryLower.contains('water')) {
+      return Icons.electrical_services;
+    } else if (categoryLower.contains('phone') || categoryLower.contains('mobile')) {
+      return Icons.phone_android;
+    } else if (categoryLower.contains('savings') || categoryLower.contains('investment')) {
+      return Icons.savings;
+    } else {
+      return Icons.category;
+    }
   }
 }
