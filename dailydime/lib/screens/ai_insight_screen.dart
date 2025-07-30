@@ -777,12 +777,12 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                   unselectedLabelColor: themeService.subtextColor,
                   indicatorColor: themeService.primaryColor,
                   indicatorSize: TabBarIndicatorSize.label,
-                  labelstyle: TextStyle(
+                  labelStyle: TextStyle(
     fontFamily: 'DMsans',
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),
-                  unselectedLabelstyle: TextStyle(
+                  unselectedLabelStyle: TextStyle(
     fontFamily: 'DMsans',
                     fontWeight: FontWeight.w500,
                     fontSize: 14,
@@ -894,7 +894,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       getTitlesWidget: (value, meta) {
                         if (value.toInt() >= 0 && value.toInt() < spendingData.length) {
                           return SideTitleWidget(
-                            axisSide: meta.axisSide,
+                            meta:meta,
                             child: Text(
                               spendingData[value.toInt()]['x'] as String,
                               style: TextStyle(
@@ -952,36 +952,33 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                   ),
                 ],
                 lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    tooltipBgColor: themeService.isDarkMode 
-                        ? Colors.grey[800]!
-                        : Colors.white,
-                    tooltipRoundedRadius: 8,
-                    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                      return touchedBarSpots.map((barSpot) {
-                        final index = barSpot.x.toInt();
-                        final value = spendingData[index]['y'] as double;
-                        return LineTooltipItem(
-                          '${spendingData[index]['x']}\n',
-                          GoogleFonts.poppins(
-                            color: themeService.textColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: AppConfig.formatCurrency((value * 100).toInt()),
-                              style: TextStyle(
-    fontFamily: 'DMsans',
-                                color: themeService.primaryColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList();
-                    },
-                  ),
-                ),
+  touchTooltipData: LineTouchTooltipData(
+    getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+      return touchedBarSpots.map((barSpot) {
+        final index = barSpot.x.toInt();
+        final value = spendingData[index]['y'] as double;
+        return LineTooltipItem(
+          '${spendingData[index]['x']}\n',
+          TextStyle(
+            fontFamily: 'DMsans',
+            color: themeService.textColor,
+            fontWeight: FontWeight.w500,
+          ),
+          children: [
+            TextSpan(
+              text: AppConfig.formatCurrency((value * 100).toInt()),
+              style: TextStyle(
+                fontFamily: 'DMsans',
+                color: themeService.primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        );
+      }).toList();
+    },
+  ),
+),
               ),
             ),
           ),
@@ -1055,7 +1052,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                           value: entry.value['value'] as double,
                           title: '${(percentage * 100).toStringAsFixed(0)}%',
                           radius: 80,
-                          titlestyle: TextStyle(
+                          titleStyle: TextStyle(
     fontFamily: 'DMsans',
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -1393,7 +1390,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                   unselectedLabelColor: themeService.subtextColor,
                   indicatorColor: themeService.primaryColor,
                   indicatorSize: TabBarIndicatorSize.label,
-                  labelstyle: TextStyle(
+                  labelStyle: TextStyle(
     fontFamily: 'DMsans',
                     fontWeight: FontWeight.w600,
                     fontSize: 14,

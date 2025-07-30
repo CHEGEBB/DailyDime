@@ -64,6 +64,7 @@ dev_dependencies:
   glass_kit: ^3.0.0
   blurrycontainer: ^1.0.2
   flutter_sms_inbox: ^1.0.4
+  flutter_slidable: ^4.0.0
 
 flutter:
   uses-material-design: true
