@@ -296,7 +296,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen> with TickerProvider
             width: 120,
             height: 120,
             child: Lottie.asset(
-              'assets/animations/error.json',
+              'assets/animations/error_state.json',
               fit: BoxFit.cover,
             ),
           ),
