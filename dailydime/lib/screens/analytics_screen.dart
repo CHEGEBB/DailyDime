@@ -1,4 +1,6 @@
 // lib/screens/analytics_screen.dart
+import 'dart:math' as Math;
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -413,6 +415,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                         ? Colors.white70
                         : Colors.black54,
                     indicatorColor: themeService.primaryColor,
+                    indicatorSize: TabBarIndicatorSize.label,
                     tabs: const [
                       Tab(text: 'Overview'),
                       Tab(text: 'Category'),
@@ -441,6 +444,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   Widget _buildPeriodSelector(ThemeService themeService) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.only(top: 48), // Safe area
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -538,7 +542,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              AppConfig.formatCurrency(totalAmount.toInt() * 100),
+              NumberFormat.currency(
+                symbol: 'KES ',
+                decimalDigits: 0,
+              ).format(totalAmount),
               style: TextStyle(
                 color: themeService.textColor,
                 fontSize: 24,
@@ -552,9 +559,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                 _buildSummaryItem(
                   themeService,
                   'Savings',
-                  AppConfig.formatCurrency(
-                    (_analyticsData['netSavings'] ?? 0.0).toInt() * 100,
-                  ),
+                  NumberFormat.currency(
+                    symbol: 'KES ',
+                    decimalDigits: 0,
+                  ).format(_analyticsData['netSavings'] ?? 0.0),
                   _analyticsData['netSavings'] != null &&
                           (_analyticsData['netSavings'] as double) >= 0
                       ? Colors.green
@@ -622,6 +630,330 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       ),
     );
   }
+  
+  Widget _buildWeeklyTrendChart(ThemeService themeService) {
+    final weeklyTrend = _analyticsData['weeklyTrend'] as Map<String, double>? ?? {};
+    
+    if (weeklyTrend.isEmpty) {
+      return _buildEmptyChart(
+        'No weekly trend data available',
+        themeService,
+      );
+    }
+    
+    return Container(
+      height: 220,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: LineChart(
+        LineChartData(
+          gridData: FlGridData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                  if (value.toInt() >= 0 && value.toInt() < days.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        days[value.toInt()],
+                        style: TextStyle(
+                          color: themeService.subtextColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }
+                  return const Text('');
+                },
+                reservedSize: 30,
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: [
+                FlSpot(0, weeklyTrend['Mon'] ?? 0),
+                FlSpot(1, weeklyTrend['Tue'] ?? 0),
+                FlSpot(2, weeklyTrend['Wed'] ?? 0),
+                FlSpot(3, weeklyTrend['Thu'] ?? 0),
+                FlSpot(4, weeklyTrend['Fri'] ?? 0),
+                FlSpot(5, weeklyTrend['Sat'] ?? 0),
+                FlSpot(6, weeklyTrend['Sun'] ?? 0),
+              ],
+              isCurved: true,
+              color: themeService.primaryColor,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  return FlDotCirclePainter(
+                    radius: 4,
+                    color: themeService.primaryColor,
+                    strokeWidth: 2,
+                    strokeColor: themeService.isDarkMode 
+                        ? Colors.black 
+                        : Colors.white,
+                  );
+                },
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                color: themeService.primaryColor.withOpacity(0.15),
+              ),
+            ),
+          ],
+          lineTouchData: LineTouchData(
+  touchTooltipData: LineTouchTooltipData(
+    // Use getTooltipColor instead of tooltipBgColor
+    getTooltipColor: (touchedSpot) => themeService.isDarkMode 
+        ? Colors.grey[800]! 
+        : Colors.white,
+    // Alternative: you can also use tooltipRoundedRadius for styling
+    // tooltipRoundedRadius: 8,
+    tooltipPadding: const EdgeInsets.all(8),
+    tooltipMargin: 8,
+    getTooltipItems: (touchedSpots) {
+      return touchedSpots.map((spot) {
+        return LineTooltipItem(
+          NumberFormat.currency(
+            symbol: 'KES ',
+            decimalDigits: 0,
+          ).format(spot.y),
+          TextStyle(
+            color: themeService.textColor,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+      }).toList();
+    },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildMerchantList(ThemeService themeService) {
+    final merchantData = _analyticsData['merchantData'] as List<Map<String, dynamic>>? ?? [];
+    
+    if (merchantData.isEmpty) {
+      return _buildEmptyChart(
+        'No merchant data available',
+        themeService,
+      );
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: merchantData.map((merchant) {
+          final merchantName = merchant['merchant'] as String;
+          final amount = merchant['amount'] as double;
+          
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: themeService.isDarkMode 
+                        ? Colors.grey[800] 
+                        : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      merchantName.substring(0, 1).toUpperCase(),
+                      style: TextStyle(
+                        color: themeService.textColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        merchantName,
+                        style: TextStyle(
+                          color: themeService.textColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        _showExpenses ? 'Expense' : 'Income',
+                        style: TextStyle(
+                          color: themeService.subtextColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  NumberFormat.currency(
+                    symbol: 'KES ',
+                    decimalDigits: 0,
+                  ).format(amount),
+                  style: TextStyle(
+                    color: themeService.textColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+  
+  Widget _buildMonthlyOverview(ThemeService themeService) {
+    final monthlyTrend = _analyticsData['monthlyTrend'] as List<Map<String, dynamic>>? ?? [];
+    
+    if (monthlyTrend.isEmpty) {
+      return _buildEmptyChart(
+        'No monthly data available',
+        themeService,
+      );
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: monthlyTrend.take(3).map((month) {
+          final monthName = month['month'] as String;
+          final income = month['income'] as double;
+          final expenses = month['expenses'] as double;
+          final savings = month['savings'] as double;
+          
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      monthName,
+                      style: TextStyle(
+                        color: themeService.textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      'Net: ${NumberFormat.currency(symbol: 'KES ', decimalDigits: 0).format(savings)}',
+                      style: TextStyle(
+                        color: savings >= 0 ? Colors.green : Colors.red,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Income',
+                            style: TextStyle(
+                              color: themeService.subtextColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            NumberFormat.currency(
+                              symbol: 'KES ',
+                              decimalDigits: 0,
+                            ).format(income),
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Expenses',
+                            style: TextStyle(
+                              color: themeService.subtextColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            NumberFormat.currency(
+                              symbol: 'KES ',
+                              decimalDigits: 0,
+                            ).format(expenses),
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: income > 0 ? expenses / income : 0,
+                    backgroundColor: Colors.green.withOpacity(0.3),
+                    color: Colors.red,
+                    minHeight: 6,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 
   Widget _buildCategoryTab(ThemeService themeService) {
     final categoryData =
@@ -650,12 +982,152 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           const SizedBox(height: 24),
           _buildSectionTitle('Category Breakdown', themeService),
           const SizedBox(height: 8),
-          ...categoryData.map(
-            (category) => _buildCategoryItem(category, themeService),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: themeService.cardColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: categoryData.map(
+                (category) => _buildCategoryItem(category, themeService),
+              ).toList(),
+            ),
           ),
         ],
       ),
     );
+  }
+  
+  Widget _buildCategoryPieChart(
+    List<Map<String, dynamic>> categoryData,
+    ThemeService themeService,
+  ) {
+    // Calculate total amount for percentage
+    final totalAmount = categoryData.fold(
+      0.0,
+      (sum, category) => sum + (category['amount'] as double),
+    );
+    
+    // Generate colors for each section
+    final List<Color> colors = [
+      Colors.blue,
+      Colors.red,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.amber,
+      Colors.indigo,
+      Colors.cyan,
+    ];
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: PieChart(
+        PieChartData(
+          sections: List.generate(
+            categoryData.length,
+            (index) {
+              final category = categoryData[index];
+              final amount = category['amount'] as double;
+              final percentage = totalAmount > 0 
+                  ? amount / totalAmount * 100 
+                  : 0.0;
+              
+              return PieChartSectionData(
+                color: colors[index % colors.length],
+                value: amount,
+                title: '${percentage.toStringAsFixed(1)}%',
+                radius: 100,
+                titleStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                badgeWidget: _Badge(
+                  category['category'] as String,
+                  colors[index % colors.length],
+                  size: 40,
+                ),
+                badgePositionPercentageOffset: 1.4,
+              );
+            },
+          ),
+          sectionsSpace: 2,
+          centerSpaceRadius: 60,
+          startDegreeOffset: -90,
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildCategoryItem(
+    Map<String, dynamic> category,
+    ThemeService themeService,
+  ) {
+    final categoryName = category['category'] as String;
+    final amount = category['amount'] as double;
+    
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: _getCategoryColor(categoryName),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              categoryName,
+              style: TextStyle(
+                color: themeService.textColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Text(
+            NumberFormat.currency(
+              symbol: 'KES ',
+              decimalDigits: 0,
+            ).format(amount),
+            style: TextStyle(
+              color: themeService.textColor,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Color _getCategoryColor(String category) {
+    final colors = {
+      'Food': Colors.green,
+      'Transport': Colors.blue,
+      'Housing': Colors.purple,
+      'Entertainment': Colors.orange,
+      'Shopping': Colors.pink,
+      'Utilities': Colors.teal,
+      'Health': Colors.red,
+      'Education': Colors.indigo,
+      'Travel': Colors.amber,
+      'Personal': Colors.cyan,
+    };
+    
+    return colors[category] ?? Colors.grey;
   }
 
   Widget _buildTrendTab(ThemeService themeService) {
@@ -692,9 +1164,366 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           const SizedBox(height: 24),
           _buildSectionTitle('Monthly Details', themeService),
           const SizedBox(height: 8),
-          ...monthlyTrend.map(
-            (month) => _buildMonthlyTrendItem(month, themeService),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: themeService.cardColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: monthlyTrend.map(
+                (month) => _buildMonthlyTrendItem(month, themeService),
+              ).toList(),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildMonthlyTrendChart(
+    List<Map<String, dynamic>> monthlyTrend,
+    ThemeService themeService,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: monthlyTrend.fold(
+            0.0,
+            (max, month) => Math.max(
+              max,
+              Math.max(
+                month['income'] as double,
+                month['expenses'] as double,
+              ),
+            ),
+          ) * 1.2,
+         barTouchData: BarTouchData(
+  touchTooltipData: BarTouchTooltipData(
+    // Use getTooltipColor instead of tooltipBgColor
+    getTooltipColor: (group) => themeService.isDarkMode
+        ? Colors.grey[800]!
+        : Colors.white,
+    // Additional styling options
+    // tooltipRoundedRadius: 8,
+    tooltipPadding: const EdgeInsets.all(8),
+    tooltipMargin: 8,
+    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+      final month = monthlyTrend[groupIndex]['month'] as String;
+      final value = NumberFormat.currency(
+        symbol: 'KES ',
+        decimalDigits: 0,
+      ).format(rod.toY);
+      final type = rodIndex == 0 ? 'Income' : 'Expenses';
+      
+      return BarTooltipItem(
+        '$month\n$type: $value',
+        TextStyle(
+          color: themeService.textColor,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+              },
+            ),
+          ),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  if (value.toInt() >= 0 && value.toInt() < monthlyTrend.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        monthlyTrend[value.toInt()]['month'] as String,
+                        style: TextStyle(
+                          color: themeService.subtextColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }
+                  return const Text('');
+                },
+                reservedSize: 30,
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          gridData: FlGridData(show: false),
+          barGroups: List.generate(
+            monthlyTrend.length,
+            (index) => BarChartGroupData(
+              x: index,
+              groupVertically: true,
+              barsSpace: 4,
+              barRods: [
+                BarChartRodData(
+                  toY: monthlyTrend[index]['income'] as double,
+                  color: Colors.green,
+                  width: 12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                BarChartRodData(
+                  toY: monthlyTrend[index]['expenses'] as double,
+                  color: Colors.red,
+                  width: 12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildSavingsTrendChart(
+    List<Map<String, dynamic>> monthlyTrend,
+    ThemeService themeService,
+  ) {
+    final savingsData = monthlyTrend
+        .map((month) => FlSpot(
+          monthlyTrend.indexOf(month).toDouble(),
+          month['savings'] as double,
+        ))
+        .toList();
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: LineChart(
+        LineChartData(
+          gridData: FlGridData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  if (value.toInt() >= 0 && value.toInt() < monthlyTrend.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        monthlyTrend[value.toInt()]['month'] as String,
+                        style: TextStyle(
+                          color: themeService.subtextColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }
+                  return const Text('');
+                },
+                reservedSize: 30,
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: savingsData,
+              isCurved: true,
+              color: themeService.primaryColor,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  Color dotColor = spot.y >= 0 ? Colors.green : Colors.red;
+                  return FlDotCirclePainter(
+                    radius: 5,
+                    color: dotColor,
+                    strokeWidth: 2,
+                    strokeColor: themeService.isDarkMode 
+                        ? Colors.black 
+                        : Colors.white,
+                  );
+                },
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                color: themeService.primaryColor.withOpacity(0.15),
+                applyCutOffY: true,
+                cutOffY: 0,
+                spotsLine: BarAreaSpotsLine(
+                  show: true,
+                  flLineStyle: FlLine(
+                    color: themeService.isDarkMode 
+                        ? Colors.white.withOpacity(0.2) 
+                        : Colors.black.withOpacity(0.2),
+                    strokeWidth: 1,
+                    dashArray: [5, 5],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        lineTouchData: LineTouchData(
+  touchTooltipData: LineTouchTooltipData(
+    // Use getTooltipColor instead of tooltipBgColor
+    getTooltipColor: (touchedSpot) => themeService.isDarkMode 
+        ? Colors.grey[800]! 
+        : Colors.white,
+    // Additional styling options
+    // tooltipRoundedRadius: 8,
+    tooltipPadding: const EdgeInsets.all(8),
+    tooltipMargin: 8,
+    getTooltipItems: (touchedSpots) {
+      return touchedSpots.map((spot) {
+        final month = monthlyTrend[spot.x.toInt()]['month'] as String;
+        return LineTooltipItem(
+          '$month\n${NumberFormat.currency(symbol: 'KES ', decimalDigits: 0).format(spot.y)}',
+          TextStyle(
+            color: themeService.textColor,
+            fontWeight: FontWeight.bold,
+          ),
+          children: [
+            TextSpan(
+              text: spot.y >= 0 ? ' saved' : ' deficit',
+              style: TextStyle(
+                color: spot.y >= 0 ? Colors.green : Colors.red,
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
+        );
+      }).toList();
+    },
+            ),
+          ),
+          minX: 0,
+          maxX: monthlyTrend.length - 1.0,
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildMonthlyTrendItem(
+    Map<String, dynamic> month,
+    ThemeService themeService,
+  ) {
+    final monthName = month['month'] as String;
+    final income = month['income'] as double;
+    final expenses = month['expenses'] as double;
+    final savings = month['savings'] as double;
+    
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            monthName,
+            style: TextStyle(
+              color: themeService.textColor,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Income',
+                    style: TextStyle(
+                      color: themeService.subtextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    NumberFormat.currency(
+                      symbol: 'KES ',
+                      decimalDigits: 0,
+                    ).format(income),
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Expenses',
+                    style: TextStyle(
+                      color: themeService.subtextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    NumberFormat.currency(
+                      symbol: 'KES ',
+                      decimalDigits: 0,
+                    ).format(expenses),
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Savings',
+                    style: TextStyle(
+                      color: themeService.subtextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    NumberFormat.currency(
+                      symbol: 'KES ',
+                      decimalDigits: 0,
+                    ).format(savings),
+                    style: TextStyle(
+                      color: savings >= 0 ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          savings >= 0
+              ? LinearProgressIndicator(
+                  value: income > 0 ? expenses / income : 0,
+                  backgroundColor: Colors.green,
+                  color: Colors.red,
+                  minHeight: 4,
+                )
+              : LinearProgressIndicator(
+                  value: 1.0,
+                  backgroundColor: Colors.red.withOpacity(0.3),
+                  color: Colors.red,
+                  minHeight: 4,
+                ),
         ],
       ),
     );
@@ -780,7 +1609,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Forecast Total: ${AppConfig.formatCurrency(totalForecast.toInt() * 100)}',
+                    'Forecast Total: ${NumberFormat.currency(symbol: 'KES ', decimalDigits: 0).format(totalForecast)}',
                     style: TextStyle(
                       color: themeService.textColor,
                       fontSize: 18,
@@ -826,8 +1655,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           const SizedBox(height: 24),
           _buildSectionTitle('Expected Major Expenses', themeService),
           const SizedBox(height: 8),
-          ...majorExpenses.map(
-            (expense) => _buildMajorExpenseItem(expense, themeService),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: themeService.cardColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: majorExpenses.isEmpty
+                  ? [
+                      Center(
+                        child: Text(
+                          'No major expenses predicted',
+                          style: TextStyle(color: themeService.subtextColor),
+                        ),
+                      ),
+                    ]
+                  : majorExpenses.map(
+                      (expense) => _buildMajorExpenseItem(expense, themeService),
+                    ).toList(),
+            ),
           ),
           const SizedBox(height: 24),
           _buildSectionTitle('Category Forecast', themeService),
@@ -837,6 +1684,301 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             child: _buildCategoryForecastChart(categoryForecast, themeService),
           ),
         ],
+      ),
+    );
+  }
+  
+  Widget _buildForecastChart(
+    List<dynamic> dailyForecast,
+    ThemeService themeService,
+  ) {
+    if (dailyForecast.isEmpty) {
+      return _buildEmptyChart(
+        'No forecast data available',
+        themeService,
+      );
+    }
+    
+    // Extract data for chart
+    final spots = List<FlSpot>.generate(
+      dailyForecast.length,
+      (index) => FlSpot(
+        index.toDouble(),
+        (dailyForecast[index]['amount'] as double?) ?? 0.0,
+      ),
+    );
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: LineChart(
+        LineChartData(
+          gridData: FlGridData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  // Show every 5th day
+                  if (value.toInt() % 5 == 0 && value.toInt() < dailyForecast.length) {
+                    final date = DateTime.parse(dailyForecast[value.toInt()]['date'] as String);
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        DateFormat('d MMM').format(date),
+                        style: TextStyle(
+                          color: themeService.subtextColor,
+                          fontSize: 10,
+                        ),
+                      ),
+                    );
+                  }
+                  return const Text('');
+                },
+                reservedSize: 30,
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              color: themeService.primaryColor,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              dotData: FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                color: themeService.primaryColor.withOpacity(0.15),
+              ),
+            ),
+          ],
+          lineTouchData: LineTouchData(
+  touchTooltipData: LineTouchTooltipData(
+    // Use getTooltipColor instead of tooltipBgColor
+    getTooltipColor: (touchedSpot) => themeService.isDarkMode
+        ? Colors.grey[800]!
+        : Colors.white,
+    // Additional styling options
+    // tooltipRoundedRadius: 8,
+    tooltipPadding: const EdgeInsets.all(8),
+    tooltipMargin: 8,
+    getTooltipItems: (touchedSpots) {
+      return touchedSpots.map((spot) {
+        final index = spot.x.toInt();
+        if (index < dailyForecast.length) {
+          final date = DateTime.parse(dailyForecast[index]['date'] as String);
+          return LineTooltipItem(
+            '${DateFormat('MMM d').format(date)}\n${NumberFormat.currency(symbol: 'KES ', decimalDigits: 0).format(spot.y)}',
+            TextStyle(
+              color: themeService.textColor,
+              fontWeight: FontWeight.bold,
+            ),
+          );
+        }
+        return null;
+      }).whereType<LineTooltipItem>().toList();
+    },
+  ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildMajorExpenseItem(
+    dynamic expense,
+    ThemeService themeService,
+  ) {
+    final category = expense['category'] as String?;
+    final amount = expense['amount'] as double?;
+    final likelihood = expense['likelihood'] as double?;
+    
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _getCategoryColor(category ?? 'Unknown').withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _getCategoryIcon(category ?? 'Unknown'),
+              color: _getCategoryColor(category ?? 'Unknown'),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  category ?? 'Unknown',
+                  style: TextStyle(
+                    color: themeService.textColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  'Likelihood: ${(likelihood ?? 0.0) * 100}%',
+                  style: TextStyle(
+                    color: themeService.subtextColor,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            NumberFormat.currency(
+              symbol: 'KES ',
+              decimalDigits: 0,
+            ).format(amount ?? 0),
+            style: TextStyle(
+              color: themeService.textColor,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  IconData _getCategoryIcon(String category) {
+    final icons = {
+      'Food': Icons.restaurant,
+      'Transport': Icons.directions_car,
+      'Housing': Icons.home,
+      'Entertainment': Icons.movie,
+      'Shopping': Icons.shopping_bag,
+      'Utilities': Icons.bolt,
+      'Health': Icons.medical_services,
+      'Education': Icons.school,
+      'Travel': Icons.flight,
+      'Personal': Icons.person,
+    };
+    
+    return icons[category] ?? Icons.category;
+  }
+  
+  Widget _buildCategoryForecastChart(
+    List<dynamic> categoryForecast,
+    ThemeService themeService,
+  ) {
+    if (categoryForecast.isEmpty) {
+      return _buildEmptyChart(
+        'No category forecast data available',
+        themeService,
+      );
+    }
+    
+    // Sort categories by amount
+    categoryForecast.sort((a, b) => 
+      (b['amount'] as double).compareTo(a['amount'] as double)
+    );
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: categoryForecast.fold(
+            0.0,
+            (max, category) => Math.max(
+              max,
+              category['amount'] as double,
+            ),
+          ) * 1.2,
+         barTouchData: BarTouchData(
+  touchTooltipData: BarTouchTooltipData(
+    // Use getTooltipColor instead of tooltipBgColor
+    getTooltipColor: (group) => themeService.isDarkMode
+        ? Colors.grey[800]!
+        : Colors.white,
+    // Additional styling options
+    // tooltipRoundedRadius: 8,
+    tooltipPadding: const EdgeInsets.all(8),
+    tooltipMargin: 8,
+    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+      final category = categoryForecast[groupIndex]['category'] as String;
+      final value = NumberFormat.currency(
+        symbol: 'KES ',
+        decimalDigits: 0,
+      ).format(rod.toY);
+      final percent = categoryForecast[groupIndex]['percent'] as double;
+      
+      return BarTooltipItem(
+        '$category\n$value (${percent.toStringAsFixed(1)}%)',
+        TextStyle(
+          color: themeService.textColor,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+              },
+            ),
+          ),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  if (value.toInt() >= 0 && value.toInt() < categoryForecast.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        (categoryForecast[value.toInt()]['category'] as String)
+                            .substring(0, Math.min(3, (categoryForecast[value.toInt()]['category'] as String).length)),
+                        style: TextStyle(
+                          color: themeService.subtextColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }
+                  return const Text('');
+                },
+                reservedSize: 30,
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          gridData: FlGridData(show: false),
+          barGroups: List.generate(
+            categoryForecast.length,
+            (index) => BarChartGroupData(
+              x: index,
+              barRods: [
+                BarChartRodData(
+                  toY: categoryForecast[index]['amount'] as double,
+                  color: _getCategoryColor(categoryForecast[index]['category'] as String),
+                  width: 16,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -851,1400 +1993,66 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       ),
     );
   }
-
-  Widget _buildWeeklyTrendChart(ThemeService themeService) {
-    final weeklyData =
-        _analyticsData['weeklyTrend'] as Map<String, double>? ?? {};
-
-    if (weeklyData.isEmpty) {
-      return const SizedBox();
-    }
-
-    final maxValue = weeklyData.values.fold(
-      0.0,
-      (prev, curr) => curr > prev ? curr : prev,
-    );
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: themeService.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          height: 220,
-          child: LineChart(
-            LineChartData(
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                horizontalInterval: maxValue / 4,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(
-                    color: themeService.isDarkMode
-                        ? Colors.grey[800]
-                        : Colors.grey[300],
-                    strokeWidth: 1,
-                  );
-                },
-              ),
-              titlesData: FlTitlesData(
-                show: true,
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (value, meta) {
-                      final days = [
-                        'Mon',
-                        'Tue',
-                        'Wed',
-                        'Thu',
-                        'Fri',
-                        'Sat',
-                        'Sun',
-                      ];
-                      if (value >= 0 && value < days.length) {
-                        return Text(
-                          days[value.toInt()],
-                          style: TextStyle(
-                            color: themeService.subtextColor,
-                            fontSize: 12,
-                          ),
-                        );
-                      }
-                      return const Text('');
-                    },
-                    reservedSize: 30,
-                  ),
-                ),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    interval: maxValue / 4,
-                    getTitlesWidget: (value, meta) {
-                      if (value == 0) return const Text('');
-                      return Text(
-                        AppConfig.formatCurrency(
-                          value.toInt() * 100,
-                        ).replaceAll(AppConfig.currencySymbol, '').trim(),
-                        style: TextStyle(
-                          color: themeService.subtextColor,
-                          fontSize: 10,
-                        ),
-                      );
-                    },
-                    reservedSize: 40,
-                  ),
-                ),
-                topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-              ),
-              borderData: FlBorderData(show: false),
-              minX: 0,
-              maxX: 6,
-              minY: 0,
-              maxY: maxValue * 1.1,
-              lineBarsData: [
-                LineChartBarData(
-                  spots: [
-                    FlSpot(0, weeklyData['Mon'] ?? 0),
-                    FlSpot(1, weeklyData['Tue'] ?? 0),
-                    FlSpot(2, weeklyData['Wed'] ?? 0),
-                    FlSpot(3, weeklyData['Thu'] ?? 0),
-                    FlSpot(4, weeklyData['Fri'] ?? 0),
-                    FlSpot(5, weeklyData['Sat'] ?? 0),
-                    FlSpot(6, weeklyData['Sun'] ?? 0),
-                  ],
-                  isCurved: true,
-                  color: themeService.primaryColor,
-                  barWidth: 3,
-                  isStrokeCapRound: true,
-                  dotData: FlDotData(
-                    show: true,
-                    getDotPainter: (spot, percent, barData, index) {
-                      return FlDotCirclePainter(
-                        radius: 4,
-                        color: themeService.primaryColor,
-                        strokeWidth: 2,
-                        strokeColor: Colors.white,
-                      );
-                    },
-                  ),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: themeService.primaryColor.withOpacity(0.2),
-                  ),
-                ),
-              ],
-              lineTouchData: LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipColor: (touchedSpot) => themeService.isDarkMode
-                      ? Colors.grey[800]!
-                      : Colors.white, // Changed to 'getTooltipColor'
-                  getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                    return touchedBarSpots.map((barSpot) {
-                      final flSpot = barSpot;
-                      final weekday = [
-                        'Mon',
-                        'Tue',
-                        'Wed',
-                        'Thu',
-                        'Fri',
-                        'Sat',
-                        'Sun',
-                      ][flSpot.x.toInt()];
-                      return LineTooltipItem(
-                        '$weekday\n${AppConfig.formatCurrency(flSpot.y.toInt() * 100)}',
-                        TextStyle(
-                          color: themeService.isDarkMode
-                              ? Colors.white
-                              : Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    }).toList();
-                  },
-                ),
-              ),
-            ),
-          ),
-        ),
+  
+  Widget _buildEmptyChart(String message, ThemeService themeService) {
+    return Container(
+      height: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.circular(16),
       ),
-    );
-  }
-
-  Widget _buildMerchantList(ThemeService themeService) {
-    final merchantData =
-        _analyticsData['merchantData'] as List<Map<String, dynamic>>? ?? [];
-
-    if (merchantData.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            'No merchant data available for the selected period',
-            style: TextStyle(color: themeService.subtextColor),
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: themeService.cardColor,
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: merchantData.length,
-        separatorBuilder: (context, index) => Divider(
-          color: themeService.isDarkMode ? Colors.grey[800] : Colors.grey[200],
-          height: 1,
-        ),
-        itemBuilder: (context, index) {
-          final merchant = merchantData[index];
-          return ListTile(
-            title: Text(
-              merchant['merchant'],
-              style: TextStyle(
-                color: themeService.textColor,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            trailing: Text(
-              AppConfig.formatCurrency(
-                (merchant['amount'] as double).toInt() * 100,
-              ),
-              style: TextStyle(
-                color: _showExpenses ? Colors.red : Colors.green,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildMonthlyOverview(ThemeService themeService) {
-    final monthlyTrend =
-        _analyticsData['monthlyTrend'] as List<Map<String, dynamic>>? ?? [];
-
-    if (monthlyTrend.isEmpty) {
-      return const SizedBox();
-    }
-
-    final latestMonth = monthlyTrend.last;
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: themeService.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${latestMonth['month']} Overview',
-              style: TextStyle(
-                color: themeService.textColor,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildOverviewItem(
-              'Income',
-              AppConfig.formatCurrency(
-                (latestMonth['income'] as double).toInt() * 100,
-              ),
-              Icons.arrow_downward,
-              Colors.green,
-              themeService,
-            ),
-            const SizedBox(height: 12),
-            _buildOverviewItem(
-              'Expenses',
-              AppConfig.formatCurrency(
-                (latestMonth['expenses'] as double).toInt() * 100,
-              ),
-              Icons.arrow_upward,
-              Colors.red,
-              themeService,
-            ),
-            const SizedBox(height: 12),
-            _buildOverviewItem(
-              'Net Savings',
-              AppConfig.formatCurrency(
-                (latestMonth['savings'] as double).toInt() * 100,
-              ),
-              (latestMonth['savings'] as double) >= 0
-                  ? Icons.savings
-                  : Icons.warning,
-              (latestMonth['savings'] as double) >= 0
-                  ? Colors.green
-                  : Colors.red,
-              themeService,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOverviewItem(
-    String label,
-    String value,
-    IconData icon,
-    Color iconColor,
-    ThemeService themeService,
-  ) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(color: themeService.subtextColor, fontSize: 12),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                color: themeService.textColor,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryPieChart(
-    List<Map<String, dynamic>> categoryData,
-    ThemeService themeService,
-  ) {
-    if (categoryData.isEmpty) {
-      return const SizedBox();
-    }
-
-    // Calculate total amount
-    final totalAmount = categoryData.fold(
-      0.0,
-      (sum, item) => sum + (item['amount'] as double),
-    );
-
-    // Generate colors for each category
-    final List<Color> colors = [
-      Colors.blue,
-      Colors.red,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-      Colors.amber,
-      Colors.indigo,
-      Colors.cyan,
-    ];
-
-    // Prepare sections
-    final sections = <PieChartSectionData>[];
-
-    for (var i = 0; i < categoryData.length; i++) {
-      final category = categoryData[i];
-      final percentage = (category['amount'] as double) / totalAmount * 100;
-
-      if (percentage < 1) continue; // Skip very small slices
-
-      final color = i < colors.length ? colors[i] : Colors.grey;
-
-      sections.add(
-        PieChartSectionData(
-          color: color,
-          value: category['amount'] as double,
-          title: percentage >= 5 ? '${percentage.toStringAsFixed(1)}%' : '',
-          radius: 100,
-          titleStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: themeService.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: PieChart(
-                PieChartData(
-                  sections: sections,
-                  centerSpaceRadius: 40,
-                  sectionsSpace: 2,
-                  pieTouchData: PieTouchData(
-                    touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                      // Could implement selection logic here
-                    },
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Top Categories',
-                    style: TextStyle(
-                      color: themeService.textColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: min(5, categoryData.length),
-                      itemBuilder: (context, index) {
-                        final category = categoryData[index];
-                        final percentage =
-                            (category['amount'] as double) / totalAmount * 100;
-                        final color = index < colors.length
-                            ? colors[index]
-                            : Colors.grey;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: color,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  category['category'],
-                                  style: TextStyle(
-                                    color: themeService.textColor,
-                                    fontSize: 12,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Text(
-                                '${percentage.toStringAsFixed(1)}%',
-                                style: TextStyle(
-                                  color: themeService.textColor,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryItem(
-    Map<String, dynamic> category,
-    ThemeService themeService,
-  ) {
-    final amount = category['amount'] as double;
-
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: themeService.cardColor,
-      child: ListTile(
-        title: Text(
-          category['category'],
+      child: Center(
+        child: Text(
+          message,
           style: TextStyle(
-            color: themeService.textColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        trailing: Text(
-          AppConfig.formatCurrency(amount.toInt() * 100),
-          style: TextStyle(
-            color: _showExpenses ? Colors.red : Colors.green,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        onTap: () {
-          // Navigate to category details screen or show dialog
-        },
-      ),
-    );
-  }
-
-  Widget _buildMonthlyTrendChart(
-    List<Map<String, dynamic>> monthlyData,
-    ThemeService themeService,
-  ) {
-    if (monthlyData.isEmpty) {
-      return const SizedBox();
-    }
-
-    final months = monthlyData.map((m) => m['month'] as String).toList();
-
-    final maxValue = monthlyData.fold(0.0, (prev, curr) {
-      final income = curr['income'] as double;
-      final expenses = curr['expenses'] as double;
-      final max = income > expenses ? income : expenses;
-      return max > prev ? max : prev;
-    });
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: themeService.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: BarChart(
-          BarChartData(
-            alignment: BarChartAlignment.spaceAround,
-            maxY: maxValue * 1.1,
-            barTouchData: BarTouchData(
-              touchTooltipData: BarTouchTooltipData(
-                getTooltipColor: (group) =>
-                    themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-                getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                  final month = months[group.x.toInt()];
-                  final amount = rod.toY;
-                  final label = rodIndex == 0 ? 'Income' : 'Expenses';
-                  return BarTooltipItem(
-                    '$month - $label\n${AppConfig.formatCurrency(amount.toInt() * 100)}',
-                    TextStyle(
-                      color: themeService.isDarkMode
-                          ? Colors.white
-                          : Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                },
-              ),
-            ),
-            titlesData: FlTitlesData(
-              show: true,
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    if (value >= 0 && value < months.length) {
-                      return Text(
-                        months[value.toInt()],
-                        style: TextStyle(
-                          color: themeService.subtextColor,
-                          fontSize: 12,
-                        ),
-                      );
-                    }
-                    return const Text('');
-                  },
-                  reservedSize: 30,
-                ),
-              ),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  interval: maxValue / 4,
-                  getTitlesWidget: (value, meta) {
-                    if (value == 0) return const Text('');
-                    return Text(
-                      AppConfig.formatCurrency(
-                        value.toInt() * 100,
-                      ).replaceAll(AppConfig.currencySymbol, '').trim(),
-                      style: TextStyle(
-                        color: themeService.subtextColor,
-                        fontSize: 10,
-                      ),
-                    );
-                  },
-                  reservedSize: 40,
-                ),
-              ),
-              topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-            ),
-            borderData: FlBorderData(show: false),
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              horizontalInterval: maxValue / 4,
-              getDrawingHorizontalLine: (value) {
-                return FlLine(
-                  color: themeService.isDarkMode
-                      ? Colors.grey[800]
-                      : Colors.grey[300],
-                  strokeWidth: 1,
-                );
-              },
-            ),
-            barGroups: List.generate(monthlyData.length, (index) {
-              final data = monthlyData[index];
-              final income = data['income'] as double;
-              final expenses = data['expenses'] as double;
-
-              return BarChartGroupData(
-                x: index,
-                barRods: [
-                  BarChartRodData(
-                    toY: income,
-                    color: Colors.green,
-                    width: 12,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      topRight: Radius.circular(4),
-                    ),
-                  ),
-                  BarChartRodData(
-                    toY: expenses,
-                    color: Colors.red,
-                    width: 12,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      topRight: Radius.circular(4),
-                    ),
-                  ),
-                ],
-              );
-            }),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSavingsTrendChart(
-    List<Map<String, dynamic>> monthlyData,
-    ThemeService themeService,
-  ) {
-    if (monthlyData.isEmpty) {
-      return const SizedBox();
-    }
-
-    final months = monthlyData.map((m) => m['month'] as String).toList();
-
-    // Calculate min and max values for y-axis
-    double minValue = 0;
-    double maxValue = 0;
-
-    for (final data in monthlyData) {
-      final savings = data['savings'] as double;
-      if (savings < minValue) minValue = savings;
-      if (savings > maxValue) maxValue = savings;
-    }
-
-    // Ensure we have some margin
-    minValue = minValue * 1.1;
-    maxValue = maxValue * 1.1;
-
-    // If all values are positive, start from 0
-    if (minValue > 0) minValue = 0;
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: themeService.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: LineChart(
-          LineChartData(
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              horizontalInterval: (maxValue - minValue) / 4,
-              getDrawingHorizontalLine: (value) {
-                return FlLine(
-                  color: themeService.isDarkMode
-                      ? Colors.grey[800]
-                      : Colors.grey[300],
-                  strokeWidth: 1,
-                );
-              },
-            ),
-            titlesData: FlTitlesData(
-              show: true,
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    if (value >= 0 && value < months.length) {
-                      return Text(
-                        months[value.toInt()],
-                        style: TextStyle(
-                          color: themeService.subtextColor,
-                          fontSize: 12,
-                        ),
-                      );
-                    }
-                    return const Text('');
-                  },
-                  reservedSize: 30,
-                ),
-              ),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  interval: (maxValue - minValue) / 4,
-                  getTitlesWidget: (value, meta) {
-                    return Text(
-                      AppConfig.formatCurrency(
-                        value.toInt() * 100,
-                      ).replaceAll(AppConfig.currencySymbol, '').trim(),
-                      style: TextStyle(
-                        color: themeService.subtextColor,
-                        fontSize: 10,
-                      ),
-                    );
-                  },
-                  reservedSize: 40,
-                ),
-              ),
-              topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-            ),
-            borderData: FlBorderData(show: false),
-            minX: 0,
-            maxX: monthlyData.length - 1.0,
-            minY: minValue,
-            maxY: maxValue,
-            lineBarsData: [
-              LineChartBarData(
-                spots: List.generate(monthlyData.length, (index) {
-                  final data = monthlyData[index];
-                  final savings = data['savings'] as double;
-                  return FlSpot(index.toDouble(), savings);
-                }),
-                isCurved: true,
-                color: themeService.primaryColor,
-                barWidth: 3,
-                isStrokeCapRound: true,
-                dotData: FlDotData(
-                  show: true,
-                  getDotPainter: (spot, percent, barData, index) {
-                    final savings = monthlyData[index]['savings'] as double;
-                    final color = savings >= 0 ? Colors.green : Colors.red;
-
-                    return FlDotCirclePainter(
-                      radius: 5,
-                      color: color,
-                      strokeWidth: 2,
-                      strokeColor: Colors.white,
-                    );
-                  },
-                ),
-                belowBarData: BarAreaData(
-                  show: true,
-                  color: themeService.primaryColor.withOpacity(0.2),
-                  cutOffY: 0,
-                  applyCutOffY: true,
-                ),
-              ),
-            ],
-            lineTouchData: LineTouchData(
-              touchTooltipData: LineTouchTooltipData(
-                getTooltipColor: (touchedSpot) =>
-                    themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-                // Remove tooltipRoundedRadius if it causes issues
-                getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                  return touchedBarSpots.map((barSpot) {
-                    final flSpot = barSpot;
-                    final month = months[flSpot.x.toInt()];
-                    final savings =
-                        monthlyData[flSpot.x.toInt()]['savings'] as double;
-
-                    return LineTooltipItem(
-                      '$month Savings\n${AppConfig.formatCurrency(savings.toInt() * 100)}',
-                      TextStyle(
-                        color: themeService.isDarkMode
-                            ? Colors.white
-                            : Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    );
-                  }).toList();
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMonthlyTrendItem(
-    Map<String, dynamic> month,
-    ThemeService themeService,
-  ) {
-    final income = month['income'] as double;
-    final expenses = month['expenses'] as double;
-    final savings = month['savings'] as double;
-    final savingsPercent = income > 0 ? (savings / income) * 100 : 0.0;
-
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: themeService.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              month['month'],
-              style: TextStyle(
-                color: themeService.textColor,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildMonthlyTrendMetric(
-                  'Income',
-                  AppConfig.formatCurrency(income.toInt() * 100),
-                  Colors.green,
-                  themeService,
-                ),
-                _buildMonthlyTrendMetric(
-                  'Expenses',
-                  AppConfig.formatCurrency(expenses.toInt() * 100),
-                  Colors.red,
-                  themeService,
-                ),
-                _buildMonthlyTrendMetric(
-                  'Savings',
-                  '${savingsPercent.toStringAsFixed(1)}%',
-                  savings >= 0 ? Colors.green : Colors.red,
-                  themeService,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMonthlyTrendMetric(
-    String label,
-    String value,
-    Color valueColor,
-    ThemeService themeService,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(color: themeService.subtextColor, fontSize: 12),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            color: valueColor,
+            color: themeService.subtextColor,
             fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildForecastChart(
-    List<dynamic> dailyForecast,
-    ThemeService themeService,
-  ) {
-    if (dailyForecast.isEmpty) {
-      return const SizedBox();
-    }
-
-    // Convert to proper data format
-    final data = <FlSpot>[];
-    final actualData = <FlSpot>[];
-    final futureData = <FlSpot>[];
-
-    for (var i = 0; i < dailyForecast.length; i++) {
-      final forecast = dailyForecast[i] as Map<String, dynamic>;
-      final amount = forecast['amount'] as double;
-      final isActual = forecast['actual'] as bool? ?? false;
-
-      if (isActual) {
-        actualData.add(FlSpot(i.toDouble(), amount));
-      } else {
-        futureData.add(FlSpot(i.toDouble(), amount));
-      }
-
-      data.add(FlSpot(i.toDouble(), amount));
-    }
-
-    // Calculate min and max values for better visualization
-    double maxValue = data.fold(
-      0.0,
-      (prev, curr) => curr.y > prev ? curr.y : prev,
-    );
-
-    // Extract date labels
-    final dateLabels = dailyForecast.map((f) {
-      final forecast = f as Map<String, dynamic>;
-      final dateStr = forecast['date'] as String;
-      return dateStr.split('-').last; // Just the day part
-    }).toList();
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: themeService.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: LineChart(
-          LineChartData(
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              horizontalInterval: maxValue / 4,
-              getDrawingHorizontalLine: (value) {
-                return FlLine(
-                  color: themeService.isDarkMode
-                      ? Colors.grey[800]
-                      : Colors.grey[300],
-                  strokeWidth: 1,
-                );
-              },
-            ),
-            titlesData: FlTitlesData(
-              show: true,
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  interval: 5,
-                  getTitlesWidget: (value, meta) {
-                    final index = value.toInt();
-                    if (index >= 0 &&
-                        index < dateLabels.length &&
-                        index % 5 == 0) {
-                      return Text(
-                        dateLabels[index],
-                        style: TextStyle(
-                          color: themeService.subtextColor,
-                          fontSize: 10,
-                        ),
-                      );
-                    }
-                    return const Text('');
-                  },
-                  reservedSize: 30,
-                ),
-              ),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  interval: maxValue / 4,
-                  getTitlesWidget: (value, meta) {
-                    if (value == 0) return const Text('');
-                    return Text(
-                      AppConfig.formatCurrency(
-                        value.toInt() * 100,
-                      ).replaceAll(AppConfig.currencySymbol, '').trim(),
-                      style: TextStyle(
-                        color: themeService.subtextColor,
-                        fontSize: 10,
-                      ),
-                    );
-                  },
-                  reservedSize: 40,
-                ),
-              ),
-              topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-            ),
-            borderData: FlBorderData(show: false),
-            minX: 0,
-            maxX: (dailyForecast.length - 1).toDouble(),
-            minY: 0,
-            maxY: maxValue * 1.1,
-            lineBarsData: [
-              // Actual data line
-              if (actualData.isNotEmpty)
-                LineChartBarData(
-                  spots: actualData,
-                  isCurved: true,
-                  color: Colors.blue,
-                  barWidth: 3,
-                  isStrokeCapRound: true,
-                  dotData: FlDotData(
-                    show: true,
-                    getDotPainter: (spot, percent, barData, index) {
-                      return FlDotCirclePainter(
-                        radius: 4,
-                        color: Colors.blue,
-                        strokeWidth: 2,
-                        strokeColor: Colors.white,
-                      );
-                    },
-                  ),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: Colors.blue.withOpacity(0.2),
-                  ),
-                ),
-              // Forecast data line
-              if (futureData.isNotEmpty)
-                LineChartBarData(
-                  spots: futureData,
-                  isCurved: true,
-                  color: themeService.primaryColor,
-                  barWidth: 3,
-                  isStrokeCapRound: true,
-                  dashArray: [5, 5], // Dashed line for forecast
-                  dotData: FlDotData(
-                    show: true,
-                    getDotPainter: (spot, percent, barData, index) {
-                      return FlDotCirclePainter(
-                        radius: 4,
-                        color: themeService.primaryColor,
-                        strokeWidth: 2,
-                        strokeColor: Colors.white,
-                      );
-                    },
-                  ),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: themeService.primaryColor.withOpacity(0.1),
-                  ),
-                ),
-            ],
-            lineTouchData: LineTouchData(
-              touchTooltipData: LineTouchTooltipData(
-                getTooltipColor: (touchedSpot) =>
-                    themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-                // Remove tooltipRoundedRadius if it causes issues
-                getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                  return touchedBarSpots.map((barSpot) {
-                    final flSpot = barSpot;
-                    final index = flSpot.x.toInt();
-                    final forecast =
-                        dailyForecast[index] as Map<String, dynamic>;
-                    final date = forecast['date'] as String;
-                    final isActual = forecast['actual'] as bool? ?? false;
-
-                    return LineTooltipItem(
-                      '${date}\n${isActual ? 'Actual' : 'Forecast'}: ${AppConfig.formatCurrency(flSpot.y.toInt() * 100)}',
-                      TextStyle(
-                        color: themeService.isDarkMode
-                            ? Colors.white
-                            : Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    );
-                  }).toList();
-                },
-              ),
-            ),
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildMajorExpenseItem(dynamic expense, ThemeService themeService) {
-    final expenseMap = expense as Map<String, dynamic>;
-    final category = expenseMap['category'] as String? ?? 'Unknown';
-    final estimatedAmount = expenseMap['estimated_amount'] as double? ?? 0.0;
-    final confidence = expenseMap['confidence'] as double? ?? 0.0;
-    final reason = expenseMap['reason'] as String? ?? '';
+// Helper class for PieChart badges
+class _Badge extends StatelessWidget {
+  final String text;
+  final Color color;
+  final double size;
 
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: themeService.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  category,
-                  style: TextStyle(
-                    color: themeService.textColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  AppConfig.formatCurrency(estimatedAmount.toInt() * 100),
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getConfidenceColor(confidence).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${(confidence * 100).toStringAsFixed(0)}% confidence',
-                    style: TextStyle(
-                      color: _getConfidenceColor(confidence),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (reason.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                reason,
-                style: TextStyle(
-                  color: themeService.subtextColor,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ],
+  const _Badge(this.text, this.color, {required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: PieChart.defaultDuration,
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white,
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 10,
+            spreadRadius: 2,
+            color: Colors.black.withOpacity(0.3),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        text.substring(0, Math.min(1, text.length)),
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
         ),
       ),
     );
-  }
-
-  Color _getConfidenceColor(double confidence) {
-    if (confidence >= 0.8) return Colors.green;
-    if (confidence >= 0.6) return Colors.orange;
-    return Colors.red;
-  }
-
-  Widget _buildCategoryForecastChart(
-    List<dynamic> categoryForecast,
-    ThemeService themeService,
-  ) {
-    if (categoryForecast.isEmpty) {
-      return const SizedBox();
-    }
-
-    // Convert to proper data format
-    final data = categoryForecast
-        .map((c) {
-          final category = c as Map<String, dynamic>;
-          return {
-            'category': category['category'] as String,
-            'predicted_amount': category['predicted_amount'] as double,
-            'historical_average':
-                category['historical_average'] as double? ?? 0.0,
-          };
-        })
-        .take(8)
-        .toList(); // Limit to top 8 categories
-
-    final maxValue = data.fold(0.0, (prev, curr) {
-      final predicted = curr['predicted_amount'] as double;
-      final historical = curr['historical_average'] as double;
-      final max = predicted > historical ? predicted : historical;
-      return max > prev ? max : prev;
-    });
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: themeService.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: const BoxDecoration(
-                    color: Colors.blue,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Predicted',
-                  style: TextStyle(
-                    color: themeService.textColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[400],
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Historical Average',
-                  style: TextStyle(
-                    color: themeService.textColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: maxValue * 1.1,
-                  barTouchData: BarTouchData(
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (group) => themeService.isDarkMode
-                          ? Colors.grey[800]!
-                          : Colors.white,
-                      // Remove tooltipRoundedRadius if it causes issues
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final categoryData = data[group.x.toInt()];
-                        final category = categoryData['category'] as String;
-                        final amount = rod.toY;
-                        final label = rodIndex == 0
-                            ? 'Predicted'
-                            : 'Historical';
-                        return BarTooltipItem(
-                          '$category - $label\n${AppConfig.formatCurrency(amount.toInt() * 100)}',
-                          TextStyle(
-                            color: themeService.isDarkMode
-                                ? Colors.white
-                                : Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value >= 0 && value < data.length) {
-                            final category =
-                                data[value.toInt()]['category'] as String;
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                category.length > 8
-                                    ? '${category.substring(0, 8)}...'
-                                    : category,
-                                style: TextStyle(
-                                  color: themeService.subtextColor,
-                                  fontSize: 10,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            );
-                          }
-                          return const Text('');
-                        },
-                        reservedSize: 40,
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: maxValue / 4,
-                        getTitlesWidget: (value, meta) {
-                          if (value == 0) return const Text('');
-                          return Text(
-                            AppConfig.formatCurrency(
-                              value.toInt() * 100,
-                            ).replaceAll(AppConfig.currencySymbol, '').trim(),
-                            style: TextStyle(
-                              color: themeService.subtextColor,
-                              fontSize: 10,
-                            ),
-                          );
-                        },
-                        reservedSize: 40,
-                      ),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: maxValue / 4,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: themeService.isDarkMode
-                            ? Colors.grey[800]
-                            : Colors.grey[300],
-                        strokeWidth: 1,
-                      );
-                    },
-                  ),
-                  barGroups: List.generate(data.length, (index) {
-                    final categoryData = data[index];
-                    final predicted =
-                        categoryData['predicted_amount'] as double;
-                    final historical =
-                        categoryData['historical_average'] as double;
-
-                    return BarChartGroupData(
-                      x: index,
-                      barRods: [
-                        BarChartRodData(
-                          toY: predicted,
-                          color: Colors.blue,
-                          width: 12,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(4),
-                            topRight: Radius.circular(4),
-                          ),
-                        ),
-                        BarChartRodData(
-                          toY: historical,
-                          color: Colors.grey[400]!,
-                          width: 12,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(4),
-                            topRight: Radius.circular(4),
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  int min(int a, int b) {
-    return a < b ? a : b;
   }
 }

@@ -314,13 +314,16 @@ class ThemeService extends ChangeNotifier {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     ),
-     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+    
+    // Bottom navigation bar theme
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: _darkSurface,
       selectedItemColor: _darkPrimary,
       unselectedItemColor: Colors.grey,
       type: BottomNavigationBarType.fixed,
       elevation: 8,
     ),
+    
     // Text theme
     textTheme: const TextTheme(
       displayLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -369,6 +372,7 @@ class ThemeService extends ChangeNotifier {
   Color get secondaryColor => _isDarkMode ? _darkSecondary : _lightSecondary;
   Color get accentColor => _isDarkMode ? _darkAccent : _lightAccent;
   Color get backgroundColor => _isDarkMode ? _darkBackground : _lightBackground;
+  Color get scaffoldColor => _isDarkMode ? _darkBackground : _lightBackground; // Added the missing getter
   Color get surfaceColor => _isDarkMode ? _darkSurface : _lightSurface;
   Color get cardColor => _isDarkMode ? _darkCard : _lightCard;
   Color get textColor => _isDarkMode ? Colors.white : const Color(0xFF1F2937);
