@@ -1309,27 +1309,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: BarChart(
-          BarChartData(
-            alignment: BarChartAlignment.spaceAround,
-            maxY: maxValue * 1.1,
-            barTouchData: BarTouchData(
-              touchTooltipData: BarTouchTooltipData(
-                tooltipBgColor: themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
-                tooltipRoundedRadius: 8,
-                getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                  final month = months[group.x.toInt()];
-                  final amount = rod.toY;
-                  final label = rodIndex == 0 ? 'Income' : 'Expenses';
-                  return BarTooltipItem(
-                    '$month - $label\n${AppConfig.formatCurrency(amount.toInt() * 100)}',
-                    TextStyle(
-                      color: themeService.isDarkMode ? Colors.white : Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                },
-              ),
-            ),
+         BarChartData(
+  alignment: BarChartAlignment.spaceAround,
+  maxY: maxValue * 1.1,
+  barTouchData: BarTouchData(
+    touchTooltipData: BarTouchTooltipData(
+      getTooltipColor: (group) => themeService.isDarkMode ? Colors.grey[800]! : Colors.white,
+      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+        final month = months[group.x.toInt()];
+        final amount = rod.toY;
+        final label = rodIndex == 0 ? 'Income' : 'Expenses';
+        return BarTooltipItem(
+          '$month - $label\n${AppConfig.formatCurrency(amount.toInt() * 100)}',
+          TextStyle(
+            color: themeService.isDarkMode ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+      },
+    ),
+  ),
             titlesData: FlTitlesData(
               show: true,
               bottomTitles: AxisTitles(
