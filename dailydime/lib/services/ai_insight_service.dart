@@ -508,7 +508,7 @@ class AIInsightsService {
         suggestions = unassignedTransactions.map((t) {
           String suggestedCategory = 'Other';
           
-          final description = t.description.toLowerCase();
+          final description = t.description?.toLowerCase() ?? '';
           if (description.contains('food') || description.contains('restaurant') || description.contains('cafe')) {
             suggestedCategory = 'Food';
           } else if (description.contains('transport') || description.contains('taxi') || description.contains('uber')) {
@@ -1103,7 +1103,7 @@ class AIInsightsService {
     final avgMonthlyIncome = totalIncome / 3; // Rough estimate
     
     // 1. Emergency fund recommendation
-    if (savingsGoals.where((g) => g.name.contains('Emergency')).isEmpty) {
+    if (savingsGoals.where((g) => g.title.contains('Emergency')).isEmpty) {
       recommendations.add({
         'title': 'Build an Emergency Fund',
         'description': 'Save ${AppConfig.formatCurrency((avgMonthlyIncome * 300).toInt())} (3 months of expenses) for unexpected needs.',
@@ -1217,7 +1217,9 @@ class AIInsightsService {
     // Group transactions by description
     for (var transaction in transactions) {
       if (!transactionsByDescription.containsKey(transaction.description)) {
-        transactionsByDescription[transaction.description] = [];
+        if (transaction.description != null) {
+          transactionsByDescription[transaction.description!] = [];
+        }
       }
       transactionsByDescription[transaction.description]!.add(transaction);
     }
@@ -1357,7 +1359,7 @@ class AIInsightsService {
   List<Map<String, dynamic>> _serializeSavingsGoals(List<SavingsGoal> goals) {
     return goals.map((g) => {
       'id': g.id,
-      'name': g.name,
+      'name': g.title,
       'targetAmount': g.targetAmount,
       'currentAmount': g.currentAmount,
       'targetDate': g.targetDate?.toIso8601String(),

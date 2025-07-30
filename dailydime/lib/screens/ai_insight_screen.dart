@@ -2242,17 +2242,16 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
         ),
         const SizedBox(height: 16),
         TextFormField(
-          decoration: InputDecoration(
-            labelText: 'Budget Amount',
-            border: Outline
-            InputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            prefixIcon: const Icon(Icons.attach_money),
-          ),
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: 16),
+  decoration: InputDecoration(
+    labelText: 'Budget Amount',
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+    ),
+    prefixIcon: const Icon(Icons.attach_money),
+  ),
+  keyboardType: TextInputType.number,
+),
+const SizedBox(height: 16),
         ElevatedButton(
           onPressed: () {
             // Create budget logic would go here
