@@ -181,7 +181,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                 child: Opacity(
                   opacity: 0.1,
                   child: Image.asset(
-                    'assets/images/pattern1.png',
+                    'assets/images/pattern11.png',
                     fit: BoxFit.cover,
                   ),
                 ),
