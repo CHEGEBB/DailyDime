@@ -2098,8 +2098,8 @@ Widget _buildBudgetOverviewCard({
                 ),
               ),
               const SizedBox(height: 16),
-              _buildDetailRow('Category', budget.category),
-              _buildDetailRow('Period', _getPeriodText(budget.period)),
+              _buildDetailRow('Category', budget.category, themeService),
+              _buildDetailRow('Period', _getPeriodText(budget.period), themeService),
               _buildDetailRow('Created', DateFormat('MMM dd, yyyy').format(budget.createdAt ?? DateTime.now()), themeService),
               if (budget.tags.isNotEmpty)
                 _buildDetailRow('Tags', budget.tags.join(', '), themeService),
