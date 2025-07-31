@@ -11,6 +11,7 @@ import 'package:dailydime/models/transaction.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:dailydime/services/theme_service.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({Key? key}) : super(key: key);
@@ -52,12 +53,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   // View variables
   bool _isGridView = false;
   bool _showAnalytics = true;
-
-  // Color scheme
-  final primaryColor = const Color(0xFF26D07C); // Emerald green
-  final secondaryColor = const Color(0xFF2D3748); // Dark slate
-  final accentColor = const Color(0xFF3B82F6); // Blue
-  final backgroundColor = const Color(0xFFF9FAFB); // Light gray
 
   @override
   void initState() {
@@ -249,8 +244,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
   }
 @override
 Widget build(BuildContext context) {
+  final themeService = Provider.of<ThemeService>(context);
+  
   return Scaffold(
-    backgroundColor: backgroundColor,
+    backgroundColor: themeService.scaffoldColor,
     // Make the app extend behind the status bar
     extendBodyBehindAppBar: true,
     // Remove the app bar since we're including actions in the header
@@ -280,7 +277,7 @@ Widget build(BuildContext context) {
                     child: Container(
                       // Add top padding to account for status bar
                       padding: const EdgeInsets.fromLTRB(16, 60, 16, 8),
-                      color: Colors.white,
+                      color: themeService.surfaceColor,
                       child: _buildSearchBar(),
                     ),
                   ),
@@ -288,7 +285,7 @@ Widget build(BuildContext context) {
                 // Main content
                 SliverToBoxAdapter(
                   child: !_isSearchExpanded 
-                    ? _buildMainContent(transactions, balance, isLoading)
+                    ? _buildMainContent(transactions, balance, isLoading, themeService)
                     : _buildSearchResults(),
                 ),
               ],
@@ -307,7 +304,7 @@ Widget build(BuildContext context) {
                     ),
                   );
                 },
-                backgroundColor: primaryColor,
+                backgroundColor: themeService.primaryColor,
                 child: const Icon(Icons.add, color: Colors.white),
               ),
             ),
@@ -318,23 +315,23 @@ Widget build(BuildContext context) {
   );
 }
 
-  Widget _buildMainContent(List<dynamic> transactions, double balance, bool isLoading) {
+  Widget _buildMainContent(List<dynamic> transactions, double balance, bool isLoading, ThemeService themeService) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header with balance and actions
-        _buildHeader(balance),
+        _buildHeader(balance, themeService),
 
         // Weekly spending summary
-        _buildWeeklySummary(),
+        _buildWeeklySummary(themeService),
 
         // AI Insights card
         if (_insights.isNotEmpty)
-          _buildAIInsightsCard(),
+          _buildAIInsightsCard(themeService),
 
         // Spending Breakdown chart
         if (_showAnalytics && _categorySpending.isNotEmpty)
-          _buildSpendingBreakdown(),
+          _buildSpendingBreakdown(themeService),
 
         // Tabs & Transactions List
         _buildTabBar(),
@@ -343,12 +340,12 @@ Widget build(BuildContext context) {
       ],
     );
   }
-Widget _buildHeader(double balance) {
+Widget _buildHeader(double balance, ThemeService themeService) {
   return Container(
     // Add top padding to account for status bar
     padding: const EdgeInsets.fromLTRB(20, 60, 20, 20), // Increased top padding from 40 to 60
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: themeService.surfaceColor,
       image: const DecorationImage(
         image: AssetImage('assets/images/patter12.png'),
         fit: BoxFit.cover,
@@ -373,12 +370,12 @@ Widget _buildHeader(double balance) {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Transactions',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
+                color: themeService.textColor,
               ),
             ),
             Row(
@@ -386,7 +383,7 @@ Widget _buildHeader(double balance) {
                 IconButton(
                   icon: Icon(
                     _isSearchExpanded ? Icons.close : Icons.search,
-                    color: secondaryColor,
+                    color: themeService.textColor,
                   ),
                   onPressed: () {
                     setState(() {
@@ -400,7 +397,7 @@ Widget _buildHeader(double balance) {
                 IconButton(
                   icon: Icon(
                     _isGridView ? Icons.view_list : Icons.grid_view,
-                    color: secondaryColor,
+                    color: themeService.textColor,
                   ),
                   onPressed: () {
                     setState(() {
@@ -411,7 +408,7 @@ Widget _buildHeader(double balance) {
                 IconButton(
                   icon: Icon(
                     Icons.filter_list,
-                    color: secondaryColor,
+                    color: themeService.textColor,
                   ),
                   onPressed: () {
                     _showFilterBottomSheet(context);
@@ -420,7 +417,7 @@ Widget _buildHeader(double balance) {
                 IconButton(
                   icon: Icon(
                     _showAnalytics ? Icons.insights : Icons.insights_outlined,
-                    color: secondaryColor,
+                    color: themeService.textColor,
                   ),
                   onPressed: () {
                     setState(() {
@@ -443,7 +440,7 @@ Widget _buildHeader(double balance) {
                     'Current Balance',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey.shade600,
+                      color: themeService.subtextColor,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -452,7 +449,7 @@ Widget _buildHeader(double balance) {
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: secondaryColor,
+                      color: themeService.textColor,
                     ),
                   ),
                 ],
@@ -471,7 +468,7 @@ Widget _buildHeader(double balance) {
                       ),
                     );
                   },
-                  color: Colors.green.shade700,
+                  color: themeService.successColor,
                 ),
                 const SizedBox(width: 12),
                 _buildQuickActionButton(
@@ -485,7 +482,7 @@ Widget _buildHeader(double balance) {
                       ),
                     );
                   },
-                  color: Colors.red.shade700,
+                  color: themeService.errorColor,
                 ),
               ],
             ),
@@ -529,7 +526,7 @@ Widget _buildHeader(double balance) {
     );
   }
 
-  Widget _buildWeeklySummary() {
+  Widget _buildWeeklySummary(ThemeService themeService) {
     final startOfWeek = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
     final endOfWeek = startOfWeek.add(const Duration(days: 6));
     
@@ -543,8 +540,8 @@ Widget _buildHeader(double balance) {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            primaryColor,
-            primaryColor.withBlue(primaryColor.blue + 20),
+            themeService.primaryColor,
+            themeService.primaryColor.withBlue(themeService.primaryColor.blue + 20),
           ],
         ),
         image: const DecorationImage(
@@ -555,7 +552,7 @@ Widget _buildHeader(double balance) {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withOpacity(0.5),
+            color: themeService.primaryColor.withOpacity(0.5),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -675,12 +672,12 @@ Widget _buildHeader(double balance) {
     );
   }
 
-  Widget _buildAIInsightsCard() {
+  Widget _buildAIInsightsCard(ThemeService themeService) {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -698,22 +695,22 @@ Widget _buildHeader(double balance) {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: themeService.infoColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   Icons.lightbulb_outline,
-                  color: Colors.amber.shade700,
+                  color: themeService.warningColor,
                   size: 20,
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 'AI Insight',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1E293B),
+                  color: themeService.textColor,
                 ),
               ),
             ],
@@ -721,9 +718,9 @@ Widget _buildHeader(double balance) {
           const SizedBox(height: 16),
           Text(
             _insights.isNotEmpty ? _insights[0] : 'Loading insights...',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF4B5563),
+              color: themeService.subtextColor,
               height: 1.5,
             ),
           ),
@@ -732,13 +729,13 @@ Widget _buildHeader(double balance) {
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: () {
-                _showAllInsights();
+                _showAllInsights(themeService);
               },
               child: Text(
                 'Get More Tips',
                 style: TextStyle(
                   fontSize: 14,
-                  color: primaryColor,
+                  color: themeService.primaryColor,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -749,7 +746,7 @@ Widget _buildHeader(double balance) {
     );
   }
 
-  void _showAllInsights() {
+  void _showAllInsights(ThemeService themeService) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -759,9 +756,9 @@ Widget _buildHeader(double balance) {
         minChildSize: 0.5,
         maxChildSize: 0.9,
         builder: (_, controller) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: themeService.surfaceColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: [
@@ -770,7 +767,7 @@ Widget _buildHeader(double balance) {
                 width: 40,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: themeService.subtextColor.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
@@ -781,22 +778,22 @@ Widget _buildHeader(double balance) {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: themeService.infoColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         Icons.lightbulb_outline,
-                        color: Colors.amber.shade700,
+                        color: themeService.warningColor,
                         size: 20,
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    Text(
                       'Financial Insights',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: themeService.textColor,
                       ),
                     ),
                   ],
@@ -811,7 +808,7 @@ Widget _buildHeader(double balance) {
                     margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
+                      color: themeService.backgroundColor,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
@@ -821,7 +818,7 @@ Widget _buildHeader(double balance) {
                           margin: const EdgeInsets.only(top: 2),
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: primaryColor.withOpacity(0.1),
+                            color: themeService.primaryColor.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Text(
@@ -829,7 +826,7 @@ Widget _buildHeader(double balance) {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: primaryColor,
+                              color: themeService.primaryColor,
                             ),
                           ),
                         ),
@@ -837,9 +834,9 @@ Widget _buildHeader(double balance) {
                         Expanded(
                           child: Text(
                             _insights[index],
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: Color(0xFF4B5563),
+                              color: themeService.subtextColor,
                               height: 1.5,
                             ),
                           ),
@@ -856,12 +853,12 @@ Widget _buildHeader(double balance) {
     );
   }
 
-  Widget _buildSpendingBreakdown() {
+  Widget _buildSpendingBreakdown(ThemeService themeService) {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -877,29 +874,32 @@ Widget _buildHeader(double balance) {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Spending Breakdown',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1E293B),
+                  color: themeService.textColor,
                 ),
               ),
               Text(
                 'Last 30 Days',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: themeService.subtextColor,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
           if (_categorySpending.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Text("No spending data available"),
+                padding: const EdgeInsets.all(20.0),
+                child: Text(
+                  "No spending data available",
+                  style: TextStyle(color: themeService.subtextColor),
+                ),
               ),
             )
           else
@@ -932,7 +932,7 @@ Widget _buildHeader(double balance) {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: _buildLegendItems(),
+                        children: _buildLegendItems(themeService),
                       ),
                     ),
                   ),
@@ -976,7 +976,7 @@ Widget _buildHeader(double balance) {
     return sections;
   }
 
-  List<Widget> _buildLegendItems() {
+  List<Widget> _buildLegendItems(ThemeService themeService) {
     if (_categorySpending.isEmpty) return [];
     
     final List<Widget> items = [];
@@ -1006,9 +1006,9 @@ Widget _buildHeader(double balance) {
               Expanded(
                 child: Text(
                   entry.key,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF4B5563),
+                    color: themeService.subtextColor,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1016,10 +1016,10 @@ Widget _buildHeader(double balance) {
               const SizedBox(width: 4),
               Text(
                 currencyFormat.format(entry.value),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF1E293B),
+                  color: themeService.textColor,
                 ),
               ),
             ],
@@ -1032,7 +1032,6 @@ Widget _buildHeader(double balance) {
     
     return items;
   }
-
   Widget _buildTabBar() {
     return Container(
       margin: const EdgeInsets.only(top: 10),
@@ -1047,17 +1046,17 @@ Widget _buildHeader(double balance) {
         ],
       ),
       child: TabBar(
-        controller: _tabController,
-        labelColor: primaryColor,
-        unselectedLabelColor: Colors.grey.shade700,
-        indicatorColor: primaryColor,
-        indicatorWeight: 3,
-        indicatorSize: TabBarIndicatorSize.label,
-        tabs: const [
-          Tab(text: 'All'),
-          Tab(text: 'Income'),
-          Tab(text: 'Expenses'),
-        ],
+  controller: _tabController,
+  labelColor: Theme.of(context).colorScheme.primary,
+  unselectedLabelColor: Colors.grey.shade700,
+  indicatorColor: Theme.of(context).colorScheme.primary,
+  indicatorWeight: 3,
+  indicatorSize: TabBarIndicatorSize.label,
+  tabs: const [
+    Tab(text: 'All'),
+    Tab(text: 'Income'),
+    Tab(text: 'Expenses'),
+  ],
       ),
     );
   }
@@ -1086,24 +1085,24 @@ Widget _buildHeader(double balance) {
 Widget _buildSearchBar() {
   return SizedBox(
     height: 44, // Reduced height
-    child: TextField(
-      controller: _searchController,
-      autofocus: true,
-      decoration: InputDecoration(
-        hintText: 'Search transactions...',
-        prefixIcon: Icon(Icons.search, color: primaryColor),
-        suffixIcon: _searchController.text.isNotEmpty
-          ? IconButton(
-              icon: const Icon(Icons.clear),
-              onPressed: () {
-                _searchController.clear();
-              },
-            )
-          : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
+   child: TextField(
+  controller: _searchController,
+  autofocus: true,
+  decoration: InputDecoration(
+    hintText: 'Search transactions...',
+    prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
+    suffixIcon: _searchController.text.isNotEmpty
+      ? IconButton(
+          icon: const Icon(Icons.clear),
+          onPressed: () {
+            _searchController.clear();
+          },
+        )
+      : null,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide.none,
+    ),
         filled: true,
         fillColor: Colors.grey.shade100,
         contentPadding: const EdgeInsets.symmetric(vertical: 0),
@@ -1173,7 +1172,7 @@ Widget _buildSearchBar() {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: secondaryColor,
+                  color: Theme.of(context).colorScheme.secondary,
                 ),
               ),
               Text(
@@ -1278,7 +1277,7 @@ Widget _buildSearchBar() {
         ),
         
         ListTile(
-          leading: Icon(Icons.calendar_today, color: primaryColor),
+          leading: Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.primary),
           title: const Text('Search by Date'),
           onTap: () {
             _showDateRangePicker(context);
@@ -1286,7 +1285,7 @@ Widget _buildSearchBar() {
         ),
         
         ListTile(
-          leading: Icon(Icons.monetization_on, color: primaryColor),
+          leading: Icon(Icons.monetization_on, color: Theme.of(context).colorScheme.primary),
           title: const Text('Search by Amount'),
           onTap: () {
             _showAmountFilterDialog();
@@ -1294,7 +1293,7 @@ Widget _buildSearchBar() {
         ),
         
         ListTile(
-          leading: Icon(Icons.category, color: primaryColor),
+          leading: Icon(Icons.category, color: Theme.of(context).colorScheme.primary),
           title: const Text('Search by Category'),
           onTap: () {
             _showCategoryFilterBottomSheet();
@@ -1662,7 +1661,7 @@ Widget _buildSearchBar() {
                 icon: const Icon(Icons.add),
                 label: const Text('Add First Transaction'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -1868,9 +1867,9 @@ Widget _buildSearchBar() {
                               });
                             }
                           },
-                          selectedColor: primaryColor.withOpacity(0.2),
+                          selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                           labelStyle: TextStyle(
-                            color: _selectedCategory == category ? primaryColor : Colors.black87,
+                            color: _selectedCategory == category ? Theme.of(context).colorScheme.primary : Colors.black87,
                             fontWeight: _selectedCategory == category ? FontWeight.w600 : FontWeight.normal,
                           ),
                           shape: RoundedRectangleBorder(
@@ -1905,9 +1904,9 @@ Widget _buildSearchBar() {
                               }
                             }
                           },
-                          selectedColor: primaryColor.withOpacity(0.2),
+                          selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                           labelStyle: TextStyle(
-                            color: _selectedTimeFrame == timeFrame ? primaryColor : Colors.black87,
+                            color: _selectedTimeFrame == timeFrame ? Theme.of(context).colorScheme.primary : Colors.black87,
                             fontWeight: _selectedTimeFrame == timeFrame ? FontWeight.w600 : FontWeight.normal,
                           ),
                           shape: RoundedRectangleBorder(
