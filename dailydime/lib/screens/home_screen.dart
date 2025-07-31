@@ -49,6 +49,10 @@ class _HomeScreenState extends State<HomeScreen>
   late TabController _tabController;
   final TextEditingController _balanceController = TextEditingController();
 
+  late ThemeService themeService;
+
+
+
   // UI state variables
   final List<String> _timeFrames = [
     'Week',
@@ -84,6 +88,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void initState() {
+     super.initState();
+  themeService = Provider.of<ThemeService>(context, listen: false);
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
 
@@ -1460,7 +1466,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ],
                       ),
 
-                      const SizedBox(height: 16),
+                     const SizedBox(height: 16),
                       _savingsGoals.isEmpty
                           ? _buildEmptySavingsState()
                           : SizedBox(
@@ -1509,6 +1515,7 @@ class _HomeScreenState extends State<HomeScreen>
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                              color: themeService.textColor,
                             ),
                           ),
                           GestureDetector(
@@ -1519,13 +1526,13 @@ class _HomeScreenState extends State<HomeScreen>
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: accentColor.withOpacity(0.1),
+                                color: themeService.accentColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
                                 'See all',
                                 style: TextStyle(
-                                  color: accentColor,
+                                  color: themeService.accentColor,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -1590,7 +1597,7 @@ class _HomeScreenState extends State<HomeScreen>
                                             vertical: 8,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.grey.withOpacity(0.1),
+                                            color: themeService.subtextColor.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(
                                               20,
                                             ),
@@ -1603,7 +1610,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                     ? 'Show less'
                                                     : 'Show more',
                                                 style: TextStyle(
-                                                  color: Colors.grey[800],
+                                                  color: themeService.subtextColor,
                                                   fontSize: 14,
                                                   fontWeight: FontWeight.w500,
                                                 ),
@@ -1613,7 +1620,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                     ? Icons.keyboard_arrow_up
                                                     : Icons.keyboard_arrow_down,
                                                 size: 16,
-                                                color: Colors.grey[800],
+                                                color: themeService.subtextColor,
                                               ),
                                             ],
                                           ),
@@ -1643,6 +1650,7 @@ class _HomeScreenState extends State<HomeScreen>
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                              color: themeService.textColor,
                             ),
                           ),
                           GestureDetector(
@@ -1653,13 +1661,13 @@ class _HomeScreenState extends State<HomeScreen>
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: accentColor.withOpacity(0.1),
+                                color: themeService.accentColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
                                 'See all',
                                 style: TextStyle(
-                                  color: accentColor,
+                                  color: themeService.accentColor,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -1677,11 +1685,11 @@ class _HomeScreenState extends State<HomeScreen>
                           : Container(
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: themeService.cardColor,
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
+                                    color: Colors.black.withOpacity(themeService.isDarkMode ? 0.2 : 0.05),
                                     blurRadius: 15,
                                     offset: const Offset(0, 5),
                                   ),
@@ -1698,7 +1706,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: Colors.grey[700],
+                                          color: themeService.subtextColor,
                                         ),
                                       ),
                                       SizedBox(width: 12),
@@ -1708,7 +1716,7 @@ class _HomeScreenState extends State<HomeScreen>
                                           vertical: 6,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: accentColor.withOpacity(0.1),
+                                          color: themeService.accentColor.withOpacity(0.1),
                                           borderRadius: BorderRadius.circular(
                                             20,
                                           ),
@@ -1720,7 +1728,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                 'MMMM yyyy',
                                               ).format(DateTime.now()),
                                               style: TextStyle(
-                                                color: accentColor,
+                                                color: themeService.accentColor,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -1729,7 +1737,7 @@ class _HomeScreenState extends State<HomeScreen>
                                             Icon(
                                               Icons.keyboard_arrow_down,
                                               size: 16,
-                                              color: accentColor,
+                                              color: themeService.accentColor,
                                             ),
                                           ],
                                         ),
@@ -1830,7 +1838,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         child: Container(
                                           padding: EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: Colors.grey.withOpacity(
+                                            color: themeService.subtextColor.withOpacity(
                                               0.05,
                                             ),
                                             borderRadius: BorderRadius.circular(
@@ -1845,7 +1853,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                 'Spent',
                                                 style: TextStyle(
                                                   fontSize: 12,
-                                                  color: Colors.grey[600],
+                                                  color: themeService.subtextColor,
                                                 ),
                                               ),
                                               SizedBox(height: 4),
@@ -1857,7 +1865,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                       fontSize: 12,
                                                       fontWeight:
                                                           FontWeight.w600,
-                                                      color: Colors.grey[700],
+                                                      color: themeService.subtextColor,
                                                     ),
                                                   ),
                                                   Text(
@@ -1882,7 +1890,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         child: Container(
                                           padding: EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: Colors.grey.withOpacity(
+                                            color: themeService.subtextColor.withOpacity(
                                               0.05,
                                             ),
                                             borderRadius: BorderRadius.circular(
@@ -1897,7 +1905,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                 'Budget',
                                                 style: TextStyle(
                                                   fontSize: 12,
-                                                  color: Colors.grey[600],
+                                                  color: themeService.subtextColor,
                                                 ),
                                               ),
                                               SizedBox(height: 4),
@@ -1909,7 +1917,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                       fontSize: 12,
                                                       fontWeight:
                                                           FontWeight.w600,
-                                                      color: Colors.grey[700],
+                                                      color: themeService.subtextColor,
                                                     ),
                                                   ),
                                                   Text(
@@ -1918,7 +1926,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                       fontSize: 16,
                                                       fontWeight:
                                                           FontWeight.bold,
-                                                      color: Colors.black87,
+                                                      color: themeService.textColor,
                                                     ),
                                                   ),
                                                 ],
@@ -1932,7 +1940,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         child: Container(
                                           padding: EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: Colors.grey.withOpacity(
+                                            color: themeService.subtextColor.withOpacity(
                                               0.05,
                                             ),
                                             borderRadius: BorderRadius.circular(
@@ -1947,7 +1955,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                 'Remaining',
                                                 style: TextStyle(
                                                   fontSize: 12,
-                                                  color: Colors.grey[600],
+                                                  color: themeService.subtextColor,
                                                 ),
                                               ),
                                               SizedBox(height: 4),
@@ -1959,7 +1967,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                       fontSize: 12,
                                                       fontWeight:
                                                           FontWeight.w600,
-                                                      color: Colors.grey[700],
+                                                      color: themeService.subtextColor,
                                                     ),
                                                   ),
                                                   Text(
@@ -1968,7 +1976,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                       fontSize: 16,
                                                       fontWeight:
                                                           FontWeight.bold,
-                                                      color: accentColor,
+                                                      color: themeService.accentColor,
                                                     ),
                                                   ),
                                                 ],
@@ -1996,7 +2004,7 @@ class _HomeScreenState extends State<HomeScreen>
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,
-                                              color: Colors.grey[700],
+                                              color: themeService.subtextColor,
                                             ),
                                           ),
                                           Text(
@@ -2004,7 +2012,7 @@ class _HomeScreenState extends State<HomeScreen>
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
-                                              color: accentColor,
+                                              color: themeService.accentColor,
                                             ),
                                           ),
                                         ],
@@ -2018,7 +2026,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                   .spent /
                                               _budgetCategories[_selectedBudgetCategoryIndex]
                                                   .budget,
-                                          backgroundColor: Colors.grey
+                                          backgroundColor: themeService.subtextColor
                                               .withOpacity(0.1),
                                           valueColor: AlwaysStoppedAnimation<Color>(
                                             _budgetCategories[_selectedBudgetCategoryIndex]
@@ -2036,14 +2044,14 @@ class _HomeScreenState extends State<HomeScreen>
                                             '0',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.grey[600],
+                                              color: themeService.subtextColor,
                                             ),
                                           ),
                                           Text(
                                             'KES ${_budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.grey[600],
+                                              color: themeService.subtextColor,
                                             ),
                                           ),
                                         ],
@@ -2073,6 +2081,7 @@ class _HomeScreenState extends State<HomeScreen>
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                              color: themeService.textColor,
                             ),
                           ),
                           GestureDetector(
@@ -2080,13 +2089,13 @@ class _HomeScreenState extends State<HomeScreen>
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: accentColor.withOpacity(0.1),
+                                color: themeService.accentColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
                                 'More',
                                 style: TextStyle(
-                                  color: accentColor,
+                                  color: themeService.accentColor,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -2102,11 +2111,11 @@ class _HomeScreenState extends State<HomeScreen>
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: accentColor,
+                          color: themeService.accentColor,
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
-                              color: accentColor.withOpacity(0.3),
+                              color: themeService.accentColor.withOpacity(0.3),
                               blurRadius: 15,
                               offset: const Offset(0, 5),
                             ),
@@ -2159,7 +2168,7 @@ class _HomeScreenState extends State<HomeScreen>
                                           onPressed: widget.onNavigateToBudget,
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: Colors.white,
-                                            foregroundColor: accentColor,
+                                            foregroundColor: themeService.accentColor,
                                             padding: EdgeInsets.symmetric(
                                               horizontal: 16,
                                               vertical: 8,
@@ -2232,7 +2241,7 @@ class _HomeScreenState extends State<HomeScreen>
                                           },
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: Colors.white,
-                                            foregroundColor: accentColor,
+                                            foregroundColor: themeService.accentColor,
                                             padding: EdgeInsets.symmetric(
                                               horizontal: 16,
                                               vertical: 8,
@@ -2262,6 +2271,7 @@ class _HomeScreenState extends State<HomeScreen>
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: themeService.textColor,
                         ),
                       ),
 
@@ -2279,7 +2289,7 @@ class _HomeScreenState extends State<HomeScreen>
                               title: 'Save 20% of your income',
                               content:
                                   'The 50/30/20 rule suggests saving 20% of your income for financial goals.',
-                              color: accentColor,
+                              color: themeService.accentColor,
                             ),
                             _buildSmartTipCard(
                               icon: Icons.track_changes,
@@ -2550,7 +2560,7 @@ class _HomeScreenState extends State<HomeScreen>
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[800],
+                color: themeService.textColor,
               ),
             ),
           ],
@@ -2578,7 +2588,7 @@ class _HomeScreenState extends State<HomeScreen>
           Text(
             category,
             style: TextStyle(
-              color: Colors.grey[800],
+              color: themeService.textColor,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -2621,11 +2631,11 @@ class _HomeScreenState extends State<HomeScreen>
       margin: EdgeInsets.only(right: 16),
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(themeService.isDarkMode ? 0.2 : 0.05),
             blurRadius: 10,
             offset: Offset(0, 4),
           ),
@@ -2648,7 +2658,7 @@ class _HomeScreenState extends State<HomeScreen>
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: themeService.textColor),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -2668,7 +2678,7 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               Text(
                 ' / $formattedTargetAmount',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 14, color: themeService.subtextColor),
               ),
             ],
           ),
@@ -2712,11 +2722,11 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(themeService.isDarkMode ? 0.2 : 0.05),
             blurRadius: 10,
             offset: Offset(0, 2),
           ),
@@ -2754,7 +2764,7 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 Text(
                   name,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: themeService.textColor),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -2763,7 +2773,7 @@ class _HomeScreenState extends State<HomeScreen>
                   children: [
                     Text(
                       date,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 12, color: themeService.subtextColor),
                     ),
                     SizedBox(width: 8),
                     Container(
@@ -2801,7 +2811,7 @@ class _HomeScreenState extends State<HomeScreen>
               SizedBox(height: 4),
               Text(
                 isExpense ? 'Expense' : 'Income',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 12, color: themeService.subtextColor),
               ),
             ],
           ),
@@ -2821,11 +2831,11 @@ class _HomeScreenState extends State<HomeScreen>
       margin: EdgeInsets.only(right: 16),
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(themeService.isDarkMode ? 0.2 : 0.05),
             blurRadius: 10,
             offset: Offset(0, 4),
           ),
@@ -2865,7 +2875,7 @@ class _HomeScreenState extends State<HomeScreen>
               content,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[800],
+                color: themeService.textColor,
                 height: 1.4,
               ),
             ),
@@ -2900,20 +2910,20 @@ class _HomeScreenState extends State<HomeScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // You can use Lottie animation here
-          Icon(Icons.receipt_long, size: 48, color: Colors.grey[400]),
+          Icon(Icons.receipt_long, size: 48, color: themeService.subtextColor),
           SizedBox(height: 16),
           Text(
             'No transactions yet',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
+              color: themeService.textColor,
             ),
           ),
           SizedBox(height: 8),
           Text(
             'Your transactions will appear here',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 14, color: themeService.subtextColor),
           ),
         ],
       ),
@@ -2929,20 +2939,20 @@ class _HomeScreenState extends State<HomeScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // You can use Lottie animation here
-          Icon(Icons.savings, size: 48, color: Colors.grey[400]),
+          Icon(Icons.savings, size: 48, color: themeService.subtextColor),
           SizedBox(height: 16),
           Text(
             'No savings goals yet',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
+              color: themeService.textColor,
             ),
           ),
           SizedBox(height: 8),
           Text(
             'Create a savings goal to get started',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 14, color: themeService.subtextColor),
           ),
         ],
       ),
@@ -2955,11 +2965,11 @@ class _HomeScreenState extends State<HomeScreen>
       width: double.infinity,
       padding: EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(themeService.isDarkMode ? 0.2 : 0.05),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -2970,27 +2980,27 @@ class _HomeScreenState extends State<HomeScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // You can use Lottie animation here
-          Icon(Icons.pie_chart, size: 48, color: Colors.grey[400]),
+          Icon(Icons.pie_chart, size: 48, color: themeService.subtextColor),
           SizedBox(height: 16),
           Text(
             'No budgets yet',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
+              color: themeService.textColor,
             ),
           ),
           SizedBox(height: 8),
           Text(
             'Create a budget to track your spending',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 14, color: themeService.subtextColor),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 16),
           ElevatedButton(
             onPressed: widget.onNavigateToBudget,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF26D07C),
+              backgroundColor: themeService.primaryColor,
               foregroundColor: Colors.white,
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(
