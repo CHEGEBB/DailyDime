@@ -445,9 +445,9 @@ class _AIChatScreenState extends State<AIChatScreen>
                         radius: 18,
                         backgroundColor: Colors.white,
                         child: Image.asset(
-                          'assets/images/logo.png',
-                          width: 20,
-                          height: 20,
+                          'assets/images/gemini.png',
+                          width: 35,
+                          height: 35,
                         ),
                       ),
                     ),
