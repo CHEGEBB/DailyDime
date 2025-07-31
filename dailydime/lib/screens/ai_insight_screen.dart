@@ -332,7 +332,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                               Row(
                                 children: [
                                   Image.asset(
-                                    'assets/images/logo.png',
+                                    'assets/images/gemini.png',
                                     width: 20,
                                     height: 20,
                                   ),
@@ -424,7 +424,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Image.asset(
-                      'assets/images/logo.png',
+                      'assets/images/gemini.png',
                       width: 20,
                       height: 20,
                       color: themeService.primaryColor,
@@ -512,7 +512,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
               child: Row(
                 children: [
                   Image.asset(
-                    'assets/images/logo.png',
+                    'assets/images/gemini.png',
                     width: 24,
                     height: 24,
                   ),
@@ -1880,7 +1880,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
             child: Row(
               children: [
                 Image.asset(
-                  'assets/images/logo.png',
+                  'assets/images/gemini.png',
                   width: 20,
                   height: 20,
                   color: themeService.primaryColor,
@@ -2606,7 +2606,7 @@ const SizedBox(height: 16),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Image.asset(
-                'assets/images/logo.png',
+                'assets/images/gemini.png',
                 width: 18,
                 height: 18,
                 color: Colors.white,
@@ -2664,7 +2664,7 @@ const SizedBox(height: 16),
               child: Row(
                 children: [
                   Image.asset(
-                    'assets/images/logo.png',
+                    'assets/images/gemini.png',
                     width: 24,
                     height: 24,
                   ),
