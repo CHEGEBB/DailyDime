@@ -1136,7 +1136,7 @@ Widget _buildBudgetOverviewCard({
             ),
           )
        else if (budgets.isEmpty)
-  _buildEmptyBudgetsCard(themeService.primaryColor, themeService.cardColor)
+       _buildEmptyBudgetsCard(themeService.primaryColor, themeService)
   else
           Column(
   children: budgets.take(3).map((budget) {
@@ -1193,7 +1193,7 @@ Widget _buildBudgetOverviewCard({
     if (budgets.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: _buildEmptyBudgetsCard(themeService.primaryColor, themeService.cardColor),
+        child: _buildEmptyBudgetsCard(themeService.primaryColor, themeService)
       );
     }
     
@@ -2260,69 +2260,68 @@ Widget _buildBudgetOverviewCard({
     );
   }
   
-  Widget _buildEmptyBudgetsCard(Color accentColor, dynamic themeService) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: themeService.cardColor,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: themeService.isDarkMode ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+ Widget _buildEmptyBudgetsCard(Color accentColor, ThemeService themeService) {
+  return Container(
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: themeService.cardColor,
+      borderRadius: BorderRadius.circular(8),
+      boxShadow: [
+        BoxShadow(
+          color: themeService.isDarkMode ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        Lottie.asset(
+          'assets/animations/empty.json',
+          height: 150,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'No budgets created yet',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: themeService.textColor,
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Lottie.asset(
-            'assets/animations/empty.json',
-            height: 150,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Create your first budget to track your spending and save money',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: themeService.subtextColor,
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No budgets created yet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: themeService.textColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Create your first budget to track your spending and save money',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: themeService.subtextColor,
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CreateBudgetScreen(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: accentColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CreateBudgetScreen(),
               ),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: accentColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: const Text('Create Your First Budget'),
           ),
-        ],
-      ),
-    );
-  }
-  
+          child: const Text('Create Your First Budget'),
+        ),
+      ],
+    ),
+  );
+}
   // Helper methods
   String _getPeriodText(BudgetPeriod period) {
     switch (period) {
