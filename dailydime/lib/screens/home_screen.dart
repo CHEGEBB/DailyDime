@@ -1088,9 +1088,9 @@ class _HomeScreenState extends State<HomeScreen>
                                   Expanded(
                                     child: _buildWalletStatItem(
                                       icon: Icons.arrow_upward_rounded,
-                                      iconColor: Colors.red,
-                                      bgColor: Colors.white.withOpacity(0.2),
-                                      iconBgColor: Colors.red.withOpacity(0.2),
+                                      iconColor: themeService.errorColor,
+                                      bgColor: themeService.surfaceColor.withOpacity(0.2),
+                                      iconBgColor: themeService.errorColor.withOpacity(0.2),
                                       title: 'Expense',
                                       amount:
                                           'KES ${_calculateTotalExpenses()}',
@@ -1100,9 +1100,9 @@ class _HomeScreenState extends State<HomeScreen>
                                   Expanded(
                                     child: _buildWalletStatItem(
                                       icon: Icons.arrow_downward_rounded,
-                                      iconColor: Colors.white,
-                                      bgColor: Colors.white.withOpacity(0.2),
-                                      iconBgColor: Colors.white.withOpacity(
+                                      iconColor: themeService.textColor,
+                                      bgColor: themeService.surfaceColor.withOpacity(0.2),
+                                      iconBgColor: themeService.surfaceColor.withOpacity(
                                         0.2,
                                       ),
                                       title: 'Income',
@@ -1133,17 +1133,20 @@ class _HomeScreenState extends State<HomeScreen>
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: themeService.textColor,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.05),
+                          color: themeService.subtextColor.withOpacity(0.05),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
+                              color: themeService.isDarkMode 
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.black.withOpacity(0.02),
                               blurRadius: 10,
                               offset: const Offset(0, 5),
                             ),
@@ -1164,7 +1167,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   _buildQuickAction(
                                     context,
                                     iconData: Icons.add,
-                                    iconColor: accentColor,
+                                    iconColor: themeService.accentColor,
                                     label: 'Top up',
                                     onTap: () {
                                       _showAddMoneyBottomSheet(context);
@@ -1173,7 +1176,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   _buildQuickAction(
                                     context,
                                     iconData: Icons.phone_android,
-                                    iconColor: Colors.green,
+                                    iconColor: themeService.successColor,
                                     label: 'M-PESA',
                                     onTap: () {
                                       Navigator.push(
@@ -1187,21 +1190,21 @@ class _HomeScreenState extends State<HomeScreen>
                                   _buildQuickAction(
                                     context,
                                     iconData: Icons.savings,
-                                    iconColor: Colors.orange,
+                                    iconColor: themeService.warningColor,
                                     label: 'Savings',
                                     onTap: widget.onNavigateToSavings ?? () {},
                                   ),
                                   _buildQuickAction(
                                     context,
                                     iconData: Icons.pie_chart,
-                                    iconColor: Colors.red,
+                                    iconColor: themeService.errorColor,
                                     label: 'Budget',
                                     onTap: widget.onNavigateToBudget ?? () {},
                                   ),
                                   _buildQuickAction(
                                     context,
                                     iconData: Icons.auto_awesome,
-                                    iconColor: Colors.purple,
+                                    iconColor: themeService.secondaryColor,
                                     label: 'AI Insights',
                                     onTap: widget.onNavigateToAI ?? () {},
                                   ),
@@ -1216,7 +1219,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 _buildQuickAction(
                                   context,
                                   iconData: Icons.add,
-                                  iconColor: accentColor,
+                                  iconColor: themeService.accentColor,
                                   label: 'Top up',
                                   onTap: () {
                                     _showAddMoneyBottomSheet(context);
@@ -1225,7 +1228,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 _buildQuickAction(
                                   context,
                                   iconData: Icons.phone_android,
-                                  iconColor: Colors.green,
+                                  iconColor: themeService.successColor,
                                   label: 'M-PESA',
                                   onTap: () {
                                     Navigator.push(
@@ -1239,21 +1242,21 @@ class _HomeScreenState extends State<HomeScreen>
                                 _buildQuickAction(
                                   context,
                                   iconData: Icons.savings,
-                                  iconColor: Colors.orange,
+                                  iconColor: themeService.warningColor,
                                   label: 'Savings',
                                   onTap: widget.onNavigateToSavings ?? () {},
                                 ),
                                 _buildQuickAction(
                                   context,
                                   iconData: Icons.pie_chart,
-                                  iconColor: Colors.red,
+                                  iconColor: themeService.errorColor,
                                   label: 'Budget',
                                   onTap: widget.onNavigateToBudget ?? () {},
                                 ),
                                 _buildQuickAction(
                                   context,
                                   iconData: Icons.auto_awesome,
-                                  iconColor: Colors.purple,
+                                  iconColor: themeService.secondaryColor,
                                   label: 'AI Insights',
                                   onTap: widget.onNavigateToAI ?? () {},
                                 ),
@@ -1280,6 +1283,7 @@ class _HomeScreenState extends State<HomeScreen>
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                              color: themeService.textColor,
                             ),
                           ),
                           Row(
@@ -1293,11 +1297,13 @@ class _HomeScreenState extends State<HomeScreen>
                                 child: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.1),
+                                    color: themeService.subtextColor.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.03),
+                                        color: themeService.isDarkMode 
+                                            ? Colors.black.withOpacity(0.3)
+                                            : Colors.black.withOpacity(0.03),
                                         blurRadius: 8,
                                         offset: const Offset(0, 2),
                                       ),
@@ -1308,7 +1314,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         ? Icons.bar_chart
                                         : Icons.pie_chart,
                                     size: 18,
-                                    color: accentColor,
+                                    color: themeService.accentColor,
                                   ),
                                 ),
                               ),
@@ -1323,11 +1329,13 @@ class _HomeScreenState extends State<HomeScreen>
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: themeService.cardColor,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: themeService.isDarkMode 
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.black.withOpacity(0.05),
                               blurRadius: 15,
                               offset: const Offset(0, 5),
                             ),
@@ -1361,13 +1369,14 @@ class _HomeScreenState extends State<HomeScreen>
                                           style: TextStyle(
                                             fontSize: 20,
                                             fontWeight: FontWeight.bold,
+                                            color: themeService.textColor,
                                           ),
                                         ),
                                         Text(
                                           'Total',
                                           style: TextStyle(
                                             fontSize: 14,
-                                            color: Colors.grey[600],
+                                            color: themeService.subtextColor,
                                           ),
                                         ),
                                       ],
@@ -1424,6 +1433,7 @@ class _HomeScreenState extends State<HomeScreen>
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                              color: themeService.textColor,
                             ),
                           ),
                           GestureDetector(
@@ -1434,13 +1444,13 @@ class _HomeScreenState extends State<HomeScreen>
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: accentColor.withOpacity(0.1),
+                                color: themeService.accentColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
                                 'See all',
                                 style: TextStyle(
-                                  color: accentColor,
+                                  color: themeService.accentColor,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
