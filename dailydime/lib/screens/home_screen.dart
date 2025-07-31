@@ -606,20 +606,23 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildTopUpOption({
+ Widget _buildTopUpOption({
     required IconData icon,
     required String title,
     required String subtitle,
     required Color iconColor,
   }) {
+    final themeService = Provider.of<ThemeService>(context);
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: themeService.isDarkMode 
+                ? Colors.black.withOpacity(0.3) 
+                : Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: Offset(0, 2),
           ),
@@ -637,13 +640,24 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         title: Text(
           title,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(
+            fontWeight: FontWeight.bold, 
+            fontSize: 16,
+            color: themeService.textColor,
+          ),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+          style: TextStyle(
+            color: themeService.subtextColor, 
+            fontSize: 14,
+          ),
         ),
-        trailing: Icon(Icons.arrow_forward_ios, size: 16),
+        trailing: Icon(
+          Icons.arrow_forward_ios, 
+          size: 16,
+          color: themeService.subtextColor,
+        ),
         onTap: () {},
       ),
     );
@@ -652,21 +666,24 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final themeService = Provider.of<ThemeService>(context);
     final size = MediaQuery.of(context).size;
-    final accentColor = Color(0xFF26D07C); // Emerald green
+    final accentColor = themeService.primaryColor;
     final bool isSmallScreen = size.width < 380;
 
-    // Set status bar to match white theme
+    // Set status bar to match theme
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
-        statusBarColor: Colors.white,
-        statusBarIconBrightness: Brightness.dark,
+        statusBarColor: themeService.scaffoldColor,
+        statusBarIconBrightness: themeService.isDarkMode 
+            ? Brightness.light 
+            : Brightness.dark,
       ),
     );
 
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: themeService.scaffoldColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -678,7 +695,10 @@ class _HomeScreenState extends State<HomeScreen>
               SizedBox(height: 20),
               Text(
                 'Loading your financial data...',
-                style: TextStyle(color: Colors.grey[700], fontSize: 16),
+                style: TextStyle(
+                  color: themeService.subtextColor, 
+                  fontSize: 16,
+                ),
               ),
             ],
           ),
@@ -687,7 +707,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: themeService.scaffoldColor,
       body: SafeArea(
         child: RefreshIndicator(
           color: accentColor,
@@ -697,9 +717,9 @@ class _HomeScreenState extends State<HomeScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Header - White bar
+                // Top Header - Theme aware bar
                 Container(
-                  color: Colors.white,
+                  color: themeService.scaffoldColor,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
@@ -720,11 +740,15 @@ class _HomeScreenState extends State<HomeScreen>
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.1),
+                            color: themeService.isDarkMode
+                                ? Colors.white.withOpacity(0.1)
+                                : Colors.grey.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.03),
+                                color: themeService.isDarkMode
+                                    ? Colors.black.withOpacity(0.1)
+                                    : Colors.black.withOpacity(0.03),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -733,7 +757,7 @@ class _HomeScreenState extends State<HomeScreen>
                           child: Icon(
                             Icons.person_outline,
                             size: 24,
-                            color: Colors.black,
+                            color: themeService.textColor,
                           ),
                         ),
                       ),
@@ -746,11 +770,15 @@ class _HomeScreenState extends State<HomeScreen>
                             margin: const EdgeInsets.only(right: 16),
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.grey.withOpacity(0.1),
+                              color: themeService.isDarkMode
+                                  ? Colors.white.withOpacity(0.1)
+                                  : Colors.grey.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.03),
+                                  color: themeService.isDarkMode
+                                      ? Colors.black.withOpacity(0.1)
+                                      : Colors.black.withOpacity(0.03),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
@@ -761,7 +789,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 Icon(
                                   Icons.notifications_outlined,
                                   size: 24,
-                                  color: Colors.black,
+                                  color: themeService.textColor,
                                 ),
                                 Positioned(
                                   right: 0,
@@ -773,7 +801,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       color: Colors.red,
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: Colors.white,
+                                        color: themeService.scaffoldColor,
                                         width: 1.5,
                                       ),
                                     ),
@@ -796,11 +824,15 @@ class _HomeScreenState extends State<HomeScreen>
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.grey.withOpacity(0.1),
+                                color: themeService.isDarkMode
+                                    ? Colors.white.withOpacity(0.1)
+                                    : Colors.grey.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
+                                    color: themeService.isDarkMode
+                                        ? Colors.black.withOpacity(0.1)
+                                        : Colors.black.withOpacity(0.03),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -809,7 +841,7 @@ class _HomeScreenState extends State<HomeScreen>
                               child: Icon(
                                 Icons.settings_outlined,
                                 size: 24,
-                                color: Colors.black,
+                                color: themeService.textColor,
                               ),
                             ),
                           ),
