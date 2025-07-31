@@ -1033,13 +1033,16 @@ Widget _buildHeader(double balance, ThemeService themeService) {
     return items;
   }
   Widget _buildTabBar() {
+    final themeService = Provider.of<ThemeService>(context);
     return Container(
       margin: const EdgeInsets.only(top: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: themeService.isDarkMode 
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1048,7 +1051,7 @@ Widget _buildHeader(double balance, ThemeService themeService) {
       child: TabBar(
   controller: _tabController,
   labelColor: Theme.of(context).colorScheme.primary,
-  unselectedLabelColor: Colors.grey.shade700,
+  unselectedLabelColor: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
   indicatorColor: Theme.of(context).colorScheme.primary,
   indicatorWeight: 3,
   indicatorSize: TabBarIndicatorSize.label,
@@ -1083,6 +1086,7 @@ Widget _buildHeader(double balance, ThemeService themeService) {
     );
   }
 Widget _buildSearchBar() {
+  final themeService = Provider.of<ThemeService>(context);
   return SizedBox(
     height: 44, // Reduced height
    child: TextField(
@@ -1104,7 +1108,7 @@ Widget _buildSearchBar() {
       borderSide: BorderSide.none,
     ),
         filled: true,
-        fillColor: Colors.grey.shade100,
+        fillColor: themeService.isDarkMode ? const Color(0xFF2D3748) : Colors.grey.shade100,
         contentPadding: const EdgeInsets.symmetric(vertical: 0),
       ),
     ),
@@ -1112,6 +1116,7 @@ Widget _buildSearchBar() {
 }
 
   Widget _buildSearchResults() {
+    final themeService = Provider.of<ThemeService>(context);
     if (_searchController.text.isEmpty) {
       return _buildSearchSuggestions();
     }
@@ -1135,7 +1140,7 @@ Widget _buildSearchBar() {
             Icon(
               Icons.search_off,
               size: 64,
-              color: Colors.grey.shade400,
+              color: themeService.isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
             ),
             const SizedBox(height: 16),
             Text(
@@ -1143,7 +1148,7 @@ Widget _buildSearchBar() {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
+                color: themeService.isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
               ),
             ),
             const SizedBox(height: 8),
@@ -1151,7 +1156,7 @@ Widget _buildSearchBar() {
               'Try a different search term',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey.shade600,
+                color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
               ),
             ),
           ],
@@ -1179,7 +1184,7 @@ Widget _buildSearchBar() {
                 '${filteredTransactions.length} found',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey.shade600,
+                  color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
                 ),
               ),
             ],
@@ -1194,6 +1199,7 @@ Widget _buildSearchBar() {
   }
 
   Widget _buildSearchSuggestions() {
+    final themeService = Provider.of<ThemeService>(context);
     // Show recent searches or popular categories
     final categories = [
       'Food', 'Transport', 'Shopping', 'Bills', 'Entertainment',
@@ -1211,13 +1217,13 @@ Widget _buildSearchBar() {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+                color: themeService.isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
               ),
             ),
           ),
           ..._searchSuggestions.map((suggestion) => ListTile(
-            leading: Icon(Icons.history, color: Colors.grey.shade600),
-            title: Text(suggestion),
+            leading: Icon(Icons.history, color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
+            title: Text(suggestion, style: TextStyle(color: themeService.textColor)),
             onTap: () {
               _searchController.text = suggestion;
               _searchController.selection = TextSelection.fromPosition(
@@ -1235,7 +1241,7 @@ Widget _buildSearchBar() {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade700,
+              color: themeService.isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
             ),
           ),
         ),
@@ -1253,8 +1259,8 @@ Widget _buildSearchBar() {
               },
               child: Chip(
                 label: Text(category),
-                backgroundColor: Colors.grey.shade100,
-                labelStyle: TextStyle(color: Colors.grey.shade700),
+                backgroundColor: themeService.isDarkMode ? const Color(0xFF2D3748) : Colors.grey.shade100,
+                labelStyle: TextStyle(color: themeService.isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
               ),
             )).toList(),
@@ -1271,14 +1277,14 @@ Widget _buildSearchBar() {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade700,
+              color: themeService.isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
             ),
           ),
         ),
         
         ListTile(
           leading: Icon(Icons.calendar_today, color: Theme.of(context).colorScheme.primary),
-          title: const Text('Search by Date'),
+          title: Text('Search by Date', style: TextStyle(color: themeService.textColor)),
           onTap: () {
             _showDateRangePicker(context);
           },
@@ -1286,7 +1292,7 @@ Widget _buildSearchBar() {
         
         ListTile(
           leading: Icon(Icons.monetization_on, color: Theme.of(context).colorScheme.primary),
-          title: const Text('Search by Amount'),
+          title: Text('Search by Amount', style: TextStyle(color: themeService.textColor)),
           onTap: () {
             _showAmountFilterDialog();
           },
@@ -1294,7 +1300,7 @@ Widget _buildSearchBar() {
         
         ListTile(
           leading: Icon(Icons.category, color: Theme.of(context).colorScheme.primary),
-          title: const Text('Search by Category'),
+          title: Text('Search by Category', style: TextStyle(color: themeService.textColor)),
           onTap: () {
             _showCategoryFilterBottomSheet();
           },
@@ -1368,6 +1374,7 @@ Widget _buildSearchBar() {
   }
 
   Widget _buildTransactionItem(dynamic transaction) {
+    final themeService = Provider.of<ThemeService>(context);
     // Safe access to status property with null check
     String status = '';
     Color statusColor = Colors.transparent;
@@ -1395,11 +1402,13 @@ Widget _buildSearchBar() {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: themeService.cardColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: themeService.isDarkMode 
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.02),
               blurRadius: 5,
               offset: const Offset(0, 2),
             ),
@@ -1442,7 +1451,7 @@ Widget _buildSearchBar() {
                     '${DateFormat('hh:mm a').format(transaction.date)} · ${transaction.category}',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade600,
+                      color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
                     ),
                   ),
                 ],
@@ -1488,17 +1497,20 @@ Widget _buildSearchBar() {
   }
 
   Widget _buildTransactionGridItem(dynamic transaction) {
+    final themeService = Provider.of<ThemeService>(context);
     return InkWell(
       onTap: () => _showTransactionDetails(transaction),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: themeService.cardColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: themeService.isDarkMode 
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.05),
               blurRadius: 5,
               offset: const Offset(0, 2),
             ),
@@ -1559,7 +1571,7 @@ Widget _buildSearchBar() {
               transaction.category,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey.shade600,
+                color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1569,7 +1581,7 @@ Widget _buildSearchBar() {
               DateFormat('MMM d, yyyy').format(transaction.date),
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.grey.shade500,
+                color: themeService.isDarkMode ? Colors.grey.shade500 : Colors.grey.shade500,
               ),
             ),
             const SizedBox(height: 4),
@@ -1617,6 +1629,7 @@ Widget _buildSearchBar() {
   }
 
   Widget _buildEmptyState() {
+    final themeService = Provider.of<ThemeService>(context);
     return SizedBox(
       height: 400,
       child: Center(
@@ -1628,15 +1641,15 @@ Widget _buildSearchBar() {
               Icon(
                 Icons.receipt_long,
                 size: 100,
-                color: Colors.grey.shade300,
+                color: themeService.isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'No transactions yet',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+                  color: themeService.textColor,
                 ),
               ),
               const SizedBox(height: 12),
@@ -1644,7 +1657,7 @@ Widget _buildSearchBar() {
                 'Start by adding a transaction or wait for SMS messages to be detected',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.grey.shade600,
+                  color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -1677,9 +1690,10 @@ Widget _buildSearchBar() {
   }
 
   Widget _buildLoadingSkeleton() {
+    final themeService = Provider.of<ThemeService>(context);
     return Shimmer.fromColors(
-      baseColor: Colors.grey.shade300,
-      highlightColor: Colors.grey.shade100,
+      baseColor: themeService.isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+      highlightColor: themeService.isDarkMode ? Colors.grey.shade600 : Colors.grey.shade100,
       child: Column(
         children: List.generate(
           6,
@@ -1687,7 +1701,7 @@ Widget _buildSearchBar() {
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             height: 80,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: themeService.cardColor,
               borderRadius: BorderRadius.circular(16),
             ),
           ),
@@ -1697,13 +1711,14 @@ Widget _buildSearchBar() {
   }
 
   Widget _buildAIInsightSkeleton() {
+    final themeService = Provider.of<ThemeService>(context);
     return Shimmer.fromColors(
-      baseColor: Colors.grey.shade300,
-      highlightColor: Colors.grey.shade100,
+      baseColor: themeService.isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+      highlightColor: themeService.isDarkMode ? Colors.grey.shade600 : Colors.grey.shade100,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: themeService.cardColor,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -1713,7 +1728,7 @@ Widget _buildSearchBar() {
               width: 150,
               height: 20,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: themeService.cardColor,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -1722,7 +1737,7 @@ Widget _buildSearchBar() {
               width: double.infinity,
               height: 12,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: themeService.cardColor,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -1731,7 +1746,7 @@ Widget _buildSearchBar() {
               width: double.infinity,
               height: 12,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: themeService.cardColor,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -1740,7 +1755,7 @@ Widget _buildSearchBar() {
               width: double.infinity * 0.7,
               height: 12,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: themeService.cardColor,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -1751,6 +1766,7 @@ Widget _buildSearchBar() {
   }
 
   Widget _buildDetailItem(String label, String value) {
+    final themeService = Provider.of<ThemeService>(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -1760,15 +1776,15 @@ Widget _buildSearchBar() {
             label,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade600,
+              color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
           ),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF1E293B),
+              color: themeService.textColor,
             ),
           ),
         ],
@@ -1784,6 +1800,7 @@ Widget _buildSearchBar() {
   }
 
   void _showFilterBottomSheet(BuildContext context) {
+    final themeService = Provider.of<ThemeService>(context);
     final categories = [
       'All', 'Food', 'Transport', 'Shopping', 'Bills', 
       'Entertainment', 'Education', 'Health', 'Salary'
@@ -1800,9 +1817,9 @@ Widget _buildSearchBar() {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => Container(
           padding: const EdgeInsets.only(top: 16),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: themeService.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: DraggableScrollableSheet(
             initialChildSize: 0.7,
@@ -1815,7 +1832,7 @@ Widget _buildSearchBar() {
                   width: 40,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: themeService.isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(5),
                   ),
                 ),
@@ -1825,16 +1842,16 @@ Widget _buildSearchBar() {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Filter Transactions',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: themeService.textColor,
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.black54),
+                        icon: Icon(Icons.close, color: themeService.isDarkMode ? Colors.white54 : Colors.black54),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
@@ -1845,12 +1862,12 @@ Widget _buildSearchBar() {
                     controller: scrollController,
                     padding: const EdgeInsets.all(24),
                     children: [
-                      const Text(
+                      Text(
                         'Categories',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
+                          color: themeService.textColor,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1869,7 +1886,7 @@ Widget _buildSearchBar() {
                           },
                           selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                           labelStyle: TextStyle(
-                            color: _selectedCategory == category ? Theme.of(context).colorScheme.primary : Colors.black87,
+                            color: _selectedCategory == category ? Theme.of(context).colorScheme.primary : themeService.textColor,
                             fontWeight: _selectedCategory == category ? FontWeight.w600 : FontWeight.normal,
                           ),
                           shape: RoundedRectangleBorder(
@@ -1878,12 +1895,12 @@ Widget _buildSearchBar() {
                         )).toList(),
                       ),
                       const SizedBox(height: 24),
-                      const Text(
+                      Text(
                         'Time Period',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
+                          color: themeService.textColor,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1906,7 +1923,7 @@ Widget _buildSearchBar() {
                           },
                           selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                           labelStyle: TextStyle(
-                            color: _selectedTimeFrame == timeFrame ? Theme.of(context).colorScheme.primary : Colors.black87,
+                            color: _selectedTimeFrame == timeFrame ? Theme.of(context).colorScheme.primary : themeService.textColor,
                             fontWeight: _selectedTimeFrame == timeFrame ? FontWeight.w600 : FontWeight.normal,
                           ),
                           shape: RoundedRectangleBorder(
@@ -1915,12 +1932,12 @@ Widget _buildSearchBar() {
                         )).toList(),
                       ),
                       const SizedBox(height: 24),
-                      const Text(
+                      Text(
                         'Amount Range',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
+                          color: themeService.textColor,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1934,7 +1951,7 @@ Widget _buildSearchBar() {
                           currencyFormat.format(_amountRange.end),
                         ),
                         activeColor: Theme.of(context).colorScheme.primary,
-                        inactiveColor: Colors.grey.shade200,
+                        inactiveColor: themeService.isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
                         onChanged: (RangeValues values) {
                           setState(() {
                             _amountRange = values;
@@ -1950,14 +1967,14 @@ Widget _buildSearchBar() {
                               currencyFormat.format(_amountRange.start),
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
                               ),
                             ),
                             Text(
                               currencyFormat.format(_amountRange.end),
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
                               ),
                             ),
                           ],
@@ -1965,7 +1982,7 @@ Widget _buildSearchBar() {
                       ),
                       const SizedBox(height: 24),
                       CheckboxListTile(
-                        title: const Text('Show only recurring transactions'),
+                        title: Text('Show only recurring transactions', style: TextStyle(color: themeService.textColor)),
                         value: _showOnlyRecurring,
                         activeColor: Theme.of(context).colorScheme.primary,
                         contentPadding: EdgeInsets.zero,
@@ -2070,15 +2087,17 @@ Widget _buildSearchBar() {
   }
 
   void _showAmountFilterDialog() {
+    final themeService = Provider.of<ThemeService>(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Filter by Amount'),
+        backgroundColor: themeService.cardColor,
+        title: Text('Filter by Amount', style: TextStyle(color: themeService.textColor)),
         content: StatefulBuilder(
           builder: (context, setState) => Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Select amount range:'),
+              Text('Select amount range:', style: TextStyle(color: themeService.textColor)),
               const SizedBox(height: 24),
               RangeSlider(
                 values: _amountRange,
@@ -2090,7 +2109,7 @@ Widget _buildSearchBar() {
                   currencyFormat.format(_amountRange.end),
                 ),
                 activeColor: Theme.of(context).colorScheme.primary,
-                inactiveColor: Colors.grey.shade200,
+                inactiveColor: themeService.isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
                 onChanged: (RangeValues values) {
                   setState(() {
                     _amountRange = values;
@@ -2106,14 +2125,14 @@ Widget _buildSearchBar() {
                       currencyFormat.format(_amountRange.start),
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
                       ),
                     ),
                     Text(
                       currencyFormat.format(_amountRange.end),
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
                       ),
                     ),
                   ],
@@ -2127,7 +2146,7 @@ Widget _buildSearchBar() {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: themeService.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
             ),
           ),
           ElevatedButton(
@@ -2150,6 +2169,7 @@ Widget _buildSearchBar() {
   }
 
   void _showCategoryFilterBottomSheet() {
+    final themeService = Provider.of<ThemeService>(context);
     final categories = [
       'All', 'Food', 'Transport', 'Shopping', 'Bills', 
       'Entertainment', 'Education', 'Health', 'Salary',
@@ -2159,7 +2179,7 @@ Widget _buildSearchBar() {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: themeService.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -2171,7 +2191,7 @@ Widget _buildSearchBar() {
               width: 40,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: themeService.isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(5),
               ),
             ),
@@ -2180,15 +2200,16 @@ Widget _buildSearchBar() {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Select Category',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: themeService.textColor,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: themeService.textColor),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -2198,7 +2219,7 @@ Widget _buildSearchBar() {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: categories.map((category) => RadioListTile<String>(
-                  title: Text(category),
+                  title: Text(category, style: TextStyle(color: themeService.textColor)),
                   value: category,
                   groupValue: _selectedCategory,
                   onChanged: (value) {
@@ -2220,6 +2241,7 @@ Widget _buildSearchBar() {
   }
 
   void _showTransactionDetails(dynamic transaction) {
+    final themeService = Provider.of<ThemeService>(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2230,9 +2252,9 @@ Widget _buildSearchBar() {
         maxChildSize: 0.95,
         expand: false,
         builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: themeService.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: [
@@ -2241,7 +2263,7 @@ Widget _buildSearchBar() {
                 width: 40,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: themeService.isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
@@ -2256,16 +2278,16 @@ Widget _buildSearchBar() {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Transaction Details',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E293B),
+                                color: themeService.textColor,
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.close, color: Colors.black54),
+                              icon: Icon(Icons.close, color: themeService.isDarkMode ? Colors.white54 : Colors.black54),
                               onPressed: () => Navigator.pop(context),
                             ),
                           ],
@@ -2286,11 +2308,13 @@ Widget _buildSearchBar() {
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
+                                      color: themeService.cardColor,
                                       borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
+                                          color: themeService.isDarkMode 
+                                              ? Colors.black.withOpacity(0.3)
+                                              : Colors.black.withOpacity(0.05),
                                           blurRadius: 5,
                                           offset: const Offset(0, 2),
                                         ),
@@ -2319,7 +2343,7 @@ Widget _buildSearchBar() {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: Colors.white,
+                                            color: themeService.cardColor,
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: Text(
@@ -2352,7 +2376,7 @@ Widget _buildSearchBar() {
                                 DateFormat('EEEE, MMMM d, yyyy • h:mm a').format(transaction.date),
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey.shade700,
+                                  color: themeService.isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
                                 ),
                               ),
                             ],
@@ -2362,19 +2386,19 @@ Widget _buildSearchBar() {
                         const SizedBox(height: 24),
                         
                         // Transaction Info
-                        const Text(
+                        Text(
                           'Transaction Info',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF1E293B),
+                            color: themeService.textColor,
                           ),
                         ),
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
+                            color: themeService.isDarkMode ? const Color(0xFF2D3748) : Colors.grey.shade50,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Column(
@@ -2453,12 +2477,12 @@ Widget _buildSearchBar() {
                         const SizedBox(height: 24),
                         
                         // AI Insights
-                        const Text(
+                        Text(
                           'AI Insights',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF1E293B),
+                            color: themeService.textColor,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -2481,7 +2505,7 @@ Widget _buildSearchBar() {
                               return Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.blue.shade50,
+                                  color: themeService.isDarkMode ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Column(
@@ -2500,7 +2524,7 @@ Widget _buildSearchBar() {
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 16,
-                                            color: Colors.blue.shade700,
+                                            color: themeService.isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
                                           ),
                                         ),
                                       ],
@@ -2508,9 +2532,9 @@ Widget _buildSearchBar() {
                                     const SizedBox(height: 12),
                                     Text(
                                       insight ?? 'No insight available for this transaction.',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14,
-                                        color: Color(0xFF4B5563),
+                                        color: themeService.isDarkMode ? const Color(0xFFE5E7EB) : const Color(0xFF4B5563),
                                         height: 1.5,
                                       ),
                                     ),
@@ -2522,14 +2546,14 @@ Widget _buildSearchBar() {
                             return Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
+                                color: themeService.isDarkMode ? const Color(0xFF2D3748) : Colors.grey.shade100,
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'No AI insights available for this transaction.',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF4B5563),
+                                  color: themeService.isDarkMode ? const Color(0xFFE5E7EB) : const Color(0xFF4B5563),
                                 ),
                               ),
                             );
