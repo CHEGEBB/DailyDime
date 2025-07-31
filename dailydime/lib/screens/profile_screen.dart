@@ -475,8 +475,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             ? Center(
                 child: Lottie.asset(
                   isDarkMode 
-                      ? 'assets/animations/loading_dark.json'
-                      : 'assets/animations/loading.json',
+                      ? 'assets/animations/loading3.json'
+                      : 'assets/animations/loading3.json',
                   width: 120,
                   height: 120,
                 ),
