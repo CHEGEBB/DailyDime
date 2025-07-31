@@ -333,8 +333,8 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                                 children: [
                                   Image.asset(
                                     'assets/images/gemini.png',
-                                    width: 50,
-                                    height: 50,
+                                    width: 30,
+                                    height: 30,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
@@ -2667,8 +2667,8 @@ const SizedBox(height: 16),
                 children: [
                   Image.asset(
                     'assets/images/gemini.png',
-                    width: 24,
-                    height: 24,
+                    width: 35,
+                    height: 35,
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -2697,8 +2697,8 @@ const SizedBox(height: 16),
                   children: [
                     Lottie.asset(
                       'assets/animations/money_coins.json',
-                      width: 100,
-                      height: 100,
+                      width: 200,
+                      height: 200,
                     ),
                     const SizedBox(height: 24),
                     Text(
