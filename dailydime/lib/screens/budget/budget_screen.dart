@@ -2102,9 +2102,9 @@ Widget _buildBudgetOverviewCard({
               _buildDetailRow('Period', _getPeriodText(budget.period)),
               _buildDetailRow('Created', DateFormat('MMM dd, yyyy').format(budget.createdAt ?? DateTime.now()), themeService),
               if (budget.tags.isNotEmpty)
-                _buildDetailRow('Tags', budget.tags.join(', ')),
+                _buildDetailRow('Tags', budget.tags.join(', '), themeService),
               if (budget.notes.isNotEmpty)
-                _buildDetailRow('Notes', budget.notes),
+                _buildDetailRow('Notes', budget.notes, themeService),
               const SizedBox(height: 24),
               Text(
                 'Actions',
