@@ -187,7 +187,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Lottie.asset(
-          'assets/animations/loading.json',
+          'assets/animations/ai_loading.json',
           width: 140,
           height: 140,
         ),
@@ -371,9 +371,9 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                           ),
                         ),
                         Lottie.asset(
-                          'assets/animations/money_coins.json',
-                          width: 80,
-                          height: 80,
+                          'assets/animations/growth.json',
+                          width: 120,
+                          height: 120,
                         ),
                       ],
                     ),
@@ -2697,8 +2697,8 @@ const SizedBox(height: 16),
                   children: [
                     Lottie.asset(
                       'assets/animations/money_coins.json',
-                      width: 200,
-                      height: 200,
+                      width: 100,
+                      height: 100,
                     ),
                     const SizedBox(height: 24),
                     Text(
