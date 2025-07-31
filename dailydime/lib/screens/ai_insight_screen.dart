@@ -425,9 +425,9 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                     ),
                     child: Image.asset(
                       'assets/images/gemini.png',
-                      width: 20,
-                      height: 20,
-                      color: themeService.primaryColor,
+                      width: 60,
+                      height: 60,
+                      // color: themeService.primaryColor,
                     ),
                   ),
                   const SizedBox(width: 12),
