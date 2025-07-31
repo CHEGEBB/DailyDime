@@ -44,13 +44,15 @@ class _AIChatScreenState extends State<AIChatScreen>
   Map<String, dynamic> _userFinancialContext = {};
 
   @override
-  void initState() {
-    super.initState();
-    _initializeAnimations();
-    _initializeServices();
-    _loadUserContext();
+void initState() {
+  super.initState();
+  _initializeAnimations();
+  _initializeServices();
+  // Load user context first, then add welcome message
+  _loadUserContext().then((_) {
     _addWelcomeMessage();
-  }
+  });
+}
 
   void _initializeAnimations() {
     _fadeAnimationController = AnimationController(
@@ -99,21 +101,39 @@ class _AIChatScreenState extends State<AIChatScreen>
   }
 
   Future<void> _loadUserContext() async {
-    try {
-      final user = await AuthService().getCurrentUser();
-      if (user != null) {
-        setState(() {
-          _userName = user.name.isNotEmpty ? user.name.split(' ').first : 'User';
-        });
-        
-        // Load financial data from Appwrite collections
-        await _loadFinancialData(user.$id);
-      }
-    } catch (e) {
-      print('Error loading user context: $e');
+  try {
+    final user = await AuthService().getCurrentUser();
+    if (user != null) {
+      setState(() {
+        // Fix: Properly extract first name from the user's name
+        final fullName = user.name.trim();
+        if (fullName.isNotEmpty) {
+          // Split by space and take first part, or use full name if no spaces
+          final nameParts = fullName.split(' ');
+          _userName = nameParts.first;
+        } else {
+          // Fallback to email username if name is empty
+          final emailParts = user.email.split('@');
+          _userName = emailParts.first.isNotEmpty ? emailParts.first : 'User';
+        }
+      });
+      
+      // Load financial data from Appwrite collections
+      await _loadFinancialData(user.$id);
+    } else {
+      // Handle case where user is not logged in
+      setState(() {
+        _userName = 'User';
+      });
     }
+  } catch (e) {
+    print('Error loading user context: $e');
+    // Fallback to generic name on error
+    setState(() {
+      _userName = 'User';
+    });
   }
-
+}
   Future<void> _loadFinancialData(String userId) async {
     try {
       setState(() => _isLoading = true);
@@ -163,20 +183,22 @@ class _AIChatScreenState extends State<AIChatScreen>
   }
 
   void _addWelcomeMessage() {
-    final welcomeMessage = ChatMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      text: "Hi $_userName! 👋\n\nI'm your AI financial assistant powered by Gemini. I can help you understand your spending patterns, create budgets, set savings goals, and provide personalized financial insights.\n\nWhat would you like to know about your finances today?",
-      isUser: false,
-      timestamp: DateTime.now(),
-      messageType: MessageType.welcome,
-    );
-    
-    setState(() {
-      _messages.add(welcomeMessage);
-    });
-    
-    _scrollToBottom();
-  }
+  final welcomeMessage = ChatMessage(
+    id: DateTime.now().millisecondsSinceEpoch.toString(),
+    text: "Hi $_userName! 👋\n\nI'm your AI financial assistant powered by Gemini. I can help you understand your spending patterns, create budgets, set savings goals, and provide personalized financial insights.\n\nWhat would you like to know about your finances today?",
+    isUser: false,
+    timestamp: DateTime.now(),
+    messageType: MessageType.welcome,
+  );
+  
+  setState(() {
+    _messages.add(welcomeMessage);
+  });
+  
+  _scrollToBottom();
+}
+
+
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
