@@ -1,4 +1,5 @@
 // lib/screens/ai_insights_screen.dart
+import 'package:dailydime/screens/ai_chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:lottie/lottie.dart';
@@ -2547,31 +2548,92 @@ const SizedBox(height: 16),
   }
 
   Widget _buildGeminiChatButton(ThemeService themeService) {
-    return FloatingActionButton.extended(
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    child: FloatingActionButton.extended(
       onPressed: () {
-        // Navigate to Gemini chat screen
-        _showGeminiChatDialog(themeService);
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const AIChatScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOutCubic;
+
+              var tween = Tween(begin: begin, end: end).chain(
+                CurveTween(curve: curve),
+              );
+
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
+        );
       },
-      backgroundColor: themeService.primaryColor,
-      foregroundColor: Colors.white,
-      icon: Image.asset(
-        'assets/images/logo.png',
-        width: 60,
-        height: 60,
-        color: Colors.white,
-      ),
-      label: Text(
-        'Ask Gemini',
-        style: TextStyle(
-    fontFamily: 'DMsans',
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      label: Container(  // Changed from 'child' to 'label'
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              themeService.primaryColor,
+              themeService.secondaryColor,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: themeService.primaryColor.withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 18,
+                height: 18,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Ask Gemini',
+              style: TextStyle(
+                fontFamily: 'DMsans',
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 18,
+            ),
+          ],
         ),
       ),
-      elevation: 8,
-      highlightElevation: 12,
-    );
-  }
+    ),
+  );
+}
 
   void _showGeminiChatDialog(ThemeService themeService) {
     showModalBottomSheet(
