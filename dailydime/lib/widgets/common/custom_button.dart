@@ -9,6 +9,8 @@ class CustomButton extends StatelessWidget {
   final bool isOutlined;
   final IconData? icon;
   final double width;
+  final bool isSmall;
+  final Color? buttonColor; // Changed from MaterialColor to Color
 
   const CustomButton({
     Key? key,
@@ -17,8 +19,9 @@ class CustomButton extends StatelessWidget {
     this.isLoading = false,
     this.isOutlined = false,
     this.icon,
-    this.width = double.infinity, 
-    required bool isSmall, required MaterialColor buttonColor,
+    this.width = double.infinity,
+    required this.isSmall,
+    this.buttonColor, // Made optional since it might not always be needed
   }) : super(key: key);
 
   @override
@@ -29,8 +32,8 @@ class CustomButton extends StatelessWidget {
       return OutlinedButton(
         onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: theme.colorScheme.primary),
-          minimumSize: Size(width, 45),
+          side: BorderSide(color: buttonColor ?? theme.colorScheme.primary),
+          minimumSize: Size(width, isSmall ? 40 : 45),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -42,7 +45,11 @@ class CustomButton extends StatelessWidget {
     return ElevatedButton(
       onPressed: isLoading ? null : onPressed,
       style: ElevatedButton.styleFrom(
-        minimumSize: Size(width, 52),
+        backgroundColor: buttonColor, // Use the custom color if provided
+        minimumSize: Size(width, isSmall ? 45 : 52),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
       child: _buildButtonContent(theme),
     );
@@ -51,10 +58,12 @@ class CustomButton extends StatelessWidget {
   Widget _buildButtonContent(ThemeData theme) {
     if (isLoading) {
       return SizedBox(
-        height: 24,
-        width: 24,
+        height: isSmall ? 20 : 24,
+        width: isSmall ? 20 : 24,
         child: CircularProgressIndicator(
-          color: isOutlined ? theme.colorScheme.primary : Colors.white,
+          color: isOutlined 
+              ? (buttonColor ?? theme.colorScheme.primary) 
+              : Colors.white,
           strokeWidth: 2,
         ),
       );
@@ -64,13 +73,25 @@ class CustomButton extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 20),
+          Icon(icon, size: isSmall ? 18 : 20),
           const SizedBox(width: 8),
-          Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(
+            text, 
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: isSmall ? 14 : 16,
+            ),
+          ),
         ],
       );
     }
 
-    return Text(text, style: const TextStyle(fontWeight: FontWeight.w600));
+    return Text(
+      text, 
+      style: TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: isSmall ? 14 : 16,
+      ),
+    );
   }
 }

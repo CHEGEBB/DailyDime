@@ -1039,19 +1039,20 @@ Widget _buildBudgetOverviewCard({
                     ),
                   ),
                 )
-              else
-                ..._aiInsights.take(3).map((insight) {
-                  final color = _getInsightColor(insight);
-                  final icon = _getInsightIcon(insight);
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildInsightItem(
-                      insight,
-                      color,
-                      icon,
-                    ),
-                  );
-                }).toList(),
+             else
+  ..._aiInsights.take(3).map((insight) {
+    final color = _getInsightColor(insight);
+    final icon = _getInsightIcon(insight);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: _buildInsightItem(
+        insight,
+        color,
+        icon,
+        themeService, // Add this missing parameter
+      ),
+    );
+  }).toList(),
               
               const SizedBox(height: 8),
               Center(
@@ -1138,10 +1139,11 @@ Widget _buildBudgetOverviewCard({
           _buildEmptyBudgetsCard(themeService.primaryColor)
         else
           Column(
-            children: budgets.take(3).map((budget) {
-              return _buildBudgetListItem(context, budget, themeService.primaryColor);
-            }).toList(),
-          ),
+  children: budgets.take(3).map((budget) {
+    int index = budgets.indexOf(budget);
+    return _buildBudgetListItem(context, budget, themeService.primaryColor, index);
+  }).toList(),
+),
         
         const SizedBox(height: 16),
         
@@ -1203,46 +1205,47 @@ Widget _buildBudgetOverviewCard({
     
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: [
-        // Monthly budgets section
-        if (monthlyBudgets.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Monthly Budgets',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'DMsans',
-                color: themeService.textColor,
-              ),
-            ),
-          ),
-          ...monthlyBudgets.map((budget) => 
-            _buildBudgetListItem(context, budget, themeService.primaryColor)
-          ),
-          const SizedBox(height: 16),
-        ],
-        
-        // Weekly budgets section
-        if (weeklyBudgets.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Weekly Budgets',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'DMsans',
-                color: themeService.textColor,
-              ),
-            ),
-          ),
-          ...weeklyBudgets.map((budget) => 
-            _buildBudgetListItem(context, budget, themeService.primaryColor)
-          ),
-          const SizedBox(height: 16),
-        ],
+    children: [
+  if (monthlyBudgets.isNotEmpty) ...[
+    Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        'Monthly Budgets',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'DMsans',
+          color: themeService.textColor,
+        ),
+      ),
+    ),
+    ...monthlyBudgets.asMap().entries.map((entry) {
+      int index = entry.key;
+      var budget = entry.value;
+      return _buildBudgetListItem(context, budget, themeService.primaryColor, index);
+    }),
+    const SizedBox(height: 16),
+  ],
+         if (monthlyBudgets.isNotEmpty) ...[
+    Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        'Monthly Budgets',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'DMsans',
+          color: themeService.textColor,
+        ),
+      ),
+    ),
+    ...monthlyBudgets.asMap().entries.map((entry) {
+      int index = entry.key;
+      var budget = entry.value;
+      return _buildBudgetListItem(context, budget, themeService.primaryColor, index);
+    }),
+    const SizedBox(height: 16),
+  ],
         
         // Daily budgets section
         if (dailyBudgets.isNotEmpty) ...[
@@ -1259,7 +1262,7 @@ Widget _buildBudgetOverviewCard({
             ),
           ),
           ...dailyBudgets.map((budget) => 
-            _buildBudgetListItem(context, budget, themeService.primaryColor)
+            _buildBudgetListItem(context, budget, themeService.primaryColor, themeService)
           ),
           const SizedBox(height: 16),
         ],
@@ -1278,9 +1281,11 @@ Widget _buildBudgetOverviewCard({
               ),
             ),
           ),
-          ...yearlyBudgets.map((budget) => 
-            _buildBudgetListItem(context, budget, themeService.primaryColor)
-          ),
+            ...yearlyBudgets.asMap().entries.map((entry) {
+      int index = entry.key;
+      var budget = entry.value;
+      return _buildBudgetListItem(context, budget, themeService.primaryColor, index);
+          }),
           const SizedBox(height: 16),
         ],
         
@@ -1513,45 +1518,45 @@ Widget _buildBudgetOverviewCard({
           text: 'Refresh Insights',
           onPressed: _loadAIInsights,
           icon: Icons.refresh,
-          buttonColor: Colors.blue,
+          buttonColor: themeService.primaryColor,
         ),
       ],
     );
   }
   
-  Widget _buildInsightItem(String text, Color color, IconData icon) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 16,
+  Widget _buildInsightItem(String text, Color color, IconData icon, ThemeService themeService) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          color: color,
+          size: 16,
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 14,
+            fontFamily: 'DMsans',
+            height: 1.4,
+            color: themeService.textColor,
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
-              fontFamily: 'DMsans',
-              height: 1.4,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
   
-  Widget _buildBudgetListItem(BuildContext context, Budget budget, Color accentColor) {
+  Widget _buildBudgetListItem(BuildContext context, Budget budget, Color accentColor, dynamic themeService) {
     final percentageUsed = budget.percentageUsed;
     final isOverBudget = budget.isOverBudget;
     final Color progressColor = isOverBudget 
@@ -1563,11 +1568,11 @@ Widget _buildBudgetOverviewCard({
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: themeService.isDarkMode ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1593,12 +1598,13 @@ Widget _buildBudgetOverviewCard({
             context: context,
             builder: (BuildContext context) {
               return AlertDialog(
-                title: const Text("Delete Budget"),
-                content: Text("Are you sure you want to delete ${budget.title} budget?"),
+                backgroundColor: themeService.cardColor,
+                title: Text("Delete Budget", style: TextStyle(color: themeService.textColor)),
+                content: Text("Are you sure you want to delete ${budget.title} budget?", style: TextStyle(color: themeService.textColor)),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text("Cancel"),
+                    child: Text("Cancel", style: TextStyle(color: themeService.textColor)),
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(true),
@@ -1615,9 +1621,11 @@ Widget _buildBudgetOverviewCard({
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${budget.title} budget deleted'),
+              backgroundColor: themeService.surfaceColor,
+              content: Text('${budget.title} budget deleted', style: TextStyle(color: themeService.textColor)),
               action: SnackBarAction(
                 label: 'Undo',
+                textColor: themeService.primaryColor,
                 onPressed: () {
                   budgetProvider.createBudget(budget);
                 },
@@ -1654,11 +1662,11 @@ Widget _buildBudgetOverviewCard({
                         children: [
                           Text(
                             budget.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontFamily: 'DMsans',
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: themeService.textColor,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -1667,7 +1675,7 @@ Widget _buildBudgetOverviewCard({
                             style: TextStyle(
                               fontSize: 12,
                               fontFamily: 'DMsans',
-                              color: Colors.grey.shade600,
+                              color: themeService.subtextColor,
                             ),
                           ),
                         ],
@@ -1703,28 +1711,29 @@ Widget _buildBudgetOverviewCard({
                             ),
                           ),
                         PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert),
+                          icon: Icon(Icons.more_vert, color: themeService.textColor),
+                          color: themeService.cardColor,
                           onSelected: (value) {
                             _handleBudgetAction(context, value, budget);
                           },
                           itemBuilder: (context) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'edit',
                               child: Row(
                                 children: [
-                                  Icon(Icons.edit, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Edit Budget'),
+                                  Icon(Icons.edit, size: 18, color: themeService.textColor),
+                                  const SizedBox(width: 8),
+                                  Text('Edit Budget', style: TextStyle(color: themeService.textColor)),
                                 ],
                               ),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'reset',
                               child: Row(
                                 children: [
-                                  Icon(Icons.refresh, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Reset Spent'),
+                                  Icon(Icons.refresh, size: 18, color: themeService.textColor),
+                                  const SizedBox(width: 8),
+                                  Text('Reset Spent', style: TextStyle(color: themeService.textColor)),
                                 ],
                               ),
                             ),
@@ -1735,19 +1744,20 @@ Widget _buildBudgetOverviewCard({
                                   Icon(
                                     budget.isActive ? Icons.visibility_off : Icons.visibility,
                                     size: 18,
+                                    color: themeService.textColor,
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(budget.isActive ? 'Deactivate' : 'Activate'),
+                                  Text(budget.isActive ? 'Deactivate' : 'Activate', style: TextStyle(color: themeService.textColor)),
                                 ],
                               ),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'delete',
                               child: Row(
                                 children: [
-                                  Icon(Icons.delete, size: 18, color: Colors.red),
-                                  SizedBox(width: 8),
-                                  Text('Delete', style: TextStyle(color: Colors.red)),
+                                  const Icon(Icons.delete, size: 18, color: Colors.red),
+                                  const SizedBox(width: 8),
+                                  const Text('Delete', style: TextStyle(color: Colors.red)),
                                 ],
                               ),
                             ),
@@ -1770,7 +1780,7 @@ Widget _buildBudgetOverviewCard({
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'DMsans',
-                            color: isOverBudget ? Colors.red : Colors.black87,
+                            color: isOverBudget ? Colors.red : themeService.textColor,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -1779,7 +1789,7 @@ Widget _buildBudgetOverviewCard({
                           style: TextStyle(
                             fontSize: 14,
                             fontFamily: 'DMsans',
-                            color: Colors.grey.shade600,
+                            color: themeService.subtextColor,
                           ),
                         ),
                       ],
@@ -1814,7 +1824,7 @@ Widget _buildBudgetOverviewCard({
                   borderRadius: BorderRadius.circular(8),
                   child: LinearProgressIndicator(
                     value: percentageUsed > 1.0 ? 1.0 : percentageUsed,
-                    backgroundColor: Colors.grey.withOpacity(0.1),
+                    backgroundColor: themeService.isDarkMode ? Colors.grey.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
                     valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                     minHeight: 8,
                   ),
@@ -1844,7 +1854,10 @@ Widget _buildBudgetOverviewCard({
         // Reset spent amount
         budgetProvider.resetBudgetSpent(budget.id);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${budget.title} spending reset to 0')),
+          SnackBar(
+            backgroundColor: themeService.surfaceColor,
+            content: Text('${budget.title} spending reset to 0', style: TextStyle(color: themeService.textColor)),
+          ),
         );
         break;
       case 'toggle':
@@ -1852,10 +1865,12 @@ Widget _buildBudgetOverviewCard({
         budgetProvider.toggleBudgetStatus(budget.id);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
+            backgroundColor: themeService.surfaceColor,
             content: Text(
               budget.isActive
                   ? '${budget.title} budget deactivated'
-                  : '${budget.title} budget activated'
+                  : '${budget.title} budget activated',
+              style: TextStyle(color: themeService.textColor),
             ),
           ),
         );
@@ -1866,12 +1881,13 @@ Widget _buildBudgetOverviewCard({
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: const Text("Delete Budget"),
-              content: Text("Are you sure you want to delete ${budget.title} budget?"),
+              backgroundColor: themeService.cardColor,
+              title: Text("Delete Budget", style: TextStyle(color: themeService.textColor)),
+              content: Text("Are you sure you want to delete ${budget.title} budget?", style: TextStyle(color: themeService.textColor)),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text("Cancel"),
+                  child: Text("Cancel", style: TextStyle(color: themeService.textColor)),
                 ),
                 TextButton(
                   onPressed: () {
@@ -1879,9 +1895,11 @@ Widget _buildBudgetOverviewCard({
                     budgetProvider.deleteBudget(budget.id);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('${budget.title} budget deleted'),
+                        backgroundColor: themeService.surfaceColor,
+                        content: Text('${budget.title} budget deleted', style: TextStyle(color: themeService.textColor)),
                         action: SnackBarAction(
                           label: 'Undo',
+                          textColor: themeService.primaryColor,
                           onPressed: () {
                             budgetProvider.createBudget(budget);
                           },
@@ -1912,9 +1930,9 @@ Widget _buildBudgetOverviewCard({
         maxChildSize: 0.9,
         minChildSize: 0.5,
         builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+          decoration: BoxDecoration(
+            color: themeService.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
           ),
           child: ListView(
             controller: scrollController,
@@ -1925,7 +1943,7 @@ Widget _buildBudgetOverviewCard({
                   height: 4,
                   width: 40,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: themeService.subtextColor,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -1952,9 +1970,10 @@ Widget _buildBudgetOverviewCard({
                       children: [
                         Text(
                           budget.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
+                            color: themeService.textColor,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -1962,7 +1981,7 @@ Widget _buildBudgetOverviewCard({
                           _getPeriodText(budget.period),
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.grey.shade600,
+                            color: themeService.subtextColor,
                           ),
                         ),
                       ],
@@ -1985,19 +2004,20 @@ Widget _buildBudgetOverviewCard({
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Total Budget',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey,
+                                color: themeService.subtextColor,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'KES ${budget.amount.toInt()}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
+                                color: themeService.textColor,
                               ),
                             ),
                           ],
@@ -2005,11 +2025,11 @@ Widget _buildBudgetOverviewCard({
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            const Text(
+                            Text(
                               'Spent So Far',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey,
+                                color: themeService.subtextColor,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -2018,7 +2038,7 @@ Widget _buildBudgetOverviewCard({
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: isOverBudget ? Colors.red : Colors.black,
+                                color: isOverBudget ? Colors.red : themeService.textColor,
                               ),
                             ),
                           ],
@@ -2030,7 +2050,7 @@ Widget _buildBudgetOverviewCard({
                       borderRadius: BorderRadius.circular(8),
                       child: LinearProgressIndicator(
                         value: percentageUsed > 1.0 ? 1.0 : percentageUsed,
-                        backgroundColor: Colors.grey.withOpacity(0.2),
+                        backgroundColor: themeService.isDarkMode ? Colors.grey.withOpacity(0.3) : Colors.grey.withOpacity(0.2),
                         valueColor: AlwaysStoppedAnimation<Color>(
                           isOverBudget 
                               ? Colors.red
@@ -2050,7 +2070,7 @@ Widget _buildBudgetOverviewCard({
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: isOverBudget ? Colors.red : Colors.grey.shade700,
+                            color: isOverBudget ? Colors.red : themeService.subtextColor,
                           ),
                         ),
                         Text(
@@ -2069,11 +2089,12 @@ Widget _buildBudgetOverviewCard({
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Budget Details',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: themeService.textColor,
                 ),
               ),
               const SizedBox(height: 16),
@@ -2085,11 +2106,12 @@ Widget _buildBudgetOverviewCard({
               if (budget.notes.isNotEmpty)
                 _buildDetailRow('Notes', budget.notes),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Actions',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: themeService.textColor,
                 ),
               ),
               const SizedBox(height: 16),
@@ -2126,7 +2148,10 @@ Widget _buildBudgetOverviewCard({
                         final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
                         budgetProvider.resetBudgetSpent(budget.id);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('${budget.title} spending reset to 0')),
+                          SnackBar(
+                            backgroundColor: themeService.surfaceColor,
+                            content: Text('${budget.title} spending reset to 0', style: TextStyle(color: themeService.textColor)),
+                          ),
                         );
                       },
                       icon: const Icon(Icons.refresh),
@@ -2153,12 +2178,13 @@ Widget _buildBudgetOverviewCard({
                     context: context,
                     builder: (BuildContext context) {
                       return AlertDialog(
-                        title: const Text("Delete Budget"),
-                        content: Text("Are you sure you want to delete ${budget.title} budget?"),
+                        backgroundColor: themeService.cardColor,
+                        title: Text("Delete Budget", style: TextStyle(color: themeService.textColor)),
+                        content: Text("Are you sure you want to delete ${budget.title} budget?", style: TextStyle(color: themeService.textColor)),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(),
-                            child: const Text("Cancel"),
+                            child: Text("Cancel", style: TextStyle(color: themeService.textColor)),
                           ),
                           TextButton(
                             onPressed: () {
@@ -2166,9 +2192,11 @@ Widget _buildBudgetOverviewCard({
                               budgetProvider.deleteBudget(budget.id);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('${budget.title} budget deleted'),
+                                  backgroundColor: themeService.surfaceColor,
+                                  content: Text('${budget.title} budget deleted', style: TextStyle(color: themeService.textColor)),
                                   action: SnackBarAction(
                                     label: 'Undo',
+                                    textColor: themeService.primaryColor,
                                     onPressed: () {
                                       budgetProvider.createBudget(budget);
                                     },
@@ -2213,16 +2241,17 @@ Widget _buildBudgetOverviewCard({
               label,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey.shade600,
+                color: themeService.subtextColor,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
+                color: themeService.textColor,
               ),
             ),
           ),
@@ -2235,11 +2264,11 @@ Widget _buildBudgetOverviewCard({
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: themeService.isDarkMode ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -2252,20 +2281,21 @@ Widget _buildBudgetOverviewCard({
             height: 150,
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No budgets created yet',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
+              color: themeService.textColor,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Create your first budget to track your spending and save money',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey,
+              color: themeService.subtextColor,
             ),
           ),
           const SizedBox(height: 24),
