@@ -333,8 +333,8 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                                 children: [
                                   Image.asset(
                                     'assets/images/gemini.png',
-                                    width: 20,
-                                    height: 20,
+                                    width: 40,
+                                    height: 40,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
