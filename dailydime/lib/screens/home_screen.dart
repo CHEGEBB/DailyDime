@@ -10,6 +10,7 @@ import 'package:dailydime/services/balance_service.dart';
 import 'package:dailydime/services/sms_service.dart';
 import 'package:dailydime/services/home_ai_service.dart';
 import 'package:dailydime/services/appwrite_service.dart';
+import 'package:dailydime/services/theme_service.dart';
 import 'package:dailydime/models/transaction.dart';
 import 'package:dailydime/models/savings_goal.dart';
 import 'package:dailydime/models/budget.dart';
@@ -17,7 +18,7 @@ import 'package:lottie/lottie.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToTransactions;
@@ -34,7 +35,8 @@ class HomeScreen extends StatefulWidget {
     this.onNavigateToSavings,
     this.onNavigateToAI,
     this.onNavigateToSettings,
-    this.onAddTransaction, required void Function() onNavigateToProfile,
+    this.onAddTransaction,
+    required void Function() onNavigateToProfile,
   }) : super(key: key);
 
   @override
@@ -90,39 +92,39 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _initializeData() async {
-  setState(() {
-    _isLoading = true;
-  });
-
-  try {
-    // Initialize balance service
-    await BalanceService.instance.initialize();
-
-    // Listen to balance updates
-    _balanceSubscription = BalanceService.instance.balanceStream.listen((
-      balance,
-    ) {
-      setState(() {
-        _currentBalance = balance;
-        _balanceController.text = NumberFormat(
-          '#,##0',
-          'en_US',
-        ).format(balance.round());
-        _lastUpdateTime = DateFormat(
-          'dd/MM/yyyy',
-        ).format(BalanceService.instance.getLastUpdateTime());
-      });
+    setState(() {
+      _isLoading = true;
     });
 
-    // Get initial balance - await the Future
-    _currentBalance = await BalanceService.instance.getCurrentBalance();
-    _balanceController.text = NumberFormat(
-      '#,##0',
-      'en_US',
-    ).format(_currentBalance.round());
-    _lastUpdateTime = DateFormat(
-      'dd/MM/yyyy',
-    ).format(BalanceService.instance.getLastUpdateTime());
+    try {
+      // Initialize balance service
+      await BalanceService.instance.initialize();
+
+      // Listen to balance updates
+      _balanceSubscription = BalanceService.instance.balanceStream.listen((
+        balance,
+      ) {
+        setState(() {
+          _currentBalance = balance;
+          _balanceController.text = NumberFormat(
+            '#,##0',
+            'en_US',
+          ).format(balance.round());
+          _lastUpdateTime = DateFormat(
+            'dd/MM/yyyy',
+          ).format(BalanceService.instance.getLastUpdateTime());
+        });
+      });
+
+      // Get initial balance - await the Future
+      _currentBalance = await BalanceService.instance.getCurrentBalance();
+      _balanceController.text = NumberFormat(
+        '#,##0',
+        'en_US',
+      ).format(_currentBalance.round());
+      _lastUpdateTime = DateFormat(
+        'dd/MM/yyyy',
+      ).format(BalanceService.instance.getLastUpdateTime());
       // Load recent transactions
       await _loadRecentTransactions();
 
@@ -468,6 +470,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _showAddMoneyBottomSheet(BuildContext context) {
+    final themeService = Provider.of<ThemeService>(context, listen: false);
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -475,7 +479,7 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.85,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: themeService.cardColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
         ),
         child: Column(
@@ -488,7 +492,7 @@ class _HomeScreenState extends State<HomeScreen>
                 width: 60,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: themeService.subtextColor,
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
@@ -498,7 +502,11 @@ class _HomeScreenState extends State<HomeScreen>
               padding: EdgeInsets.all(24),
               child: Text(
                 'Add Money',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 24, 
+                  fontWeight: FontWeight.bold,
+                  color: themeService.textColor,
+                ),
               ),
             ),
 
@@ -531,31 +539,39 @@ class _HomeScreenState extends State<HomeScreen>
 
                   Text(
                     'Manual Entry',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-
-                  SizedBox(height: 16),
-
-                  TextField(
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Amount (KES)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      prefixIcon: Icon(Icons.attach_money),
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold,
+                      color: themeService.textColor,
                     ),
                   ),
 
                   SizedBox(height: 16),
 
                   TextField(
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: themeService.textColor),
                     decoration: InputDecoration(
-                      labelText: 'Description (Optional)',
+                      labelText: 'Amount (KES)',
+                      labelStyle: TextStyle(color: themeService.subtextColor),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      prefixIcon: Icon(Icons.description),
+                      prefixIcon: Icon(Icons.attach_money, color: themeService.primaryColor),
+                    ),
+                  ),
+
+                  SizedBox(height: 16),
+
+                  TextField(
+                    style: TextStyle(color: themeService.textColor),
+                    decoration: InputDecoration(
+                      labelText: 'Description (Optional)',
+                      labelStyle: TextStyle(color: themeService.subtextColor),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: Icon(Icons.description, color: themeService.primaryColor),
                     ),
                   ),
 
@@ -566,7 +582,7 @@ class _HomeScreenState extends State<HomeScreen>
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF26D07C),
+                      backgroundColor: themeService.primaryColor,
                       padding: EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -683,125 +699,125 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 // Top Header - White bar
                 Container(
-  color: Colors.white,
-  padding: const EdgeInsets.symmetric(
-    horizontal: 20,
-    vertical: 12,
-  ),
-  child: Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      // Profile Icon on the left
-     GestureDetector(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProfileScreen(),
-        ),
-      );
-    },
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.person_outline,
-            size: 24,
-            color: Colors.black,
-          ),
-        ),
-      ),
-
-      // Right side icons (Notification and Settings)
-      Row(
-        children: [
-          // Notification Icon
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                Icon(
-                  Icons.notifications_outlined,
-                  size: 24,
-                  color: Colors.black,
-                ),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 1.5,
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Profile Icon on the left
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProfileScreen(),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.person_outline,
+                            size: 24,
+                            color: Colors.black,
+                          ),
+                        ),
                       ),
-                    ),
+
+                      // Right side icons (Notification and Settings)
+                      Row(
+                        children: [
+                          // Notification Icon
+                          Container(
+                            margin: const EdgeInsets.only(right: 16),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.03),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Stack(
+                              children: [
+                                Icon(
+                                  Icons.notifications_outlined,
+                                  size: 24,
+                                  color: Colors.black,
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Settings Icon
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => SettingsScreen(),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.03),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.settings_outlined,
+                                size: 24,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // Settings Icon
-         GestureDetector(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SettingsScreen(),
-      ),
-    );
-  },
-  child: Container(
-    padding: const EdgeInsets.all(8),
-    decoration: BoxDecoration(
-      color: Colors.grey.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.03),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Icon(
-      Icons.settings_outlined,
-      size: 24,
-      color: Colors.black,
-    ),
-            ),
-          ),
-        ],
-      ),
-    ],
-  ),
-),
 
                 const SizedBox(height: 5),
 
