@@ -516,7 +516,7 @@ class _AIChatScreenState extends State<AIChatScreen>
         child: Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/bgpattern3.png'),
+              image: AssetImage('assets/images/bgpattern4.png'),
               fit: BoxFit.cover,
               opacity: 0.1,
             ),
@@ -682,7 +682,7 @@ class _AIChatScreenState extends State<AIChatScreen>
                 'assets/images/gemini.png',
                 width: 20,
                 height: 20,
-                color: Colors.white,
+                // color: Colors.white,
               ),
             ),
             const SizedBox(width: 8),
@@ -795,10 +795,10 @@ class _AIChatScreenState extends State<AIChatScreen>
             radius: 16,
             backgroundColor: themeService.primaryColor,
             child: Image.asset(
-              'assets/images/logo.png',
-              width: 16,
-              height: 16,
-              color: Colors.white,
+              'assets/images/gemini.png',
+              width: 30,
+              height: 30,
+              // color: Colors.white,
             ),
           ),
           const SizedBox(width: 8),
