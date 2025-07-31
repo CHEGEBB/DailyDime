@@ -1,4 +1,3 @@
-// lib/screens/budget/budget_screen.dart
 import 'dart:async' show StreamSubscription;
 
 import 'package:dailydime/models/budget.dart';
@@ -13,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:lottie/lottie.dart';
 import 'package:dailydime/services/balance_service.dart';
+import 'package:dailydime/services/theme_service.dart';
 
 
 class BudgetScreen extends StatefulWidget {
@@ -118,6 +118,7 @@ void initState() {
   }
 
   Widget _buildBalanceMetric() {
+  final themeService = Provider.of<ThemeService>(context);
   final bool isStale = BalanceService.instance.isBalanceStale();
   
   return GestureDetector(
@@ -128,10 +129,14 @@ void initState() {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: themeService.isDarkMode 
+            ? Colors.white.withOpacity(0.1) 
+            : Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.white.withOpacity(0.3),
+          color: themeService.isDarkMode 
+              ? Colors.white.withOpacity(0.2) 
+              : Colors.white.withOpacity(0.3),
           width: 1,
         ),
       ),
@@ -180,13 +185,15 @@ void initState() {
   );
 }
 void _showBalanceDetails() {
+  final themeService = Provider.of<ThemeService>(context, listen: false);
+  
   showModalBottomSheet(
     context: context,
     backgroundColor: Colors.transparent,
     builder: (context) => Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -198,7 +205,9 @@ void _showBalanceDetails() {
               height: 4,
               width: 40,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: themeService.isDarkMode 
+                    ? Colors.grey.shade700 
+                    : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -209,12 +218,12 @@ void _showBalanceDetails() {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF26D07C).withOpacity(0.1),
+                  color: themeService.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.account_balance_wallet,
-                  color: Color(0xFF26D07C),
+                  color: themeService.primaryColor,
                   size: 28,
                 ),
               ),
@@ -223,18 +232,21 @@ void _showBalanceDetails() {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'M-Pesa Balance',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
+                        color: themeService.textColor,
                       ),
                     ),
                     Text(
                       'Last updated: ${_formatLastUpdate()}',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey.shade600,
+                        color: themeService.isDarkMode 
+                            ? Colors.grey.shade400 
+                            : Colors.grey.shade600,
                       ),
                     ),
                   ],
@@ -246,17 +258,17 @@ void _showBalanceDetails() {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF26D07C).withOpacity(0.05),
+              color: themeService.primaryColor.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               children: [
                 Text(
                   'KES ${_currentBalance.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF26D07C),
+                    color: themeService.primaryColor,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -264,7 +276,9 @@ void _showBalanceDetails() {
                   'Available Balance',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.grey.shade600,
+                    color: themeService.isDarkMode 
+                        ? Colors.grey.shade400 
+                        : Colors.grey.shade600,
                   ),
                 ),
                 if (BalanceService.instance.isBalanceStale()) ...[
@@ -300,11 +314,11 @@ void _showBalanceDetails() {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Note: Balance is automatically updated from M-Pesa transaction messages. Make a transaction to refresh your balance.',
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey,
+              color: themeService.isDarkMode ? Colors.grey.shade500 : Colors.grey,
             ),
             textAlign: TextAlign.center,
           ),
@@ -345,6 +359,9 @@ Widget _buildBudgetOverviewCard({
   required Color accentColor,
   required String highestCategory,
 }) {
+  final themeService = Provider.of<ThemeService>(context);
+  final cardColor = themeService.primaryColor;
+  
   return Container(
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(8),
@@ -352,14 +369,14 @@ Widget _buildBudgetOverviewCard({
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          accentColor,
-          accentColor.withOpacity(0.8),
-          accentColor.withOpacity(0.6),
+          cardColor,
+          cardColor.withOpacity(0.8),
+          cardColor.withOpacity(0.6),
         ],
       ),
       boxShadow: [
         BoxShadow(
-          color: accentColor.withOpacity(0.3),
+          color: cardColor.withOpacity(0.3),
           blurRadius: 20,
           offset: const Offset(0, 10),
         ),
@@ -609,12 +626,12 @@ Widget _buildBudgetOverviewCard({
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accentColor = const Color(0xFF26D07C); // Emerald green
+    final themeService = Provider.of<ThemeService>(context);
+    final accentColor = themeService.primaryColor;
     final size = MediaQuery.of(context).size;
     
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: themeService.scaffoldColor,
       body: Consumer<BudgetProvider>(
         builder: (context, budgetProvider, child) {
           final isLoading = budgetProvider.isLoading;
@@ -645,7 +662,7 @@ Widget _buildBudgetOverviewCard({
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: themeService.cardColor,
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(
@@ -662,7 +679,7 @@ Widget _buildBudgetOverviewCard({
                       borderRadius: BorderRadius.circular(8),
                     ),
                     labelColor: Colors.white,
-                    unselectedLabelColor: Colors.grey,
+                    unselectedLabelColor: themeService.subtextColor,
                     indicatorSize: TabBarIndicatorSize.tab,
                     tabs: _tabTitles.map((title) => Tab(
                       child: Padding(
@@ -698,7 +715,7 @@ Widget _buildBudgetOverviewCard({
             ),
           );
         },
-        backgroundColor: const Color(0xFF26D07C),
+        backgroundColor: themeService.primaryColor,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('New Budget', style: TextStyle(color: Colors.white)),
       ),
@@ -725,6 +742,8 @@ Widget _buildBudgetOverviewCard({
   }
   
   Widget _buildOverviewTab(bool isLoading, List<Budget> budgets, Color accentColor) {
+    final themeService = Provider.of<ThemeService>(context);
+    
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -732,7 +751,7 @@ Widget _buildBudgetOverviewCard({
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: themeService.cardColor,
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
@@ -745,12 +764,12 @@ Widget _buildBudgetOverviewCard({
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Weekly Spending Trend',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: themeService.textColor,
                 ),
               ),
               const SizedBox(height: 4),
@@ -759,19 +778,19 @@ Widget _buildBudgetOverviewCard({
                 style: TextStyle(
                   fontSize: 12,
                   fontFamily: 'DMsans',
-                  color: Colors.grey.shade600,
+                  color: themeService.subtextColor,
                 ),
               ),
               const SizedBox(height: 20),
               if (isLoading)
                 Shimmer.fromColors(
-                  baseColor: Colors.grey[300]!,
-                  highlightColor: Colors.grey[100]!,
+                  baseColor: themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                  highlightColor: themeService.isDarkMode ? Colors.grey[600]! : Colors.grey[100]!,
                   child: Container(
                     height: 200,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: themeService.cardColor,
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
@@ -787,7 +806,7 @@ Widget _buildBudgetOverviewCard({
                         horizontalInterval: 5000,
                         getDrawingHorizontalLine: (value) {
                           return FlLine(
-                            color: Colors.grey.shade200,
+                            color: themeService.isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
                             strokeWidth: 1,
                           );
                         },
@@ -806,8 +825,8 @@ Widget _buildBudgetOverviewCard({
                             reservedSize: 30,
                             interval: 1,
                             getTitlesWidget: (value, meta) {
-                              const style = TextStyle(
-                                color: Colors.grey,
+                              final style = TextStyle(
+                                color: themeService.subtextColor,
                                 fontFamily: 'DMsans',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
@@ -846,8 +865,8 @@ Widget _buildBudgetOverviewCard({
                                 meta: meta,
                                 child: Text(
                                   '${(value / 1000).toInt()}K',
-                                  style: const TextStyle(
-                                    color: Colors.grey,
+                                  style: TextStyle(
+                                    color: themeService.subtextColor,
                                     fontFamily: 'DMsans',
                                     fontSize: 10,
                                   ),
@@ -869,8 +888,8 @@ Widget _buildBudgetOverviewCard({
                           isCurved: true,
                           gradient: LinearGradient(
                             colors: [
-                              accentColor.withOpacity(0.5),
-                              accentColor,
+                              themeService.primaryColor.withOpacity(0.5),
+                              themeService.primaryColor,
                             ],
                           ),
                           barWidth: 3,
@@ -880,9 +899,9 @@ Widget _buildBudgetOverviewCard({
                             getDotPainter: (spot, percent, barData, index) {
                               return FlDotCirclePainter(
                                 radius: 4,
-                                color: accentColor,
+                                color: themeService.primaryColor,
                                 strokeWidth: 2,
-                                strokeColor: Colors.white,
+                                strokeColor: themeService.cardColor,
                               );
                             },
                           ),
@@ -890,8 +909,8 @@ Widget _buildBudgetOverviewCard({
                             show: true,
                             gradient: LinearGradient(
                               colors: [
-                                accentColor.withOpacity(0.3),
-                                accentColor.withOpacity(0.0),
+                                themeService.primaryColor.withOpacity(0.3),
+                                themeService.primaryColor.withOpacity(0.0),
                               ],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
@@ -912,7 +931,7 @@ Widget _buildBudgetOverviewCard({
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: themeService.cardColor,
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
@@ -944,13 +963,13 @@ Widget _buildBudgetOverviewCard({
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'AI Budget Insights',
                           style: TextStyle(
                             fontSize: 16,
                             fontFamily: 'DMsans',
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: themeService.textColor,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -959,7 +978,7 @@ Widget _buildBudgetOverviewCard({
                           style: TextStyle(
                             fontSize: 12,
                             fontFamily: 'DMsans',
-                            color: Colors.grey.shade600,
+                            color: themeService.subtextColor,
                           ),
                         ),
                       ],
@@ -971,8 +990,8 @@ Widget _buildBudgetOverviewCard({
               
               if (_loadingInsights)
                 Shimmer.fromColors(
-                  baseColor: Colors.grey[300]!,
-                  highlightColor: Colors.grey[100]!,
+                  baseColor: themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                  highlightColor: themeService.isDarkMode ? Colors.grey[600]! : Colors.grey[100]!,
                   child: Column(
                     children: List.generate(
                       3,
@@ -986,7 +1005,7 @@ Widget _buildBudgetOverviewCard({
                               width: 32,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
-                                color: Colors.white,
+                                color: themeService.cardColor,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -999,7 +1018,7 @@ Widget _buildBudgetOverviewCard({
                                     width: double.infinity,
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(4),
-                                      color: Colors.white,
+                                      color: themeService.cardColor,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -1008,7 +1027,7 @@ Widget _buildBudgetOverviewCard({
                                     width: MediaQuery.of(context).size.width * 0.6,
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(4),
-                                      color: Colors.white,
+                                      color: themeService.cardColor,
                                     ),
                                   ),
                                 ],
@@ -1043,12 +1062,12 @@ Widget _buildBudgetOverviewCard({
                   icon: Icon(
                     Icons.smart_toy,
                     size: 16,
-                    color: accentColor,
+                    color: themeService.primaryColor,
                   ),
                   label: Text(
                     'View All Insights',
                     style: TextStyle(
-                      color: accentColor,
+                      color: themeService.primaryColor,
                       fontFamily: 'DMsans',
                       fontWeight: FontWeight.w500,
                     ),
@@ -1065,13 +1084,13 @@ Widget _buildBudgetOverviewCard({
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Active Budgets',
               style: TextStyle(
                 fontSize: 18,
                 fontFamily: 'DMsans',
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: themeService.textColor,
               ),
             ),
             TextButton.icon(
@@ -1086,7 +1105,7 @@ Widget _buildBudgetOverviewCard({
               icon: const Icon(Icons.add, size: 16),
               label: const Text('New Budget'),
               style: TextButton.styleFrom(
-                foregroundColor: accentColor,
+                foregroundColor: themeService.primaryColor,
               ),
             ),
           ],
@@ -1096,8 +1115,8 @@ Widget _buildBudgetOverviewCard({
         
         if (isLoading)
           Shimmer.fromColors(
-            baseColor: Colors.grey[300]!,
-            highlightColor: Colors.grey[100]!,
+            baseColor: themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+            highlightColor: themeService.isDarkMode ? Colors.grey[600]! : Colors.grey[100]!,
             child: Column(
               children: List.generate(
                 3,
@@ -1108,7 +1127,7 @@ Widget _buildBudgetOverviewCard({
                     width: double.infinity,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      color: Colors.white,
+                      color: themeService.cardColor,
                     ),
                   ),
                 ),
@@ -1116,11 +1135,11 @@ Widget _buildBudgetOverviewCard({
             ),
           )
         else if (budgets.isEmpty)
-          _buildEmptyBudgetsCard(accentColor)
+          _buildEmptyBudgetsCard(themeService.primaryColor)
         else
           Column(
             children: budgets.take(3).map((budget) {
-              return _buildBudgetListItem(context, budget, accentColor);
+              return _buildBudgetListItem(context, budget, themeService.primaryColor);
             }).toList(),
           ),
         
@@ -1134,7 +1153,7 @@ Widget _buildBudgetOverviewCard({
             child: Text(
               'View All Budgets',
               style: TextStyle(
-                color: accentColor,
+                color: themeService.primaryColor,
                 fontWeight: FontWeight.w500,
                 fontFamily: 'DMsans',
               ),
@@ -1145,10 +1164,12 @@ Widget _buildBudgetOverviewCard({
   }
   
   Widget _buildCategoriesTab(bool isLoading, List<Budget> budgets, Color accentColor) {
+    final themeService = Provider.of<ThemeService>(context);
+    
     if (isLoading) {
       return Shimmer.fromColors(
-        baseColor: Colors.grey[300]!,
-        highlightColor: Colors.grey[100]!,
+        baseColor: themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+        highlightColor: themeService.isDarkMode ? Colors.grey[600]! : Colors.grey[100]!,
         child: ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: 5,
@@ -1159,7 +1180,7 @@ Widget _buildBudgetOverviewCard({
               width: double.infinity,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                color: Colors.white,
+                color: themeService.cardColor,
               ),
             ),
           ),
@@ -1170,7 +1191,7 @@ Widget _buildBudgetOverviewCard({
     if (budgets.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: _buildEmptyBudgetsCard(accentColor),
+        child: _buildEmptyBudgetsCard(themeService.primaryColor),
       );
     }
     
@@ -1185,80 +1206,80 @@ Widget _buildBudgetOverviewCard({
       children: [
         // Monthly budgets section
         if (monthlyBudgets.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               'Monthly Budgets',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'DMsans',
-                color: Colors.black87,
+                color: themeService.textColor,
               ),
             ),
           ),
           ...monthlyBudgets.map((budget) => 
-            _buildBudgetListItem(context, budget, accentColor)
+            _buildBudgetListItem(context, budget, themeService.primaryColor)
           ),
           const SizedBox(height: 16),
         ],
         
         // Weekly budgets section
         if (weeklyBudgets.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               'Weekly Budgets',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'DMsans',
-                color: Colors.black87,
+                color: themeService.textColor,
               ),
             ),
           ),
           ...weeklyBudgets.map((budget) => 
-            _buildBudgetListItem(context, budget, accentColor)
+            _buildBudgetListItem(context, budget, themeService.primaryColor)
           ),
           const SizedBox(height: 16),
         ],
         
         // Daily budgets section
         if (dailyBudgets.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               'Daily Budgets',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'DMsans',
-                color: Colors.black87,
+                color: themeService.textColor,
               ),
             ),
           ),
           ...dailyBudgets.map((budget) => 
-            _buildBudgetListItem(context, budget, accentColor)
+            _buildBudgetListItem(context, budget, themeService.primaryColor)
           ),
           const SizedBox(height: 16),
         ],
         
         // Yearly budgets section
         if (yearlyBudgets.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               'Yearly Budgets',
               style: TextStyle(
                 fontSize: 18,
                 fontFamily: 'DMsans',
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: themeService.textColor,
               ),
             ),
           ),
           ...yearlyBudgets.map((budget) => 
-            _buildBudgetListItem(context, budget, accentColor)
+            _buildBudgetListItem(context, budget, themeService.primaryColor)
           ),
           const SizedBox(height: 16),
         ],
@@ -1286,6 +1307,8 @@ Widget _buildBudgetOverviewCard({
   }
   
   Widget _buildInsightsTab(bool isLoading, Color accentColor) {
+    final themeService = Provider.of<ThemeService>(context);
+    
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -1293,7 +1316,7 @@ Widget _buildBudgetOverviewCard({
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: themeService.cardColor,
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
@@ -1322,13 +1345,13 @@ Widget _buildBudgetOverviewCard({
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Smart Budget Analysis',
                       style: TextStyle(
                         fontSize: 18,
                         fontFamily: 'DMsans',
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: themeService.textColor,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1337,7 +1360,7 @@ Widget _buildBudgetOverviewCard({
                       style: TextStyle(
                         fontSize: 12,
                         fontFamily: 'DMsans',
-                        color: Colors.grey.shade600,
+                        color: themeService.subtextColor,
                       ),
                     ),
                   ],
@@ -1352,8 +1375,8 @@ Widget _buildBudgetOverviewCard({
         // Insights content
         if (_loadingInsights)
           Shimmer.fromColors(
-            baseColor: Colors.grey[300]!,
-            highlightColor: Colors.grey[100]!,
+            baseColor: themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+            highlightColor: themeService.isDarkMode ? Colors.grey[600]! : Colors.grey[100]!,
             child: Column(
               children: List.generate(
                 5,
@@ -1364,7 +1387,7 @@ Widget _buildBudgetOverviewCard({
                     width: double.infinity,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      color: Colors.white,
+                      color: themeService.cardColor,
                     ),
                   ),
                 ),
@@ -1375,7 +1398,7 @@ Widget _buildBudgetOverviewCard({
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: themeService.cardColor,
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
@@ -1392,22 +1415,23 @@ Widget _buildBudgetOverviewCard({
                   height: 120,
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'No insights available yet',
                   style: TextStyle(
                     fontSize: 16,
                     fontFamily: 'DMsans',
                     fontWeight: FontWeight.bold,
+                    color: themeService.textColor,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Create more budgets and add transactions to get personalized insights',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
                     fontFamily: 'DMsans',
-                    color: Colors.grey,
+                    color: themeService.subtextColor,
                   ),
                 ),
               ],
@@ -1423,7 +1447,7 @@ Widget _buildBudgetOverviewCard({
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: themeService.cardColor,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
@@ -1455,11 +1479,11 @@ Widget _buildBudgetOverviewCard({
                         children: [
                           Text(
                             _getInsightTitle(insight),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontFamily: 'DMsans',
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: themeService.textColor,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -1469,7 +1493,7 @@ Widget _buildBudgetOverviewCard({
                               fontSize: 14,
                               fontFamily: 'DMsans',
                               height: 1.4,
-                              color: Colors.grey.shade700,
+                              color: themeService.subtextColor,
                             ),
                           ),
                         ],
