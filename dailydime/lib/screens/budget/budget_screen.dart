@@ -1135,9 +1135,9 @@ Widget _buildBudgetOverviewCard({
               ),
             ),
           )
-        else if (budgets.isEmpty)
-          _buildEmptyBudgetsCard(themeService.primaryColor)
-        else
+       else if (budgets.isEmpty)
+  _buildEmptyBudgetsCard(themeService.primaryColor, themeService.cardColor)
+  else
           Column(
   children: budgets.take(3).map((budget) {
     int index = budgets.indexOf(budget);
@@ -1193,7 +1193,7 @@ Widget _buildBudgetOverviewCard({
     if (budgets.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: _buildEmptyBudgetsCard(themeService.primaryColor),
+        child: _buildEmptyBudgetsCard(themeService.primaryColor, themeService.cardColor),
       );
     }
     
@@ -1634,7 +1634,7 @@ Widget _buildBudgetOverviewCard({
           );
         },
         child: InkWell(
-          onTap: () => _showBudgetDetails(context, budget, accentColor),
+          onTap: () => _showBudgetDetails(context, budget, accentColor, themeService),
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -1714,7 +1714,7 @@ Widget _buildBudgetOverviewCard({
                           icon: Icon(Icons.more_vert, color: themeService.textColor),
                           color: themeService.cardColor,
                           onSelected: (value) {
-                            _handleBudgetAction(context, value, budget);
+                            _handleBudgetAction(context, value, budget, themeService);
                           },
                           itemBuilder: (context) => [
                             PopupMenuItem(
@@ -1837,7 +1837,7 @@ Widget _buildBudgetOverviewCard({
     );
   }
   
-  void _handleBudgetAction(BuildContext context, String action, Budget budget) {
+  void _handleBudgetAction(BuildContext context, String action, Budget budget, dynamic themeService) {
     final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
     
     switch (action) {
@@ -1917,7 +1917,7 @@ Widget _buildBudgetOverviewCard({
     }
   }
   
-  void _showBudgetDetails(BuildContext context, Budget budget, Color accentColor) {
+  void _showBudgetDetails(BuildContext context, Budget budget, Color accentColor, dynamic themeService) {
     final percentageUsed = budget.percentageUsed;
     final isOverBudget = budget.isOverBudget;
     
@@ -1929,7 +1929,7 @@ Widget _buildBudgetOverviewCard({
         initialChildSize: 0.7,
         maxChildSize: 0.9,
         minChildSize: 0.5,
-        builder: (context, scrollController) => Container(
+        builder: (context, scrollController,) => Container(
           decoration: BoxDecoration(
             color: themeService.cardColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
@@ -2100,7 +2100,7 @@ Widget _buildBudgetOverviewCard({
               const SizedBox(height: 16),
               _buildDetailRow('Category', budget.category),
               _buildDetailRow('Period', _getPeriodText(budget.period)),
-              _buildDetailRow('Created', DateFormat('MMM dd, yyyy').format(budget.createdAt ?? DateTime.now())),
+              _buildDetailRow('Created', DateFormat('MMM dd, yyyy').format(budget.createdAt ?? DateTime.now()), themeService),
               if (budget.tags.isNotEmpty)
                 _buildDetailRow('Tags', budget.tags.join(', ')),
               if (budget.notes.isNotEmpty)
@@ -2229,7 +2229,7 @@ Widget _buildBudgetOverviewCard({
     );
   }
   
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, dynamic themeService) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -2260,7 +2260,7 @@ Widget _buildBudgetOverviewCard({
     );
   }
   
-  Widget _buildEmptyBudgetsCard(Color accentColor) {
+  Widget _buildEmptyBudgetsCard(Color accentColor, dynamic themeService) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
