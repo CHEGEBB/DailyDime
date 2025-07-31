@@ -513,8 +513,8 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                 children: [
                   Image.asset(
                     'assets/images/gemini.png',
-                    width: 24,
-                    height: 24,
+                    width: 35,
+                    height: 35,
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -1881,9 +1881,9 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
               children: [
                 Image.asset(
                   'assets/images/gemini.png',
-                  width: 20,
-                  height: 20,
-                  color: themeService.primaryColor,
+                  width: 35,
+                  height: 35,
+                  // color: themeService.primaryColor,
                 ),
                 const SizedBox(width: 8),
                 Text(
