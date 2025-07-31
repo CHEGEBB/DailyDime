@@ -187,7 +187,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Lottie.asset(
-          'assets/animations/loading2.json',
+          'assets/animations/loading3.json',
           width: 140,
           height: 140,
         ),
