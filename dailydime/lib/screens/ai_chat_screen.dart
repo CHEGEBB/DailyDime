@@ -516,7 +516,7 @@ class _AIChatScreenState extends State<AIChatScreen>
         child: Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/bgpattern.png'),
+              image: AssetImage('assets/images/bgpattern1.png'),
               fit: BoxFit.cover,
               opacity: 0.1,
             ),
