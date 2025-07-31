@@ -1432,7 +1432,7 @@ Widget _buildSearchBar() {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: secondaryColor,
+                      color: Theme.of(context).colorScheme.secondary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1549,7 +1549,7 @@ Widget _buildSearchBar() {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: secondaryColor,
+                color: Theme.of(context).colorScheme.secondary,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1610,7 +1610,7 @@ Widget _buildSearchBar() {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: secondaryColor,
+          color: Theme.of(context).colorScheme.secondary,
         ),
       ),
     );
@@ -1933,7 +1933,7 @@ Widget _buildSearchBar() {
                           currencyFormat.format(_amountRange.start),
                           currencyFormat.format(_amountRange.end),
                         ),
-                        activeColor: primaryColor,
+                        activeColor: Theme.of(context).colorScheme.primary,
                         inactiveColor: Colors.grey.shade200,
                         onChanged: (RangeValues values) {
                           setState(() {
@@ -1967,7 +1967,7 @@ Widget _buildSearchBar() {
                       CheckboxListTile(
                         title: const Text('Show only recurring transactions'),
                         value: _showOnlyRecurring,
-                        activeColor: primaryColor,
+                        activeColor: Theme.of(context).colorScheme.primary,
                         contentPadding: EdgeInsets.zero,
                         controlAffinity: ListTileControlAffinity.leading,
                         onChanged: (value) {
@@ -1990,7 +1990,7 @@ Widget _buildSearchBar() {
                                 });
                               },
                               style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: primaryColor),
+                                side: BorderSide(color: Theme.of(context).colorScheme.primary),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -1998,7 +1998,7 @@ Widget _buildSearchBar() {
                               ),
                               child: Text(
                                 'Reset',
-                                style: TextStyle(color: primaryColor),
+                                style: TextStyle(color: Theme.of(context).colorScheme.primary),
                               ),
                             ),
                           ),
@@ -2011,7 +2011,7 @@ Widget _buildSearchBar() {
                                 // TODO: Apply filters to transaction provider
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryColor,
+                                backgroundColor: Theme.of(context).colorScheme.primary,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -2049,7 +2049,7 @@ Widget _buildSearchBar() {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: primaryColor,
+              primary: Theme.of(context).colorScheme.primary,
               onPrimary: Colors.white,
               onSurface: Colors.black,
             ),
@@ -2089,7 +2089,7 @@ Widget _buildSearchBar() {
                   currencyFormat.format(_amountRange.start),
                   currencyFormat.format(_amountRange.end),
                 ),
-                activeColor: primaryColor,
+                activeColor: Theme.of(context).colorScheme.primary,
                 inactiveColor: Colors.grey.shade200,
                 onChanged: (RangeValues values) {
                   setState(() {
@@ -2136,7 +2136,7 @@ Widget _buildSearchBar() {
               // TODO: Apply amount filter
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
             ),
             child: const Text('Apply'),
@@ -2208,7 +2208,7 @@ Widget _buildSearchBar() {
                     Navigator.pop(context);
                     // TODO: Apply category filter
                   },
-                  activeColor: primaryColor,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                 )).toList(),
               ),
@@ -2312,7 +2312,7 @@ Widget _buildSearchBar() {
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
-                                            color: secondaryColor,
+                                            color: Theme.of(context).colorScheme.secondary,
                                           ),
                                         ),
                                         const SizedBox(height: 4),
