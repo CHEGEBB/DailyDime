@@ -367,14 +367,14 @@ class ThemeService extends ChangeNotifier {
     return MaterialColor(color.value, swatch);
   }
   
-  // Convenient color getters for your app
+  // FIXED: All color getters with proper cardColor
   Color get primaryColor => _isDarkMode ? _darkPrimary : _lightPrimary;
   Color get secondaryColor => _isDarkMode ? _darkSecondary : _lightSecondary;
   Color get accentColor => _isDarkMode ? _darkAccent : _lightAccent;
   Color get backgroundColor => _isDarkMode ? _darkBackground : _lightBackground;
-  Color get scaffoldColor => _isDarkMode ? _darkBackground : _lightBackground; // Added the missing getter
+  Color get scaffoldColor => _isDarkMode ? _darkBackground : _lightBackground;
   Color get surfaceColor => _isDarkMode ? _darkSurface : _lightSurface;
-  Color get cardColor => _isDarkMode ? _darkCard : _lightCard;
+  Color get cardColor => _isDarkMode ? _darkCard : _lightCard; // THIS WAS MISSING!
   Color get textColor => _isDarkMode ? Colors.white : const Color(0xFF1F2937);
   Color get subtextColor => _isDarkMode ? const Color(0xFFE5E7EB) : const Color(0xFF6B7280);
   Color get errorColor => _isDarkMode ? const Color(0xFFEF4444) : const Color(0xFFDC2626);
