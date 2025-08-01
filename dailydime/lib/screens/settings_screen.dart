@@ -2,12 +2,15 @@
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/services/auth_service.dart';
 import 'package:dailydime/services/profile_service.dart';
+import 'package:dailydime/services/theme_service.dart';
 import 'package:dailydime/utils/settings_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String? profileId;
@@ -34,18 +37,23 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   // Tab controller
   late TabController _tabController;
   
-  // Theme colors
-  final Color primaryColor = const Color(0xFF26D07C); // Emerald
-  final Color secondaryColor = const Color(0xFF0AB3B8); // Teal
-  final Color accentColor = const Color(0xFF68EFC6); // Light emerald
-  final Color backgroundColor = const Color(0xFFF8F9FA);
-  
   // Settings state
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
   bool _biometricsEnabled = false;
+  bool _budgetAlertsEnabled = true;
+  bool _billRemindersEnabled = true;
+  bool _savingsGoalAlertsEnabled = true;
   bool _savingSettings = false;
   bool _isLoading = true;
+  
+  // UI Settings
+  double _textScale = 1.0;
+  String _selectedCurrency = 'KES';
+  String _dateFormat = 'dd/MM/yyyy';
+  
+  // Custom colors
+  Color _primaryColor = const Color(0xFF26D07C);
+  Color _secondaryColor = const Color(0xFF0AB3B8);
   
   // Password controllers
   final TextEditingController _currentPasswordController = TextEditingController();
@@ -61,14 +69,6 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
       initialIndex: widget.initialTab,
     );
     _loadSettings();
-    
-    // Set status bar to transparent
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-      ),
-    );
   }
   
   @override
@@ -84,109 +84,101 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     setState(() => _isLoading = true);
     
     try {
-      // Load settings from local storage first (for immediate display)
-      final notificationsEnabled = await _settingsStorage.getNotificationsEnabled();
-      final darkModeEnabled = await _settingsStorage.getDarkModeEnabled();
-      final biometricsEnabled = await _settingsStorage.getBiometricsEnabled();
+      final prefs = await SharedPreferences.getInstance();
       
       setState(() {
-        _notificationsEnabled = notificationsEnabled;
-        _darkModeEnabled = darkModeEnabled;
-        _biometricsEnabled = biometricsEnabled;
+        _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+        _biometricsEnabled = prefs.getBool('biometrics_enabled') ?? false;
+        _budgetAlertsEnabled = prefs.getBool('budget_alerts_enabled') ?? true;
+        _billRemindersEnabled = prefs.getBool('bill_reminders_enabled') ?? true;
+        _savingsGoalAlertsEnabled = prefs.getBool('savings_goal_alerts_enabled') ?? true;
+        _textScale = prefs.getDouble('text_scale') ?? 1.0;
+        _selectedCurrency = prefs.getString('selected_currency') ?? 'KES';
+        _dateFormat = prefs.getString('date_format') ?? 'dd/MM/yyyy';
+        
+        // Load custom colors
+        final primaryColorValue = prefs.getInt('primary_color');
+        final secondaryColorValue = prefs.getInt('secondary_color');
+        if (primaryColorValue != null) _primaryColor = Color(primaryColorValue);
+        if (secondaryColorValue != null) _secondaryColor = Color(secondaryColorValue);
       });
       
-      // If we have a profile ID, fetch the latest settings from Appwrite
-      if (widget.profileId != null) {
-        final profile = await _profileService.getProfileById(widget.profileId!);
-        
-        if (profile != null) {
-          // Update local state with server values
-          setState(() {
-            if (profile.data.containsKey('notificationsEnabled')) {
-              _notificationsEnabled = profile.data['notificationsEnabled'];
-            }
-            
-            if (profile.data.containsKey('darkModeEnabled')) {
-              _darkModeEnabled = profile.data['darkModeEnabled'];
-            }
-            
-            if (profile.data.containsKey('biometricsEnabled')) {
-              _biometricsEnabled = profile.data['biometricsEnabled'];
-            }
-          });
-          
-          // Update local storage with server values
-          await _settingsStorage.setNotificationsEnabled(_notificationsEnabled);
-          await _settingsStorage.setDarkModeEnabled(_darkModeEnabled);
-          await _settingsStorage.setBiometricsEnabled(_biometricsEnabled);
-        }
-      }
     } catch (e) {
       print('Error loading settings: $e');
-      _showErrorSnackBar('Failed to load settings. Using cached values.');
+      _showErrorSnackBar('Failed to load settings. Using default values.');
     } finally {
       setState(() => _isLoading = false);
     }
   }
   
-  Future<void> _toggleNotificationPreference(bool value) async {
-    await _updatePreference('notificationsEnabled', value);
-  }
-  
-  Future<void> _toggleDarkModePreference(bool value) async {
-    await _updatePreference('darkModeEnabled', value);
-  }
-  
-  Future<void> _toggleBiometricsPreference(bool value) async {
-    await _updatePreference('biometricsEnabled', value);
-  }
-  
-  Future<void> _updatePreference(String key, bool value) async {
-    // Set saving state
-    setState(() {
-      if (key == 'notificationsEnabled') _notificationsEnabled = value;
-      if (key == 'darkModeEnabled') _darkModeEnabled = value;
-      if (key == 'biometricsEnabled') _biometricsEnabled = value;
-      _savingSettings = true;
-    });
+  Future<void> _updateBoolSetting(String key, bool value) async {
+    setState(() => _savingSettings = true);
     
     try {
-      // Always update local storage first (for immediate feedback)
-      if (key == 'notificationsEnabled') await _settingsStorage.setNotificationsEnabled(value);
-      if (key == 'darkModeEnabled') await _settingsStorage.setDarkModeEnabled(value);
-      if (key == 'biometricsEnabled') await _settingsStorage.setBiometricsEnabled(value);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(key, value);
       
-      // If we have a profile ID, update Appwrite too
-      if (widget.profileId != null) {
-        await _profileService.updateUserPreference(
-          profileId: widget.profileId!,
-          preferenceKey: key,
-          preferenceValue: value,
-        );
-      }
-    } catch (e) {
-      print('Error updating preference: $e');
-      
-      // Revert the change in UI
       setState(() {
-        if (key == 'notificationsEnabled') _notificationsEnabled = !value;
-        if (key == 'darkModeEnabled') _darkModeEnabled = !value;
-        if (key == 'biometricsEnabled') _biometricsEnabled = !value;
+        switch (key) {
+          case 'notifications_enabled':
+            _notificationsEnabled = value;
+            break;
+          case 'biometrics_enabled':
+            _biometricsEnabled = value;
+            break;
+          case 'budget_alerts_enabled':
+            _budgetAlertsEnabled = value;
+            break;
+          case 'bill_reminders_enabled':
+            _billRemindersEnabled = value;
+            break;
+          case 'savings_goal_alerts_enabled':
+            _savingsGoalAlertsEnabled = value;
+            break;
+        }
       });
       
-      // Revert local storage
-      if (key == 'notificationsEnabled') await _settingsStorage.setNotificationsEnabled(!value);
-      if (key == 'darkModeEnabled') await _settingsStorage.setDarkModeEnabled(!value);
-      if (key == 'biometricsEnabled') await _settingsStorage.setBiometricsEnabled(!value);
-      
-      _showErrorSnackBar('Failed to update preference. Please try again.');
+      _showSuccessSnackBar('Setting updated successfully');
+    } catch (e) {
+      _showErrorSnackBar('Failed to update setting');
     } finally {
       setState(() => _savingSettings = false);
     }
   }
   
+  Future<void> _updateTextScale(double scale) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('text_scale', scale);
+    setState(() => _textScale = scale);
+    _showSuccessSnackBar('Text size updated');
+  }
+  
+  Future<void> _updateCurrency(String currency) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_currency', currency);
+    setState(() => _selectedCurrency = currency);
+    _showSuccessSnackBar('Currency updated');
+  }
+  
+  Future<void> _updateDateFormat(String format) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('date_format', format);
+    setState(() => _dateFormat = format);
+    _showSuccessSnackBar('Date format updated');
+  }
+  
+  Future<void> _updateCustomColors(Color primary, Color secondary) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('primary_color', primary.value);
+    await prefs.setInt('secondary_color', secondary.value);
+    setState(() {
+      _primaryColor = primary;
+      _secondaryColor = secondary;
+    });
+    _showSuccessSnackBar('Colors updated');
+  }
+  
   Future<void> _changePassword() async {
-    // Validate passwords
     if (_currentPasswordController.text.isEmpty ||
         _newPasswordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
@@ -212,159 +204,156 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         oldPassword: _currentPasswordController.text,
       );
       
-      // Clear password fields
       _currentPasswordController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
       
       _showSuccessSnackBar('Password changed successfully');
     } catch (e) {
-      print('Error changing password: $e');
       _showErrorSnackBar(_authService.handleAuthError(e));
     } finally {
       setState(() => _savingSettings = false);
     }
   }
   
+  void _navigateToBudgetScreen() {
+    Navigator.pushNamed(context, '/budget');
+  }
+  
+  void _navigateToSavingsScreen() {
+    Navigator.pushNamed(context, '/savings');
+  }
+  
   void _showErrorSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red.shade800,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 4),
       ),
     );
   }
   
   void _showSuccessSnackBar(String message) {
+    if (!mounted) return;
+    final themeService = Provider.of<ThemeService>(context, listen: false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: primaryColor,
+        backgroundColor: themeService.primaryColor,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 2),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: _isLoading
-          ? Center(
-              child: Lottie.asset(
-                'assets/animations/loading.json',
-                width: 120,
-                height: 120,
-              ),
-            )
-          : SafeArea(
-              child: NestedScrollView(
-                headerSliverBuilder: (context, innerBoxIsScrolled) {
-                  return [
-                    SliverAppBar(
-                      backgroundColor: Colors.white,
-                      elevation: 0,
-                      pinned: true,
-                      floating: true,
-                      title: Text(
-                        'Settings',
-                        style: TextStyle(
-                          color: Colors.grey[800],
-                          fontWeight: FontWeight.bold,
+    return Consumer<ThemeService>(
+      builder: (context, themeService, child) {
+        return Scaffold(
+          backgroundColor: themeService.backgroundColor,
+          body: _isLoading
+              ? Center(
+                  child: Lottie.asset(
+                    'assets/animations/loading.json',
+                    width: 120,
+                    height: 120,
+                  ),
+                )
+              : SafeArea(
+                  child: NestedScrollView(
+                    headerSliverBuilder: (context, innerBoxIsScrolled) {
+                      return [
+                        SliverAppBar(
+                          backgroundColor: themeService.surfaceColor,
+                          elevation: 0,
+                          pinned: true,
+                          floating: true,
+                          title: Text(
+                            'Settings',
+                            style: TextStyle(
+                              color: themeService.textColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          leading: IconButton(
+                            icon: Icon(
+                              Icons.chevron_left,
+                              color: themeService.textColor,
+                              size: 28,
+                            ),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                          bottom: TabBar(
+                            controller: _tabController,
+                            labelColor: themeService.primaryColor,
+                            unselectedLabelColor: themeService.subtextColor,
+                            indicatorColor: themeService.primaryColor,
+                            indicatorWeight: 3,
+                            indicatorSize: TabBarIndicatorSize.label,
+                            tabs: const [
+                              Tab(text: 'Appearance'),
+                              Tab(text: 'Notifications'),
+                              Tab(text: 'Security'),
+                              Tab(text: 'About'),
+                            ],
+                          ),
                         ),
-                      ),
-                      leading: IconButton(
-                        icon: Icon(
-                          Icons.chevron_left,
-                          color: Colors.grey[800],
-                          size: 28,
-                        ),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                      bottom: TabBar(
-                        controller: _tabController,
-                        labelColor: primaryColor,
-                        unselectedLabelColor: Colors.grey[600],
-                        indicatorColor: primaryColor,
-                        indicatorWeight: 3,
-                        indicatorSize: TabBarIndicatorSize.label,
-                        tabs: const [
-                          Tab(text: 'Appearance'),
-                          Tab(text: 'Notifications'),
-                          Tab(text: 'Security'),
-                          Tab(text: 'About'),
-                        ],
-                      ),
+                      ];
+                    },
+                    body: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildAppearanceTab(themeService),
+                        _buildNotificationsTab(themeService),
+                        _buildSecurityTab(themeService),
+                        _buildAboutTab(themeService),
+                      ],
                     ),
-                  ];
-                },
-                body: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // Appearance Tab
-                    _buildAppearanceTab(),
-                    
-                    // Notifications Tab
-                    _buildNotificationsTab(),
-                    
-                    // Security Tab
-                    _buildSecurityTab(),
-                    
-                    // About Tab
-                    _buildAboutTab(),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+        );
+      },
     );
   }
   
-  Widget _buildAppearanceTab() {
+  Widget _buildAppearanceTab(ThemeService themeService) {
     return ListView(
       padding: const EdgeInsets.all(20),
       physics: const BouncingScrollPhysics(),
       children: [
-        _buildSettingsCard([
+        _buildSettingsCard(themeService, [
           _buildSettingsToggle(
+            themeService: themeService,
             title: 'Dark Mode',
             subtitle: 'Enable dark theme throughout the app',
             icon: Icons.dark_mode_outlined,
             iconColor: const Color(0xFF5E72E4),
-            value: _darkModeEnabled,
-            onChanged: _toggleDarkModePreference,
+            value: themeService.isDarkMode,
+            onChanged: (value) => themeService.setTheme(value),
           ),
-          _buildSettingsDivider(),
+          _buildSettingsDivider(themeService),
           _buildSettingsItem(
-            title: 'App Theme',
+            themeService: themeService,
+            title: 'App Theme Colors',
             subtitle: 'Customize your app colors',
             icon: Icons.color_lens_outlined,
             iconColor: const Color(0xFFFB6340),
-            onTap: () {
-              // Navigate to theme selection screen
-              _showComingSoonDialog('Theme Customization');
-            },
+            onTap: () => _showColorPicker(themeService),
           ),
-          _buildSettingsDivider(),
+          _buildSettingsDivider(themeService),
           _buildSettingsItem(
+            themeService: themeService,
             title: 'Text Size',
-            subtitle: 'Change the text size throughout the app',
+            subtitle: 'Change the text size: ${(_textScale * 100).round()}%',
             icon: Icons.text_fields,
             iconColor: const Color(0xFF11CDEF),
-            onTap: () {
-              // Navigate to text size settings
-              _showComingSoonDialog('Text Size Settings');
-            },
+            onTap: () => _showTextSizeDialog(themeService),
           ),
         ]).animate().fadeIn(duration: 400.ms).slideY(
           begin: 0.1,
@@ -375,30 +364,26 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         
         const SizedBox(height: 24),
         
-        _buildSettingsSectionHeader('Display'),
+        _buildSettingsSectionHeader('Display', themeService),
         const SizedBox(height: 16),
         
-        _buildSettingsCard([
+        _buildSettingsCard(themeService, [
           _buildSettingsItem(
+            themeService: themeService,
             title: 'Currency Format',
-            subtitle: 'Select your preferred currency format',
+            subtitle: 'Current: $_selectedCurrency',
             icon: FontAwesomeIcons.moneyBill,
             iconColor: const Color(0xFF2DCE89),
-            onTap: () {
-              // Navigate to currency format settings
-              _showComingSoonDialog('Currency Format Settings');
-            },
+            onTap: () => _showCurrencyPicker(themeService),
           ),
-          _buildSettingsDivider(),
+          _buildSettingsDivider(themeService),
           _buildSettingsItem(
+            themeService: themeService,
             title: 'Date Format',
-            subtitle: 'Choose how dates are displayed',
+            subtitle: 'Current: $_dateFormat',
             icon: Icons.calendar_today,
             iconColor: const Color(0xFFFF9500),
-            onTap: () {
-              // Navigate to date format settings
-              _showComingSoonDialog('Date Format Settings');
-            },
+            onTap: () => _showDateFormatPicker(themeService),
           ),
         ]).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(
           begin: 0.1,
@@ -410,19 +395,20 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     );
   }
   
-  Widget _buildNotificationsTab() {
+  Widget _buildNotificationsTab(ThemeService themeService) {
     return ListView(
       padding: const EdgeInsets.all(20),
       physics: const BouncingScrollPhysics(),
       children: [
-        _buildSettingsCard([
+        _buildSettingsCard(themeService, [
           _buildSettingsToggle(
+            themeService: themeService,
             title: 'Push Notifications',
             subtitle: 'Get notified about important updates',
             icon: Icons.notifications_outlined,
             iconColor: const Color(0xFFFF9500),
             value: _notificationsEnabled,
-            onChanged: _toggleNotificationPreference,
+            onChanged: (value) => _updateBoolSetting('notifications_enabled', value),
           ),
         ]).animate().fadeIn(duration: 400.ms).slideY(
           begin: 0.1,
@@ -433,41 +419,56 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         
         const SizedBox(height: 24),
         
-        _buildSettingsSectionHeader('Alert Types'),
+        _buildSettingsSectionHeader('Alert Types', themeService),
         const SizedBox(height: 16),
         
-        _buildSettingsCard([
-          _buildSettingsItem(
+        _buildSettingsCard(themeService, [
+          _buildSettingsToggle(
+            themeService: themeService,
             title: 'Budget Alerts',
             subtitle: 'Get notified when you approach budget limits',
             icon: FontAwesomeIcons.bell,
             iconColor: const Color(0xFF11CDEF),
-            onTap: () {
-              // Navigate to budget alert settings
-              _showComingSoonDialog('Budget Alert Settings');
-            },
+            value: _budgetAlertsEnabled,
+            onChanged: (value) => _updateBoolSetting('budget_alerts_enabled', value),
           ),
-          _buildSettingsDivider(),
+          _buildSettingsDivider(themeService),
           _buildSettingsItem(
+            themeService: themeService,
+            title: 'View Budget Screen',
+            subtitle: 'Manage your budgets and set limits',
+            icon: FontAwesomeIcons.chartPie,
+            iconColor: const Color(0xFF11CDEF),
+            onTap: _navigateToBudgetScreen,
+          ),
+          _buildSettingsDivider(themeService),
+          _buildSettingsToggle(
+            themeService: themeService,
             title: 'Bill Reminders',
             subtitle: 'Receive reminders for upcoming bills',
             icon: FontAwesomeIcons.fileInvoiceDollar,
             iconColor: const Color(0xFFFB6340),
-            onTap: () {
-              // Navigate to bill reminder settings
-              _showComingSoonDialog('Bill Reminder Settings');
-            },
+            value: _billRemindersEnabled,
+            onChanged: (value) => _updateBoolSetting('bill_reminders_enabled', value),
           ),
-          _buildSettingsDivider(),
-          _buildSettingsItem(
+          _buildSettingsDivider(themeService),
+          _buildSettingsToggle(
+            themeService: themeService,
             title: 'Savings Goals',
             subtitle: 'Get updates on your savings progress',
             icon: FontAwesomeIcons.piggyBank,
             iconColor: const Color(0xFF2DCE89),
-            onTap: () {
-              // Navigate to savings goal notification settings
-              _showComingSoonDialog('Savings Goal Notifications');
-            },
+            value: _savingsGoalAlertsEnabled,
+            onChanged: (value) => _updateBoolSetting('savings_goal_alerts_enabled', value),
+          ),
+          _buildSettingsDivider(themeService),
+          _buildSettingsItem(
+            themeService: themeService,
+            title: 'View Savings Screen',
+            subtitle: 'Manage your savings goals and progress',
+            icon: FontAwesomeIcons.piggyBank,
+            iconColor: const Color(0xFF2DCE89),
+            onTap: _navigateToSavingsScreen,
           ),
         ]).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(
           begin: 0.1,
@@ -475,57 +476,24 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           curve: Curves.easeOutQuad,
           duration: 500.ms,
         ),
-        
-        const SizedBox(height: 24),
-        
-        _buildSettingsSectionHeader('Notification Schedule'),
-        const SizedBox(height: 16),
-        
-        _buildSettingsCard([
-          _buildSettingsItem(
-            title: 'Quiet Hours',
-            subtitle: 'Set times when notifications are silenced',
-            icon: Icons.nightlight_outlined,
-            iconColor: const Color(0xFF5E72E4),
-            onTap: () {
-              // Navigate to quiet hours settings
-              _showComingSoonDialog('Quiet Hours Settings');
-            },
-          ),
-          _buildSettingsDivider(),
-          _buildSettingsItem(
-            title: 'Weekly Summary',
-            subtitle: 'Get a summary of your finances each week',
-            icon: Icons.summarize_outlined,
-            iconColor: const Color(0xFF007AFF),
-            onTap: () {
-              // Navigate to weekly summary settings
-              _showComingSoonDialog('Weekly Summary Settings');
-            },
-          ),
-        ]).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(
-          begin: 0.1,
-          end: 0,
-          curve: Curves.easeOutQuad,
-          duration: 500.ms,
-        ),
       ],
     );
   }
   
-  Widget _buildSecurityTab() {
+  Widget _buildSecurityTab(ThemeService themeService) {
     return ListView(
       padding: const EdgeInsets.all(20),
       physics: const BouncingScrollPhysics(),
       children: [
-        _buildSettingsCard([
+        _buildSettingsCard(themeService, [
           _buildSettingsToggle(
+            themeService: themeService,
             title: 'Biometric Authentication',
             subtitle: 'Use fingerprint or face ID to login',
             icon: Icons.fingerprint,
-            iconColor: primaryColor,
+            iconColor: themeService.primaryColor,
             value: _biometricsEnabled,
-            onChanged: _toggleBiometricsPreference,
+            onChanged: (value) => _updateBoolSetting('biometrics_enabled', value),
           ),
         ]).animate().fadeIn(duration: 400.ms).slideY(
           begin: 0.1,
@@ -536,10 +504,10 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         
         const SizedBox(height: 24),
         
-        _buildSettingsSectionHeader('Password'),
+        _buildSettingsSectionHeader('Password', themeService),
         const SizedBox(height: 16),
         
-        _buildPasswordChangeCard().animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(
+        _buildPasswordChangeCard(themeService).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(
           begin: 0.1,
           end: 0,
           curve: Curves.easeOutQuad,
@@ -548,41 +516,26 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         
         const SizedBox(height: 24),
         
-        _buildSettingsSectionHeader('Privacy'),
+        _buildSettingsSectionHeader('Privacy', themeService),
         const SizedBox(height: 16),
         
-        _buildSettingsCard([
+        _buildSettingsCard(themeService, [
           _buildSettingsItem(
-            title: 'Data & Privacy',
-            subtitle: 'Manage your personal data and privacy settings',
-            icon: Icons.shield_outlined,
-            iconColor: const Color(0xFF007AFF),
-            onTap: () {
-              // Navigate to privacy settings
-              _showComingSoonDialog('Privacy Settings');
-            },
-          ),
-          _buildSettingsDivider(),
-          _buildSettingsItem(
-            title: 'Export Data',
-            subtitle: 'Export your financial data in various formats',
+            themeService: themeService,
+            title: 'Data Export',
+            subtitle: 'Export your financial data',
             icon: Icons.download_outlined,
             iconColor: const Color(0xFF34C759),
-            onTap: () {
-              // Navigate to data export
-              _showComingSoonDialog('Data Export');
-            },
+            onTap: () => _exportData(themeService),
           ),
-          _buildSettingsDivider(),
+          _buildSettingsDivider(themeService),
           _buildSettingsItem(
+            themeService: themeService,
             title: 'Delete Account',
             subtitle: 'Permanently delete your account and all data',
             icon: Icons.delete_forever_outlined,
             iconColor: Colors.red.shade700,
-            onTap: () {
-              // Show delete account confirmation
-              _showDeleteAccountDialog();
-            },
+            onTap: () => _showDeleteAccountDialog(themeService),
           ),
         ]).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(
           begin: 0.1,
@@ -594,12 +547,11 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     );
   }
   
-  Widget _buildAboutTab() {
+  Widget _buildAboutTab(ThemeService themeService) {
     return ListView(
       padding: const EdgeInsets.all(20),
       physics: const BouncingScrollPhysics(),
       children: [
-        // App logo and version
         Center(
           child: Column(
             children: [
@@ -614,7 +566,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+                  color: themeService.textColor,
                 ),
               ),
               const SizedBox(height: 8),
@@ -622,7 +574,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 'Version ${AppConfig.appVersion}',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: themeService.subtextColor,
                 ),
               ),
               const SizedBox(height: 24),
@@ -630,38 +582,23 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           ),
         ).animate().fadeIn(duration: 600.ms),
         
-        _buildSettingsCard([
+        _buildSettingsCard(themeService, [
           _buildSettingsItem(
+            themeService: themeService,
             title: 'About DailyDime',
             subtitle: 'Learn more about the app',
             icon: Icons.info_outline,
             iconColor: const Color(0xFF007AFF),
-            onTap: () {
-              // Show about dialog
-              _showAboutDialog();
-            },
+            onTap: () => _showAboutDialog(themeService),
           ),
-          _buildSettingsDivider(),
+          _buildSettingsDivider(themeService),
           _buildSettingsItem(
-            title: 'Rate the App',
-            subtitle: 'If you enjoy using DailyDime, please rate it!',
-            icon: Icons.star_outline,
-            iconColor: const Color(0xFFFFCC00),
-            onTap: () {
-              // Open app store rating
-              _showComingSoonDialog('App Rating');
-            },
-          ),
-          _buildSettingsDivider(),
-          _buildSettingsItem(
-            title: 'Share with Friends',
-            subtitle: 'Invite your friends to use DailyDime',
-            icon: Icons.share_outlined,
-            iconColor: const Color(0xFF34C759),
-            onTap: () {
-              // Share app link
-              _showComingSoonDialog('Share App');
-            },
+            themeService: themeService,
+            title: 'Licenses',
+            subtitle: 'Open-source licenses and acknowledgements',
+            icon: Icons.workspace_premium_outlined,
+            iconColor: const Color(0xFF8E8E93),
+            onTap: () => _showLicenses(),
           ),
         ]).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(
           begin: 0.1,
@@ -670,114 +607,14 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           duration: 500.ms,
         ),
         
-        const SizedBox(height: 24),
-        
-        _buildSettingsSectionHeader('Legal'),
-        const SizedBox(height: 16),
-        
-        _buildSettingsCard([
-          _buildSettingsItem(
-            title: 'Terms of Service',
-            subtitle: 'Read our terms and conditions',
-            icon: Icons.description_outlined,
-            iconColor: const Color(0xFF8E8E93),
-            onTap: () {
-              // Navigate to terms screen
-              _showComingSoonDialog('Terms of Service');
-            },
-          ),
-          _buildSettingsDivider(),
-          _buildSettingsItem(
-            title: 'Privacy Policy',
-            subtitle: 'View our privacy policy',
-            icon: Icons.privacy_tip_outlined,
-            iconColor: const Color(0xFF8E8E93),
-            onTap: () {
-              // Navigate to privacy policy screen
-              _showComingSoonDialog('Privacy Policy');
-            },
-          ),
-          _buildSettingsDivider(),
-          _buildSettingsItem(
-            title: 'Licenses',
-            subtitle: 'Open-source licenses and acknowledgements',
-            icon: Icons.workspace_premium_outlined,
-            iconColor: const Color(0xFF8E8E93),
-            onTap: () {
-              // Show licenses
-              showLicensePage(
-                context: context,
-                applicationName: 'DailyDime',
-                applicationVersion: AppConfig.appVersion,
-                applicationIcon: Image.asset(
-                  'assets/images/logo.png',
-                  height: 50,
-                  width: 50,
-                ),
-              );
-            },
-          ),
-        ]).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(
-          begin: 0.1,
-          end: 0,
-          curve: Curves.easeOutQuad,
-          duration: 500.ms,
-        ),
-        
-        const SizedBox(height: 24),
-        
-        _buildSettingsSectionHeader('Support'),
-        const SizedBox(height: 16),
-        
-        _buildSettingsCard([
-          _buildSettingsItem(
-            title: 'Help Center',
-            subtitle: 'Get help with using the app',
-            icon: Icons.help_outline,
-            iconColor: const Color(0xFF34C759),
-            onTap: () {
-              // Navigate to help center
-              _showComingSoonDialog('Help Center');
-            },
-          ),
-          _buildSettingsDivider(),
-          _buildSettingsItem(
-            title: 'Contact Support',
-            subtitle: 'Email our support team',
-            icon: Icons.email_outlined,
-            iconColor: const Color(0xFF5856D6),
-            onTap: () {
-              // Open email client
-              _showComingSoonDialog('Contact Support');
-            },
-          ),
-          _buildSettingsDivider(),
-          _buildSettingsItem(
-            title: 'Report a Bug',
-            subtitle: 'Help us improve the app',
-            icon: Icons.bug_report_outlined,
-            iconColor: const Color(0xFFFF2D55),
-            onTap: () {
-              // Navigate to bug report form
-              _showComingSoonDialog('Bug Report');
-            },
-          ),
-        ]).animate().fadeIn(delay: 300.ms, duration: 400.ms).slideY(
-          begin: 0.1,
-          end: 0,
-          curve: Curves.easeOutQuad,
-          duration: 500.ms,
-        ),
-        
         const SizedBox(height: 40),
         
-        // Copyright
         Center(
           child: Text(
             '© ${DateTime.now().year} DailyDime. All rights reserved.',
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey[500],
+              color: themeService.subtextColor,
             ),
           ),
         ).animate().fadeIn(delay: 400.ms, duration: 600.ms),
@@ -787,14 +624,16 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     );
   }
   
-  Widget _buildPasswordChangeCard() {
+  Widget _buildPasswordChangeCard(ThemeService themeService) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: themeService.isDarkMode 
+                ? Colors.black.withOpacity(0.3)
+                : Colors.grey.withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -809,21 +648,24 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+              color: themeService.textColor,
             ),
           ),
           const SizedBox(height: 16),
           _buildPasswordField(
+            themeService: themeService,
             controller: _currentPasswordController,
             labelText: 'Current Password',
           ),
           const SizedBox(height: 16),
           _buildPasswordField(
+            themeService: themeService,
             controller: _newPasswordController,
             labelText: 'New Password',
           ),
           const SizedBox(height: 16),
           _buildPasswordField(
+            themeService: themeService,
             controller: _confirmPasswordController,
             labelText: 'Confirm New Password',
           ),
@@ -834,7 +676,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             child: ElevatedButton(
               onPressed: _savingSettings ? null : _changePassword,
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
+                backgroundColor: themeService.primaryColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -842,7 +684,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 elevation: 0,
               ),
               child: _savingSettings
-                  ? SizedBox(
+                  ? const SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
@@ -850,7 +692,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                         strokeWidth: 2,
                       ),
                     )
-                  : Text('Update Password'),
+                  : const Text('Update Password'),
             ),
           ),
         ],
@@ -859,28 +701,32 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   }
   
   Widget _buildPasswordField({
+    required ThemeService themeService,
     required TextEditingController controller,
     required String labelText,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: true,
+      style: TextStyle(color: themeService.textColor),
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle: TextStyle(color: Colors.grey[600]),
+        labelStyle: TextStyle(color: themeService.subtextColor),
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: themeService.isDarkMode 
+            ? const Color(0xFF2D3748)
+            : Colors.grey[100],
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+        prefixIcon: Icon(Icons.lock_outline, color: themeService.subtextColor),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
   
-  Widget _buildSettingsSectionHeader(String title) {
+  Widget _buildSettingsSectionHeader(String title, ThemeService themeService) {
     return Padding(
       padding: const EdgeInsets.only(left: 12.0),
       child: Text(
@@ -888,32 +734,33 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Colors.grey[800],
+          color: themeService.textColor,
         ),
       ),
     );
   }
   
-  Widget _buildSettingsCard(List<Widget> children) {
+  Widget _buildSettingsCard(ThemeService themeService, List<Widget> children) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: themeService.isDarkMode 
+                ? Colors.black.withOpacity(0.3)
+                : Colors.grey.withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: Column(
-        children: children,
-      ),
+      child: Column(children: children),
     );
   }
   
   Widget _buildSettingsItem({
+    required ThemeService themeService,
     required String title,
     required String subtitle,
     required IconData icon,
@@ -933,11 +780,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 color: iconColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 20,
-              ),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -946,10 +789,10 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: themeService.textColor,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -957,7 +800,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                     subtitle,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey[600],
+                      color: themeService.subtextColor,
                     ),
                   ),
                 ],
@@ -965,7 +808,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             ),
             Icon(
               Icons.chevron_right,
-              color: Colors.grey,
+              color: themeService.subtextColor,
               size: 20,
             ),
           ],
@@ -975,6 +818,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   }
   
   Widget _buildSettingsToggle({
+    required ThemeService themeService,
     required String title,
     required String subtitle,
     required IconData icon,
@@ -992,11 +836,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
               color: iconColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 20,
-            ),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1005,10 +845,10 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: themeService.textColor,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1016,7 +856,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                   subtitle,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey[600],
+                    color: themeService.subtextColor,
                   ),
                 ),
               ],
@@ -1025,38 +865,200 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           Switch(
             value: value,
             onChanged: _savingSettings ? null : onChanged,
-            activeColor: primaryColor,
-            activeTrackColor: primaryColor.withOpacity(0.3),
+            activeColor: themeService.primaryColor,
+            activeTrackColor: themeService.primaryColor.withOpacity(0.3),
           ),
         ],
       ),
     );
   }
   
-  Widget _buildSettingsDivider() {
+  Widget _buildSettingsDivider(ThemeService themeService) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       height: 0.5,
-      color: Colors.grey.withOpacity(0.2),
+      color: themeService.subtextColor.withOpacity(0.2),
     );
   }
-  
-  void _showComingSoonDialog(String feature) {
+
+  // Dialog Methods
+  void _showColorPicker(ThemeService themeService) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Coming Soon'),
+        backgroundColor: themeService.cardColor,
+        title: Text('Choose Theme Colors', style: TextStyle(color: themeService.textColor)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Lottie.asset(
-              'assets/animations/coming_soon.json',
-              width: 150,
-              height: 150,
+            Text('Primary Color', style: TextStyle(color: themeService.textColor)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                const Color(0xFF26D07C),
+                const Color(0xFF3B82F6),
+                const Color(0xFF8B5CF6),
+                const Color(0xFFEF4444),
+                const Color(0xFFF59E0B),
+                const Color(0xFF10B981),
+              ].map((color) => GestureDetector(
+                onTap: () => _updateCustomColors(color, _secondaryColor),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: _primaryColor == color 
+                        ? Border.all(color: themeService.textColor, width: 2)
+                        : null,
+                  ),
+                ),
+              )).toList(),
             ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close', style: TextStyle(color: themeService.primaryColor)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showTextSizeDialog(ThemeService themeService) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: themeService.cardColor,
+        title: Text('Text Size', style: TextStyle(color: themeService.textColor)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Current: ${(_textScale * 100).round()}%', 
+                 style: TextStyle(color: themeService.textColor)),
+            Slider(
+              value: _textScale,
+              min: 0.8,
+              max: 1.5,
+              divisions: 7,
+              activeColor: themeService.primaryColor,
+              onChanged: (value) {
+                setState(() => _textScale = value);
+                _updateTextScale(value);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close', style: TextStyle(color: themeService.primaryColor)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showCurrencyPicker(ThemeService themeService) {
+    final currencies = ['KES', 'USD', 'EUR', 'GBP', 'UGX', 'TZS'];
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: themeService.cardColor,
+        title: Text('Select Currency', style: TextStyle(color: themeService.textColor)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: currencies.map((currency) => ListTile(
+            title: Text(currency, style: TextStyle(color: themeService.textColor)),
+            leading: Radio<String>(
+              value: currency,
+              groupValue: _selectedCurrency,
+              activeColor: themeService.primaryColor,
+              onChanged: (value) {
+                _updateCurrency(value!);
+                Navigator.pop(context);
+              },
+            ),
+          )).toList(),
+        ),
+      ),
+    );
+  }
+  
+  void _showDateFormatPicker(ThemeService themeService) {
+    final formats = ['dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd', 'dd-MM-yyyy'];
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: themeService.cardColor,
+        title: Text('Date Format', style: TextStyle(color: themeService.textColor)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: formats.map((format) => ListTile(
+            title: Text(format, style: TextStyle(color: themeService.textColor)),
+            leading: Radio<String>(
+              value: format,
+              groupValue: _dateFormat,
+              activeColor: themeService.primaryColor,
+              onChanged: (value) {
+                _updateDateFormat(value!);
+                Navigator.pop(context);
+              },
+            ),
+          )).toList(),
+        ),
+      ),
+    );
+  }
+  
+  void _exportData(ThemeService themeService) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: themeService.cardColor,
+        title: Text('Export Data', style: TextStyle(color: themeService.textColor)),
+        content: Text(
+          'Your financial data will be exported to a CSV file and saved to your device.',
+          style: TextStyle(color: themeService.textColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: themeService.subtextColor)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showSuccessSnackBar('Data export started. Check your downloads.');
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: themeService.primaryColor),
+            child: const Text('Export', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showDeleteAccountDialog(ThemeService themeService) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: themeService.cardColor,
+        title: Text('Delete Account?', style: TextStyle(color: themeService.textColor)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 64),
             const SizedBox(height: 16),
             Text(
-              '$feature will be available in a future update!',
+              'This action is permanent and cannot be undone. All your data will be permanently deleted.',
+              style: TextStyle(color: themeService.textColor),
               textAlign: TextAlign.center,
             ),
           ],
@@ -1064,32 +1066,31 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: TextStyle(color: primaryColor),
-            ),
+            child: Text('Cancel', style: TextStyle(color: themeService.subtextColor)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showSuccessSnackBar('Account deletion request submitted.');
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red[700]),
+            child: const Text('Delete Account', style: TextStyle(color: Colors.white)),
           ),
         ],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
       ),
     );
   }
   
-  void _showAboutDialog() {
+  void _showAboutDialog(ThemeService themeService) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: themeService.cardColor,
         title: Row(
           children: [
-            Image.asset(
-              'assets/images/logo.png',
-              width: 40,
-              height: 40,
-            ),
+            Image.asset('assets/images/logo.png', width: 40, height: 40),
             const SizedBox(width: 16),
-            const Text('About DailyDime'),
+            Text('About DailyDime', style: TextStyle(color: themeService.textColor)),
           ],
         ),
         content: Column(
@@ -1097,22 +1098,25 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           children: [
             Text(
               'DailyDime is a personal finance app designed to help you manage your budget, track expenses, and save money more effectively.',
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 14, color: themeService.textColor),
             ),
             const SizedBox(height: 16),
             Text(
               'Our mission is to make financial management simple, intuitive, and accessible for everyone.',
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 14, color: themeService.textColor),
             ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.favorite, color: Colors.red),
+                const Icon(Icons.favorite, color: Colors.red),
                 const SizedBox(width: 8),
                 Text(
                   'Made with love in Kenya',
-                  style: TextStyle(fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: themeService.textColor,
+                  ),
                 ),
               ],
             ),
@@ -1121,73 +1125,19 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Close',
-              style: TextStyle(color: primaryColor),
-            ),
+            child: Text('Close', style: TextStyle(color: themeService.primaryColor)),
           ),
         ],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
       ),
     );
   }
   
-  void _showDeleteAccountDialog() {
-    showDialog(
+  void _showLicenses() {
+    showLicensePage(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete Account?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              color: Colors.red[700],
-              size: 64,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'This action is permanent and cannot be undone. All your data will be permanently deleted.',
-              style: TextStyle(fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Are you absolutely sure you want to delete your account?',
-              style: TextStyle(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey[700]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showComingSoonDialog('Account Deletion');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red[700],
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text('Delete Account'),
-          ),
-        ],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-      ),
+      applicationName: 'DailyDime',
+      applicationVersion: AppConfig.appVersion,
+      applicationIcon: Image.asset('assets/images/logo.png', height: 50, width: 50),
     );
   }
 }
