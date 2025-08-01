@@ -23,23 +23,23 @@ class TransactionAdapter extends TypeAdapter<Transaction> {
       date: fields[3] as DateTime,
       category: fields[4] as String,
       isExpense: fields[5] as bool,
-      icon: fields[6] as IconData,
-      color: fields[7] as Color,
-      mpesaCode: fields[8] as String?,
-      isSms: fields[9] as bool,
-      rawSms: fields[10] as String?,
-      sender: fields[11] as String?,
-      recipient: fields[12] as String?,
-      agent: fields[13] as String?,
-      business: fields[14] as String?,
-      balance: fields[15] as double?,
+      mpesaCode: fields[9] as String?,
+      isSms: fields[10] as bool,
+      rawSms: fields[11] as String?,
+      sender: fields[12] as String?,
+      recipient: fields[13] as String?,
+      agent: fields[14] as String?,
+      business: fields[15] as String?,
+      balance: fields[16] as double?,
+      description: fields[17] as String?,
+      iconPath: fields[18] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Transaction obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(19)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,25 +53,31 @@ class TransactionAdapter extends TypeAdapter<Transaction> {
       ..writeByte(5)
       ..write(obj.isExpense)
       ..writeByte(6)
-      ..write(obj.icon)
+      ..write(obj.iconCodePoint)
       ..writeByte(7)
-      ..write(obj.color)
+      ..write(obj.iconFontFamily)
       ..writeByte(8)
-      ..write(obj.mpesaCode)
+      ..write(obj.colorValue)
       ..writeByte(9)
-      ..write(obj.isSms)
+      ..write(obj.mpesaCode)
       ..writeByte(10)
-      ..write(obj.rawSms)
+      ..write(obj.isSms)
       ..writeByte(11)
-      ..write(obj.sender)
+      ..write(obj.rawSms)
       ..writeByte(12)
-      ..write(obj.recipient)
+      ..write(obj.sender)
       ..writeByte(13)
-      ..write(obj.agent)
+      ..write(obj.recipient)
       ..writeByte(14)
-      ..write(obj.business)
+      ..write(obj.agent)
       ..writeByte(15)
-      ..write(obj.balance);
+      ..write(obj.business)
+      ..writeByte(16)
+      ..write(obj.balance)
+      ..writeByte(17)
+      ..write(obj.description)
+      ..writeByte(18)
+      ..write(obj.iconPath);
   }
 
   @override
