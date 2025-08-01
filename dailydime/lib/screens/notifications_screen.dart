@@ -552,25 +552,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Option 1: Use a fallback with error handling
               SizedBox(
                 width: 200,
                 height: 200,
-                child: FutureBuilder(
-                  future: _loadLottieAnimation(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      // Fallback to a simple icon animation
-                      return _buildFallbackAnimation(themeService);
-                    }
-                    return Lottie.asset(
-                      'assets/animations/notifications.json',
-                      fit: BoxFit.contain,
-                      repeat: true,
-                      animate: true,
-                      errorBuilder: (context, error, stackTrace) {
-                        return _buildFallbackAnimation(themeService);
-                      },
+                child: Lottie.asset(
+                  'assets/animations/notification.json',
+                  fit: BoxFit.contain,
+                  repeat: true,
+                  animate: true,
+                  // Add these properties to handle the error
+                  frameRate: FrameRate.max,
+                  errorBuilder: (context, error, stackTrace) {
+                    debugPrint('Lottie error: $error');
+                    // Return a temporary placeholder while you fix the file
+                    return Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        color: themeService.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(
+                        Icons.notifications_outlined,
+                        size: 80,
+                        color: themeService.primaryColor,
+                      ),
                     );
                   },
                 ),
@@ -622,38 +628,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
       ],
     ),
-  );
-}
-
-// Add this helper method to your class
-Future<void> _loadLottieAnimation() async {
-  // This will throw an error if the Lottie file is corrupted
-  await Future.delayed(const Duration(milliseconds: 100));
-}
-
-// Add this fallback animation widget
-Widget _buildFallbackAnimation(ThemeService themeService) {
-  return TweenAnimationBuilder<double>(
-    tween: Tween(begin: 0.0, end: 1.0),
-    duration: const Duration(seconds: 2),
-    builder: (context, value, child) {
-      return Transform.scale(
-        scale: 0.8 + (0.2 * value),
-        child: Container(
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(
-            color: themeService.primaryColor.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.notifications_none_rounded,
-            size: 60,
-            color: themeService.primaryColor.withOpacity(0.7),
-          ),
-        ),
-      );
-    },
   );
 }
 
