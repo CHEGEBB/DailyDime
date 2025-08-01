@@ -1,37 +1,65 @@
 // lib/models/app_notification.dart
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
-part 'app_notification.g.dart'; 
+part 'app_notification.g.dart';
+
+@HiveType(typeId: 5)
+enum NotificationType {
+  @HiveField(0)
+  transaction,
+  
+  @HiveField(1)
+  budget,
+  
+  @HiveField(2)
+  goal,
+  
+  @HiveField(3)
+  balance,
+  
+  @HiveField(4)
+  system,
+  
+  @HiveField(5)
+  reminder,
+  
+  @HiveField(6)
+  challenge,
+  
+  @HiveField(7)
+  alert,
+  
+  @HiveField(8)
+  achievement,
+}
 
 @HiveType(typeId: 4)
 class AppNotification extends HiveObject {
   @HiveField(0)
-  String id;
-
+  final String id;
+  
   @HiveField(1)
-  String title;
-
+  final String title;
+  
   @HiveField(2)
-  String body;
-
+  final String body;
+  
   @HiveField(3)
-  DateTime timestamp;
-
+  final DateTime timestamp;
+  
   @HiveField(4)
-  NotificationType type;
-
+  final NotificationType type;
+  
   @HiveField(5)
   bool isRead;
-
+  
   @HiveField(6)
-  Map<String, dynamic>? data;
-
+  final Map<String, dynamic>? data;
+  
   @HiveField(7)
-  String? iconName;
-
-  @HiveField(8)
-  String? actionData;
+  final String? actionData;
 
   AppNotification({
     required this.id,
@@ -41,30 +69,31 @@ class AppNotification extends HiveObject {
     required this.type,
     this.isRead = false,
     this.data,
-    this.iconName,
-    this.actionData,
+    this.actionData, String? iconName,
   });
+
+  String get timeAgo => timeago.format(timestamp);
 
   IconData get icon {
     switch (type) {
       case NotificationType.transaction:
-        return Icons.account_balance_wallet;
+        return Icons.receipt_long;
       case NotificationType.budget:
-        return Icons.pie_chart;
+        return Icons.account_balance_wallet;
       case NotificationType.goal:
         return Icons.flag;
-      case NotificationType.challenge:
-        return Icons.emoji_events;
       case NotificationType.balance:
         return Icons.account_balance;
+      case NotificationType.system:
+        return Icons.notifications;
       case NotificationType.reminder:
         return Icons.alarm;
+      case NotificationType.challenge:
+        return Icons.emoji_events;
       case NotificationType.alert:
-        return Icons.warning;
+        return Icons.warning_amber;
       case NotificationType.achievement:
         return Icons.star;
-      case NotificationType.system:
-        return Icons.settings;
     }
   }
 
@@ -73,60 +102,23 @@ class AppNotification extends HiveObject {
       case NotificationType.transaction:
         return Colors.blue;
       case NotificationType.budget:
-        return Colors.orange;
-      case NotificationType.goal:
         return Colors.green;
-      case NotificationType.challenge:
+      case NotificationType.goal:
         return Colors.purple;
       case NotificationType.balance:
         return Colors.teal;
+      case NotificationType.system:
+        return Colors.grey;
       case NotificationType.reminder:
-        return Colors.amber;
+        return Colors.orange;
+      case NotificationType.challenge:
+        return Colors.indigo;
       case NotificationType.alert:
         return Colors.red;
       case NotificationType.achievement:
-        return Colors.yellow;
-      case NotificationType.system:
-        return Colors.grey;
+        return Colors.amber;
     }
   }
 
-  String get timeAgo {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return '${difference.inDays ~/ 7}w ago';
-    }
-  }
-}
-
-@HiveType(typeId: 5)
-enum NotificationType {
-  @HiveField(0)
-  transaction,
-  @HiveField(1)
-  budget,
-  @HiveField(2)
-  goal,
-  @HiveField(3)
-  challenge,
-  @HiveField(4)
-  balance,
-  @HiveField(5)
-  reminder,
-  @HiveField(6)
-  alert,
-  @HiveField(7)
-  achievement,
-  @HiveField(8)
-  system,
+  get iconName => null;
 }

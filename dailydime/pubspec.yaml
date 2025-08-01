@@ -65,6 +65,7 @@ dev_dependencies:
   blurrycontainer: ^1.0.2
   flutter_sms_inbox: ^1.0.4
   flutter_slidable: ^4.0.0
+  timeago: ^3.1.0
 
 flutter:
   uses-material-design: true
