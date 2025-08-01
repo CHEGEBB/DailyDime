@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:dailydime/models/transaction.dart';
 import 'package:dailydime/services/storage_service.dart';
 import 'package:dailydime/services/appwrite_service.dart';
+import 'package:dailydime/services/app_notification_service.dart';
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/services/notification_service.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -43,6 +44,22 @@ void backgroundMessageHandler(SmsMessage message) async {
         await BalanceService.instance.updateBalance(transaction.balance ?? 0.0, transaction.date);
       }
       
+      // ADD THIS: AppNotificationService call in background
+      try {
+        await AppNotificationService().addTransactionNotification(
+          'New Transaction',
+          '${transaction.isExpense ? 'Spent' : 'Received'} ${AppConfig.formatCurrency(transaction.amount.toInt() * 100)}',
+          data: {
+            'transactionId': transaction.id,
+            'amount': transaction.amount,
+            'type': transaction.isExpense ? 'expense' : 'income',
+          },
+        );
+      } catch (e) {
+        // Silent fail in background
+      }
+      
+      // Keep your existing Flutter local notification
       final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
       const androidPlatformChannelSpecifics = AndroidNotificationDetails(
         'mpesa_channel', 
@@ -196,41 +213,55 @@ class SmsService {
   }
   
   void _processMessage(SmsMessage message) {
-    debugPrint('SMS received: ${message.address} - ${message.body?.substring(0, 20)}...');
-    
-    if (_isMpesaMessage(message)) {
-      debugPrint('M-Pesa message detected');
-      final transaction = _parseMpesaMessage(message);
-      if (transaction != null) {
-        debugPrint('Successfully parsed M-Pesa transaction: ${transaction.title}');
-        
-        _transactionStreamController.add(transaction);
-        
-        // Update balance if present
-        if (transaction.balance != null && transaction.balance! > 0) {
-          BalanceService.instance.updateBalance(transaction.balance ?? 0.0, transaction.date);
-          debugPrint('Balance updated: ${transaction.balance}');
-        }
-        
-        StorageService.instance.saveTransaction(transaction).then((_) {
-          debugPrint('Transaction saved locally');
-        }).catchError((e) {
-          debugPrint('Error saving transaction locally: $e');
-        });
-        
-        NotificationService().showTransactionNotification(
-          transaction.title,
-          '${AppConfig.formatCurrency(transaction.amount.toInt() * 100)} ${transaction.isExpense ? 'sent' : 'received'}',
-        );
-        
-        AppwriteService().syncTransaction(transaction).then((_) {
-          debugPrint('Transaction synced with Appwrite');
-        }).catchError((e) {
-          debugPrint('Error syncing with Appwrite: $e');
-        });
+  debugPrint('SMS received: ${message.address} - ${message.body?.substring(0, 20)}...');
+  
+  if (_isMpesaMessage(message)) {
+    debugPrint('M-Pesa message detected');
+    final transaction = _parseMpesaMessage(message);
+    if (transaction != null) {
+      debugPrint('Successfully parsed M-Pesa transaction: ${transaction.title}');
+      
+      _transactionStreamController.add(transaction);
+      
+      // Update balance if present
+      if (transaction.balance != null && transaction.balance! > 0) {
+        BalanceService.instance.updateBalance(transaction.balance ?? 0.0, transaction.date);
+        debugPrint('Balance updated: ${transaction.balance}');
       }
+      
+      StorageService.instance.saveTransaction(transaction).then((_) {
+        debugPrint('Transaction saved locally');
+      }).catchError((e) {
+        debugPrint('Error saving transaction locally: $e');
+      });
+      
+      // ADD THIS: AppNotificationService call
+      AppNotificationService().addTransactionNotification(
+        'New Transaction',
+        '${transaction.isExpense ? 'Spent' : 'Received'} ${AppConfig.formatCurrency(transaction.amount.toInt() * 100)}',
+        data: {
+          'transactionId': transaction.id,
+          'amount': transaction.amount,
+          'type': transaction.isExpense ? 'expense' : 'income',
+        },
+      ).catchError((e) {
+        debugPrint('Error adding app notification: $e');
+      });
+      
+      // Keep your existing notification service call
+      NotificationService().showTransactionNotification(
+        transaction.title,
+        '${AppConfig.formatCurrency(transaction.amount.toInt() * 100)} ${transaction.isExpense ? 'sent' : 'received'}',
+      );
+      
+      AppwriteService().syncTransaction(transaction).then((_) {
+        debugPrint('Transaction synced with Appwrite');
+      }).catchError((e) {
+        debugPrint('Error syncing with Appwrite: $e');
+      });
     }
   }
+}
   
   Future<List<Transaction>> loadHistoricalMpesaMessages() async {
     List<Transaction> transactions = [];
