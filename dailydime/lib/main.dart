@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:dailydime/screens/splash_screen.dart';
 import 'package:dailydime/services/theme_service.dart';
+import 'package:dailydime/services/app_notification_service.dart'; // ADD THIS IMPORT
 import 'package:dailydime/providers/transaction_provider.dart';
 import 'package:dailydime/providers/budget_provider.dart'; 
 import 'package:dailydime/providers/savings_provider.dart';
@@ -28,6 +29,10 @@ class MyApp extends StatelessWidget {
         // Theme service - should be first so other providers can use it
         ChangeNotifierProvider(
           create: (context) => ThemeService(),
+        ),
+        // ADD THIS PROVIDER FOR NOTIFICATIONS
+        ChangeNotifierProvider(
+          create: (context) => AppNotificationService(),
         ),
         ChangeNotifierProvider(
           create: (context) => TransactionProvider(),
