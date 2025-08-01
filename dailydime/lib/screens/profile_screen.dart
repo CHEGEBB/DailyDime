@@ -42,6 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   models.User? _currentUser;
   models.Document? _userProfile;
   String? _profileImageUrl;
+  String? _profileImageId; // Store the image ID separately
   File? _imageFile;
   Uint8List? _webImageBytes;
   bool _isLoading = true;
@@ -92,91 +93,109 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Future<void> _loadUserData() async {
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
+  
+  try {
+    // Get current user from Appwrite
+    _currentUser = await _authService.getCurrentUser();
     
-    try {
-      // Get current user from Appwrite
-      _currentUser = await _authService.getCurrentUser();
+    if (_currentUser != null) {
+      // Initialize controllers with current user data
+      _nameController.text = _currentUser!.name;
+      _emailController.text = _currentUser!.email;
       
-      if (_currentUser != null) {
-        // Initialize controllers with current user data
-        _nameController.text = _currentUser!.name;
-        _emailController.text = _currentUser!.email;
+      // Try to fetch user profile document
+      try {
+        _userProfile = await _profileService.getUserProfile(_currentUser!.$id);
         
-        // Try to fetch user profile document
-        try {
-          _userProfile = await _profileService.getUserProfile(_currentUser!.$id);
+        if (_userProfile != null) {
+          // Set phone number if available
+          if (_userProfile!.data.containsKey('phone') && _userProfile!.data['phone'] != null) {
+            _phoneController.text = _userProfile!.data['phone'];
+          }
           
-          if (_userProfile != null) {
-            // Set phone number if available
-            if (_userProfile!.data.containsKey('phone') && _userProfile!.data['phone'] != null) {
-              _phoneController.text = _userProfile!.data['phone'];
-            }
-            
-            // Set occupation if available
-            if (_userProfile!.data.containsKey('occupation') && _userProfile!.data['occupation'] != null) {
-              _occupationController.text = _userProfile!.data['occupation'];
-            }
-            
-            // Set location if available
-            if (_userProfile!.data.containsKey('location') && _userProfile!.data['location'] != null) {
-              _locationController.text = _userProfile!.data['location'];
-            }
-            
-            // Store preferences in local storage
+          // Set occupation if available
+          if (_userProfile!.data.containsKey('occupation') && _userProfile!.data['occupation'] != null) {
+            _occupationController.text = _userProfile!.data['occupation'];
+          }
+          
+          // Set location if available
+          if (_userProfile!.data.containsKey('location') && _userProfile!.data['location'] != null) {
+            _locationController.text = _userProfile!.data['location'];
+          }
+          
+          // Store preferences in local storage with error handling
+          try {
             if (_userProfile!.data.containsKey('notificationsEnabled')) {
               await _settingsStorage.setNotificationsEnabled(
                 _userProfile!.data['notificationsEnabled']
               );
             }
-            
-            // Get profile image URL if available
-            if (_userProfile!.data.containsKey('profileImageId') && 
-                _userProfile!.data['profileImageId'] != null) {
-              try {
-                _profileImageUrl = await _profileService.getProfileImageUrl(
-                  _userProfile!.data['profileImageId']
-                );
-                _imageError = false;
-              } catch (e) {
-                print('Error loading profile image: $e');
-                _imageError = true;
-              }
-            }
-          } else {
-            // Create a new profile document if none exists
-            await _createNewProfile();
+          } catch (hiveError) {
+            print('Hive storage error (non-critical): $hiveError');
+            // Continue without local storage if Hive isn't initialized
           }
-        } catch (e) {
-          print('Error loading profile: $e');
-          // Create a new profile document if there was an error
+          
+          // Get profile image URL if available
+          await _loadProfileImage();
+        } else {
+          // Create a new profile document if none exists
           await _createNewProfile();
         }
+      } catch (e) {
+        print('Error loading profile: $e');
+        // Create a new profile document if there was an error
+        await _createNewProfile();
       }
-    } catch (e) {
-      print('Error in _loadUserData: $e');
-      _showErrorSnackBar('Failed to load profile data. Please try again.');
-    } finally {
-      setState(() => _isLoading = false);
-      _animationController.forward();
     }
+  } catch (e) {
+    print('Error in _loadUserData: $e');
+    _showErrorSnackBar('Failed to load profile data. Please try again.');
+  } finally {
+    setState(() => _isLoading = false);
+    _animationController.forward();
   }
+}
+
+
+ Future<void> _loadProfileImage() async {
+  if (_userProfile != null && 
+      _userProfile!.data.containsKey('profileImageId') && 
+      _userProfile!.data['profileImageId'] != null) {
+    try {
+      _profileImageId = _userProfile!.data['profileImageId'];
+      
+      // Generate the image URL with proper encoding and no cache-busting for now
+      _profileImageUrl = '${AppConfig.appwriteEndpoint}/storage/buckets/${AppConfig.mainBucket}/files/$_profileImageId/view?project=${AppConfig.appwriteProjectId}&mode=admin';
+      
+      print('Profile image URL: $_profileImageUrl');
+      _imageError = false;
+    } catch (e) {
+      print('Error loading profile image: $e');
+      _imageError = true;
+      _profileImageUrl = null;
+    }
+  } else {
+    _profileImageUrl = null;
+    _profileImageId = null;
+  }
+}
   
   Future<void> _createNewProfile() async {
-    if (_currentUser == null) return;
-    
-    try {
-      // Create a new profile document with basic user info
-      _userProfile = await _profileService.createUserProfile(
-        userId: _currentUser!.$id,
-        name: _currentUser!.name,
-        email: _currentUser!.email,
-      );
-    } catch (e) {
-      print('Error creating profile: $e');
-    }
+  if (_currentUser == null) return;
+  
+  try {
+    // Create a new profile document with only valid attributes
+    _userProfile = await _profileService.createUserProfile(
+      userId: _currentUser!.$id,
+      name: _currentUser!.name,
+      email: _currentUser!.email,
+      // Remove any invalid attributes like 'darkModeEnabled'
+    );
+  } catch (e) {
+    print('Error creating profile: $e');
   }
-
+}
   Future<void> _pickImage() async {
     try {
       if (kIsWeb) {
@@ -199,6 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     if (result != null && result.files.isNotEmpty) {
       setState(() {
         _webImageBytes = result.files.first.bytes;
+        _imageError = false;
       });
       
       // Upload image immediately
@@ -217,6 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
+        _imageError = false;
       });
       
       // Upload image immediately
@@ -225,7 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
   
   Future<void> _uploadProfileImageWeb() async {
-    if (_webImageBytes == null || _currentUser == null) return;
+    if (_webImageBytes == null || _currentUser == null || _userProfile == null) return;
     
     setState(() => _isSaving = true);
     
@@ -245,9 +266,22 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           imageId: imageId,
         );
         
-        // Get the image URL
-        _profileImageUrl = await _profileService.getProfileImageUrl(imageId);
+        // Update local state
+        _profileImageId = imageId;
+        
+        // Generate new image URL with cache-busting
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        _profileImageUrl = '${AppConfig.appwriteEndpoint}/storage/buckets/${AppConfig.mainBucket}/files/$imageId/view?project=${AppConfig.appwriteProjectId}&mode=admin&cache=$timestamp';
+        
         _imageError = false;
+        
+        // Clear cached image to force reload
+        if (_profileImageUrl != null) {
+          await CachedNetworkImage.evictFromCache(_profileImageUrl!);
+        }
+        
+        // Reload profile to get updated data
+        await _reloadProfile();
         
         _showSuccessSnackBar('Profile picture updated successfully');
       }
@@ -256,12 +290,15 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       _showErrorSnackBar('Error uploading image. Please try again.');
       _imageError = true;
     } finally {
-      setState(() => _isSaving = false);
+      setState(() {
+        _isSaving = false;
+        _webImageBytes = null; // Clear the temporary image
+      });
     }
   }
   
   Future<void> _uploadProfileImageMobile() async {
-    if (_imageFile == null || _currentUser == null) return;
+    if (_imageFile == null || _currentUser == null || _userProfile == null) return;
     
     setState(() => _isSaving = true);
     
@@ -281,9 +318,22 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           imageId: imageId,
         );
         
-        // Get the image URL
-        _profileImageUrl = await _profileService.getProfileImageUrl(imageId);
+        // Update local state
+        _profileImageId = imageId;
+        
+        // Generate new image URL with cache-busting
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        _profileImageUrl = '${AppConfig.appwriteEndpoint}/storage/buckets/${AppConfig.mainBucket}/files/$imageId/view?project=${AppConfig.appwriteProjectId}&mode=admin&cache=$timestamp';
+        
         _imageError = false;
+        
+        // Clear cached image to force reload
+        if (_profileImageUrl != null) {
+          await CachedNetworkImage.evictFromCache(_profileImageUrl!);
+        }
+        
+        // Reload profile to get updated data
+        await _reloadProfile();
         
         _showSuccessSnackBar('Profile picture updated successfully');
       }
@@ -292,7 +342,21 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       _showErrorSnackBar('Error uploading image. Please try again.');
       _imageError = true;
     } finally {
-      setState(() => _isSaving = false);
+      setState(() {
+        _isSaving = false;
+        _imageFile = null; // Clear the temporary image
+      });
+    }
+  }
+
+  Future<void> _reloadProfile() async {
+    try {
+      if (_currentUser != null) {
+        _userProfile = await _profileService.getUserProfile(_currentUser!.$id);
+        await _loadProfileImage();
+      }
+    } catch (e) {
+      print('Error reloading profile: $e');
     }
   }
   
@@ -880,63 +944,86 @@ Widget _buildProfileHeader({
 }
   
   Widget _buildProfileImage(double size) {
-    // If there's a web image that's been selected but not yet uploaded
-    if (_webImageBytes != null) {
-      return Image.memory(
-        _webImageBytes!,
-        fit: BoxFit.cover,
-        width: size,
-        height: size,
-      );
-    }
-    
-    // If there's a mobile image that's been selected but not yet uploaded
-    if (_imageFile != null) {
-      return Image.file(
-        _imageFile!,
-        fit: BoxFit.cover,
-        width: size,
-        height: size,
-      );
-    }
-    
-    // If there's a profile image URL and no error loading it
-    if (_profileImageUrl != null && !_imageError) {
-      return CachedNetworkImage(
-        imageUrl: _profileImageUrl!,
-        fit: BoxFit.cover,
-        width: size,
-        height: size,
-        placeholder: (context, url) => Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
-          child: Container(
-            width: size,
-            height: size,
-            color: Colors.white,
-          ),
-        ),
-        errorWidget: (context, url, error) {
-          // Set image error flag if there's an error loading the image
-          if (!_imageError) {
-            setState(() => _imageError = true);
-          }
-          return Icon(
-            Icons.person,
-            size: size * 0.6,
-            color: Colors.white,
-          );
-        },
-      );
-    }
-    
-    // Default placeholder
-    return Icon(
-      Icons.person,
-      size: size * 0.6,
-      color: Colors.white,
+  // If there's a web image that's been selected but not yet uploaded
+  if (_webImageBytes != null) {
+    return Image.memory(
+      _webImageBytes!,
+      fit: BoxFit.cover,
+      width: size,
+      height: size,
+      errorBuilder: (context, error, stackTrace) {
+        print('Memory image error: $error');
+        return _buildDefaultAvatar(size);
+      },
     );
   }
+  
+  // If there's a mobile image that's been selected but not yet uploaded
+  if (_imageFile != null) {
+    return Image.file(
+      _imageFile!,
+      fit: BoxFit.cover,
+      width: size,
+      height: size,
+      errorBuilder: (context, error, stackTrace) {
+        print('File image error: $error');
+        return _buildDefaultAvatar(size);
+      },
+    );
+  }
+  
+  // If there's a profile image URL and no error loading it
+  if (_profileImageUrl != null && !_imageError) {
+    return CachedNetworkImage(
+      imageUrl: _profileImageUrl!,
+      fit: BoxFit.cover,
+      width: size,
+      height: size,
+      placeholder: (context, url) => Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Container(
+          width: size,
+          height: size,
+          color: Colors.white,
+        ),
+      ),
+      errorWidget: (context, url, error) {
+        print('CachedNetworkImage error: $error');
+        print('Failed URL: $url');
+        // Set image error flag if there's an error loading the image
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_imageError) {
+            setState(() => _imageError = true);
+          }
+        });
+        return _buildDefaultAvatar(size);
+      },
+      httpHeaders: const {
+        'Cache-Control': 'no-cache',
+      },
+    );
+  }
+  
+  // Default placeholder
+  return _buildDefaultAvatar(size);
+}
+
+Widget _buildDefaultAvatar(double size) {
+  return Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: Colors.grey[300],
+      borderRadius: BorderRadius.circular(size / 2),
+    ),
+    child: Icon(
+      Icons.person,
+      size: size * 0.6,
+      color: Colors.grey[600],
+    ),
+  );
+}
   
   Widget _buildIconButton({
     required IconData icon,

@@ -385,17 +385,24 @@ class ProfileService {
   }
 
   // Get profile image URL
-  Future<String> getProfileImageUrl(String imageId) async {
-    try {
-      return _storage.getFileView(
-        bucketId: AppConfig.mainBucket,
-        fileId: imageId,
-      ).toString();
-    } catch (e) {
-      rethrow;
-    }
+  // Future<String> getProfileImageUrl(String imageId) async {
+  //   try {
+  //     return _storage.getFileView(
+  //       bucketId: AppConfig.mainBucket,
+  //       fileId: imageId,
+  //     ).toString();
+  //   } catch (e) {
+  //     rethrow;
+  //   }
+  // }
+Future<String> getProfileImageUrl(String imageId) async {
+  try {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '${AppConfig.appwriteEndpoint}/storage/buckets/${AppConfig.mainBucket}/files/$imageId/view?project=${AppConfig.appwriteProjectId}&mode=admin&cache=$timestamp';
+  } catch (e) {
+    rethrow;
   }
-
+}
   // Delete a profile
   Future<void> deleteProfile(String profileId) async {
     try {
