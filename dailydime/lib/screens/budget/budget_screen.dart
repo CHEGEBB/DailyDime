@@ -1141,7 +1141,7 @@ Widget _buildBudgetOverviewCard({
           Column(
   children: budgets.take(3).map((budget) {
     int index = budgets.indexOf(budget);
-    return _buildBudgetListItem(context, budget, themeService.primaryColor, index);
+    return _buildBudgetListItem(context, budget, themeService.primaryColor, index as ThemeService);
   }).toList(),
 ),
         
@@ -1553,286 +1553,286 @@ Widget _buildBudgetOverviewCard({
   );
 }
   
-  Widget _buildBudgetListItem(BuildContext context, Budget budget, Color accentColor, dynamic themeService) {
-    final percentageUsed = budget.percentageUsed;
-    final isOverBudget = budget.isOverBudget;
-    final Color progressColor = isOverBudget 
-        ? Colors.red
-        : percentageUsed > 0.8 
-            ? Colors.orange
-            : budget.color;
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: themeService.cardColor,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: themeService.isDarkMode ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Dismissible(
-        key: Key(budget.id),
-        background: Container(
-          decoration: BoxDecoration(
-            color: Colors.red,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 20),
-          child: const Icon(
-            Icons.delete,
-            color: Colors.white,
-          ),
+  Widget _buildBudgetListItem(BuildContext context, Budget budget, Color accentColor, ThemeService themeService) {
+  final percentageUsed = budget.percentageUsed;
+  final isOverBudget = budget.isOverBudget;
+  final Color progressColor = isOverBudget 
+      ? Colors.red
+      : percentageUsed > 0.8 
+          ? Colors.orange
+          : budget.color;
+  
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    decoration: BoxDecoration(
+      color: themeService.cardColor,
+      borderRadius: BorderRadius.circular(8),
+      boxShadow: [
+        BoxShadow(
+          color: themeService.isDarkMode ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
         ),
-        direction: DismissDirection.endToStart,
-        confirmDismiss: (direction) async {
-          return await showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                backgroundColor: themeService.cardColor,
-                title: Text("Delete Budget", style: TextStyle(color: themeService.textColor)),
-                content: Text("Are you sure you want to delete ${budget.title} budget?", style: TextStyle(color: themeService.textColor)),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: Text("Cancel", style: TextStyle(color: themeService.textColor)),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text("Delete", style: TextStyle(color: Colors.red)),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-        onDismissed: (direction) {
-          final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
-          budgetProvider.deleteBudget(budget.id);
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: themeService.surfaceColor,
-              content: Text('${budget.title} budget deleted', style: TextStyle(color: themeService.textColor)),
-              action: SnackBarAction(
-                label: 'Undo',
-                textColor: themeService.primaryColor,
-                onPressed: () {
-                  budgetProvider.createBudget(budget);
-                },
-              ),
-            ),
-          );
-        },
-        child: InkWell(
-          onTap: () => _showBudgetDetails(context, budget, accentColor, themeService),
+      ],
+    ),
+    child: Dismissible(
+      key: Key(budget.id),
+      background: Container(
+        decoration: BoxDecoration(
+          color: Colors.red,
           borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: budget.color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        budget.icon,
-                        color: budget.color,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            budget.title,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'DMsans',
-                              fontWeight: FontWeight.bold,
-                              color: themeService.textColor,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _getPeriodText(budget.period),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'DMsans',
-                              color: themeService.subtextColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        if (isOverBudget)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.warning,
-                                  color: Colors.red,
-                                  size: 12,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Over',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    fontFamily: 'DMsans',
-                                    color: Colors.red.shade700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        PopupMenuButton<String>(
-                          icon: Icon(Icons.more_vert, color: themeService.textColor),
-                          color: themeService.cardColor,
-                          onSelected: (value) {
-                            _handleBudgetAction(context, value, budget, themeService);
-                          },
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: 'edit',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit, size: 18, color: themeService.textColor),
-                                  const SizedBox(width: 8),
-                                  Text('Edit Budget', style: TextStyle(color: themeService.textColor)),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'reset',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.refresh, size: 18, color: themeService.textColor),
-                                  const SizedBox(width: 8),
-                                  Text('Reset Spent', style: TextStyle(color: themeService.textColor)),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'toggle',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    budget.isActive ? Icons.visibility_off : Icons.visibility,
-                                    size: 18,
-                                    color: themeService.textColor,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(budget.isActive ? 'Deactivate' : 'Activate', style: TextStyle(color: themeService.textColor)),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.delete, size: 18, color: Colors.red),
-                                  const SizedBox(width: 8),
-                                  const Text('Delete', style: TextStyle(color: Colors.red)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(
+          Icons.delete,
+          color: Colors.white,
+        ),
+      ),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (direction) async {
+        return await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: themeService.cardColor,
+              title: Text("Delete Budget", style: TextStyle(color: themeService.textColor)),
+              content: Text("Are you sure you want to delete ${budget.title} budget?", style: TextStyle(color: themeService.textColor)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text("Cancel", style: TextStyle(color: themeService.textColor)),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      onDismissed: (direction) {
+        final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+        budgetProvider.deleteBudget(budget.id);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: themeService.surfaceColor,
+            content: Text('${budget.title} budget deleted', style: TextStyle(color: themeService.textColor)),
+            action: SnackBarAction(
+              label: 'Undo',
+              textColor: themeService.primaryColor,
+              onPressed: () {
+                budgetProvider.createBudget(budget);
+              },
+            ),
+          ),
+        );
+      },
+      child: InkWell(
+        onTap: () => _showBudgetDetails(context, budget, accentColor, themeService),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: budget.color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      budget.icon,
+                      color: budget.color,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'KES ${budget.spent.toInt()}',
+                          budget.title,
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                             fontFamily: 'DMsans',
-                            color: isOverBudget ? Colors.red : themeService.textColor,
+                            fontWeight: FontWeight.bold,
+                            color: themeService.textColor,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'of KES ${budget.amount.toInt()}',
+                          _getPeriodText(budget.period),
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             fontFamily: 'DMsans',
                             color: themeService.subtextColor,
                           ),
                         ),
                       ],
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          isOverBudget 
-                              ? '-KES ${(budget.spent - budget.amount).toInt()}'
-                              : 'KES ${budget.remaining.toInt()} left',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: isOverBudget ? Colors.red : Colors.green.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${(percentageUsed * 100).toInt()}% used',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: progressColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: percentageUsed > 1.0 ? 1.0 : percentageUsed,
-                    backgroundColor: themeService.isDarkMode ? Colors.grey.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
-                    valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-                    minHeight: 8,
                   ),
+                  Row(
+                    children: [
+                      if (isOverBudget)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.warning,
+                                color: Colors.red,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Over',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  fontFamily: 'DMsans',
+                                  color: Colors.red.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert, color: themeService.textColor),
+                        color: themeService.cardColor,
+                        onSelected: (value) {
+                          _handleBudgetAction(context, value, budget, themeService);
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 18, color: themeService.textColor),
+                                const SizedBox(width: 8),
+                                Text('Edit Budget', style: TextStyle(color: themeService.textColor)),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'reset',
+                            child: Row(
+                              children: [
+                                Icon(Icons.refresh, size: 18, color: themeService.textColor),
+                                const SizedBox(width: 8),
+                                Text('Reset Spent', style: TextStyle(color: themeService.textColor)),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'toggle',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  budget.isActive ? Icons.visibility_off : Icons.visibility,
+                                  size: 18,
+                                  color: themeService.textColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(budget.isActive ? 'Deactivate' : 'Activate', style: TextStyle(color: themeService.textColor)),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.delete, size: 18, color: Colors.red),
+                                const SizedBox(width: 8),
+                                const Text('Delete', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'KES ${budget.spent.toInt()}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'DMsans',
+                          color: isOverBudget ? Colors.red : themeService.textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'of KES ${budget.amount.toInt()}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'DMsans',
+                          color: themeService.subtextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        isOverBudget 
+                            ? '-KES ${(budget.spent - budget.amount).toInt()}'
+                            : 'KES ${budget.remaining.toInt()} left',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: isOverBudget ? Colors.red : Colors.green.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${(percentageUsed * 100).toInt()}% used',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: progressColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: percentageUsed > 1.0 ? 1.0 : percentageUsed,
+                  backgroundColor: themeService.isDarkMode ? Colors.grey.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
+                  valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                  minHeight: 8,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
   
   void _handleBudgetAction(BuildContext context, String action, Budget budget, dynamic themeService) {
     final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
