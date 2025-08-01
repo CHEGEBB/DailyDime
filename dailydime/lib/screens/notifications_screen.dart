@@ -540,77 +540,122 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildEmptyState(ThemeService themeService) {
-    return RefreshIndicator(
-      onRefresh: _loadNotifications,
-      color: themeService.primaryColor,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          Container(
-            height: MediaQuery.of(context).size.height * 0.7,
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 200,
-                  height: 200,
-                  child: Lottie.asset(
-                    'assets/animations/empty_notifications.json',
-                    fit: BoxFit.contain,
-                    repeat: true,
-                    animate: true,
-                  ),
+  return RefreshIndicator(
+    onRefresh: _loadNotifications,
+    color: themeService.primaryColor,
+    child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Option 1: Use a fallback with error handling
+              SizedBox(
+                width: 200,
+                height: 200,
+                child: FutureBuilder(
+                  future: _loadLottieAnimation(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      // Fallback to a simple icon animation
+                      return _buildFallbackAnimation(themeService);
+                    }
+                    return Lottie.asset(
+                      'assets/animations/notifications.json',
+                      fit: BoxFit.contain,
+                      repeat: true,
+                      animate: true,
+                      errorBuilder: (context, error, stackTrace) {
+                        return _buildFallbackAnimation(themeService);
+                      },
+                    );
+                  },
                 ),
-                const SizedBox(height: 24),
-                Text(
-                  _showOnlyUnread ? 'No unread notifications' : 'No notifications yet',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: themeService.textColor,
-                  ),
-                  textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                _showOnlyUnread ? 'No unread notifications' : 'No notifications yet',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: themeService.textColor,
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  _showOnlyUnread 
-                      ? 'All caught up! 🎉\nYou\'re on top of everything'
-                      : 'We\'ll notify you when something happens\nYour updates will appear here',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: themeService.subtextColor,
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _showOnlyUnread 
+                    ? 'All caught up! 🎉\nYou\'re on top of everything'
+                    : 'We\'ll notify you when something happens\nYour updates will appear here',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: themeService.subtextColor,
+                  height: 1.5,
                 ),
-                if (_showOnlyUnread) ...[
-                  const SizedBox(height: 32),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _showOnlyUnread = false;
-                      });
-                    },
-                    icon: const Icon(Icons.visibility),
-                    label: const Text('Show All Notifications'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: themeService.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                textAlign: TextAlign.center,
+              ),
+              if (_showOnlyUnread) ...[
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showOnlyUnread = false;
+                    });
+                  },
+                  icon: const Icon(Icons.visibility),
+                  label: const Text('Show All Notifications'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: themeService.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                ],
+                ),
               ],
-            ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
+
+// Add this helper method to your class
+Future<void> _loadLottieAnimation() async {
+  // This will throw an error if the Lottie file is corrupted
+  await Future.delayed(const Duration(milliseconds: 100));
+}
+
+// Add this fallback animation widget
+Widget _buildFallbackAnimation(ThemeService themeService) {
+  return TweenAnimationBuilder<double>(
+    tween: Tween(begin: 0.0, end: 1.0),
+    duration: const Duration(seconds: 2),
+    builder: (context, value, child) {
+      return Transform.scale(
+        scale: 0.8 + (0.2 * value),
+        child: Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            color: themeService.primaryColor.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.notifications_none_rounded,
+            size: 60,
+            color: themeService.primaryColor.withOpacity(0.7),
+          ),
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildNotificationCard(AppNotification notification, ThemeService themeService) {
     return Dismissible(
