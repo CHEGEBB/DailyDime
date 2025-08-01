@@ -5,8 +5,8 @@ import 'package:lottie/lottie.dart';
 import 'package:dailydime/models/app_notification.dart';
 import 'package:dailydime/services/app_notification_service.dart';
 import 'package:dailydime/services/theme_service.dart';
+import 'package:dailydime/services/balance_service.dart';
 import 'package:dailydime/config/app_config.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -15,51 +15,35 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> 
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  late AppNotificationService _notificationService;
-  GenerativeModel? _geminiModel;
-  
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  final AppNotificationService _notificationService = AppNotificationService();
   String _selectedFilter = 'All';
   bool _showOnlyUnread = false;
-  bool _isLoadingAI = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    _notificationService = AppNotificationService();
-    _initializeServices();
+    _loadNotifications();
   }
 
-  void _initializeServices() async {
+  Future<void> _loadNotifications() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
     try {
+      // Ensure notification service is initialized
       await _notificationService.initialize();
-      _initializeGemini();
-      if (mounted) setState(() {});
     } catch (e) {
-      debugPrint('Error initializing services: $e');
-    }
-  }
-
-  void _initializeGemini() {
-    try {
-      if (AppConfig.geminiApiKey.isNotEmpty) {
-        _geminiModel = GenerativeModel(
-          model: AppConfig.geminiModel,
-          apiKey: AppConfig.geminiApiKey,
-        );
+      debugPrint('Error initializing notification service: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
-    } catch (e) {
-      debugPrint('Error initializing Gemini: $e');
     }
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   List<AppNotification> _filterNotifications(List<AppNotification> notifications) {
@@ -98,52 +82,27 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return filtered;
   }
 
-  Future<void> _generateAISummary() async {
-    if (_geminiModel == null) {
-      _showErrorSnackBar('AI insights not available');
-      return;
-    }
-
-    setState(() {
-      _isLoadingAI = true;
-    });
-
-    try {
-      final notifications = _notificationService.allNotifications.take(10).toList();
-      if (notifications.isEmpty) {
-        _showErrorSnackBar('No notifications to analyze');
+  void _handleMenuAction(String action) {
+    switch (action) {
+      case 'toggle_unread':
         setState(() {
-          _isLoadingAI = false;
+          _showOnlyUnread = !_showOnlyUnread;
         });
-        return;
-      }
-
-      final prompt = '''
-      Based on these recent financial notifications, provide a brief 2-3 sentence insight:
-      ${notifications.map((n) => '${n.type.name}: ${n.title} - ${n.body}').join('\n')}
-      
-      Focus on spending patterns, budget alerts, or goal progress. Keep it concise and actionable.
-      ''';
-
-      final content = [Content.text(prompt)];
-      final response = await _geminiModel!.generateContent(content);
-      
-      if (response.text != null && response.text!.isNotEmpty) {
-        _showAIInsightDialog(response.text!);
-      } else {
-        _showErrorSnackBar('Unable to generate insights');
-      }
-    } catch (e) {
-      debugPrint('Error generating AI summary: $e');
-      _showErrorSnackBar('Unable to generate insights at the moment');
-    } finally {
-      setState(() {
-        _isLoadingAI = false;
-      });
+        break;
+      case 'mark_all_read':
+        _notificationService.markAllAsRead();
+        _showSnackBar('All notifications marked as read');
+        break;
+      case 'clear_old':
+        _showClearOldDialog();
+        break;
+      case 'clear_all':
+        _showClearAllDialog();
+        break;
     }
   }
 
-  void _showAIInsightDialog(String insight) {
+  void _showClearOldDialog() {
     final themeService = Provider.of<ThemeService>(context, listen: false);
     
     showDialog(
@@ -153,73 +112,95 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.lightbulb,
-                color: Colors.amber,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'AI Insights',
-              style: TextStyle(
-                color: themeService.textColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+        title: Text(
+          'Clear Old Notifications',
+          style: TextStyle(color: themeService.textColor),
         ),
-        content: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: themeService.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: themeService.primaryColor.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          child: Text(
-            insight,
-            style: TextStyle(
-              color: themeService.textColor,
-              fontSize: 16,
-              height: 1.5,
-            ),
-          ),
+        content: Text(
+          'This will delete notifications older than 30 days. This action cannot be undone.',
+          style: TextStyle(color: themeService.subtextColor),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: themeService.subtextColor),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _notificationService.deleteOldNotifications();
+              _showSnackBar('Old notifications cleared');
+            },
             style: TextButton.styleFrom(
-              backgroundColor: themeService.primaryColor,
+              backgroundColor: Colors.red,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('Got it'),
+            child: const Text('Clear Old'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showClearAllDialog() {
+    final themeService = Provider.of<ThemeService>(context, listen: false);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: themeService.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Clear All Notifications',
+          style: TextStyle(color: themeService.textColor),
+        ),
+        content: Text(
+          'This will delete all notifications. This action cannot be undone.',
+          style: TextStyle(color: themeService.subtextColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: themeService.subtextColor),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _notificationService.deleteAllNotifications();
+              _showSnackBar('All notifications cleared');
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Clear All'),
           ),
         ],
       ),
     );
   }
 
-  void _showErrorSnackBar(String message) {
+  void _showSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -242,7 +223,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 _buildNotificationStats(themeService),
                 _buildFilterTabs(themeService),
                 Expanded(
-                  child: _buildNotificationsList(themeService),
+                  child: _isLoading
+                      ? _buildLoadingState(themeService)
+                      : _buildNotificationsList(themeService),
                 ),
               ],
             ),
@@ -277,26 +260,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             ),
           ),
           const Spacer(),
-          if (_geminiModel != null)
-            _isLoadingAI
-                ? Container(
-                    margin: const EdgeInsets.all(12),
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: themeService.primaryColor,
-                    ),
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.lightbulb_outline),
-                    onPressed: _generateAISummary,
-                    tooltip: 'AI Insights',
-                    style: IconButton.styleFrom(
-                      backgroundColor: themeService.primaryColor.withOpacity(0.1),
-                      foregroundColor: themeService.primaryColor,
-                    ),
-                  ),
           PopupMenuButton<String>(
             icon: Icon(
               Icons.more_vert,
@@ -371,11 +334,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Widget _buildNotificationStats(ThemeService themeService) {
-    return Consumer<AppNotificationService>(
-      builder: (context, service, child) {
-        final total = service.allNotifications.length;
-        final unread = service.unreadCount;
-        final today = _getTodayCount(service.allNotifications);
+    return StreamBuilder<List<AppNotification>>(
+      stream: _notificationService.notificationsStream,
+      initialData: _notificationService.allNotifications,
+      builder: (context, snapshot) {
+        final notifications = snapshot.data ?? [];
+        final total = notifications.length;
+        final unread = notifications.where((n) => !n.isRead).length;
+        final today = _getTodayCount(notifications);
         
         return Container(
           margin: const EdgeInsets.all(16),
@@ -512,105 +478,135 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
+  Widget _buildLoadingState(ThemeService themeService) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            color: themeService.primaryColor,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Loading notifications...',
+            style: TextStyle(
+              color: themeService.textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNotificationsList(ThemeService themeService) {
-    return Consumer<AppNotificationService>(
-      builder: (context, notificationService, child) {
-        if (!notificationService.initialized) {
+    return StreamBuilder<List<AppNotification>>(
+      stream: _notificationService.notificationsStream,
+      initialData: _notificationService.allNotifications,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return _buildLoadingState(themeService);
+        }
+
+        if (snapshot.hasError) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  color: themeService.primaryColor,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Loading notifications...',
-                  style: TextStyle(
-                    color: themeService.textColor,
-                  ),
-                ),
-              ],
+            child: Text(
+              'Error loading notifications',
+              style: TextStyle(color: themeService.textColor),
             ),
           );
         }
 
-        final notifications = _filterNotifications(notificationService.allNotifications);
+        final allNotifications = snapshot.data ?? [];
+        final notifications = _filterNotifications(allNotifications);
 
         if (notifications.isEmpty) {
           return _buildEmptyState(themeService);
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.only(bottom: 16),
-          itemCount: notifications.length,
-          itemBuilder: (context, index) {
-            final notification = notifications[index];
-            return _buildNotificationCard(notification, themeService);
-          },
+        return RefreshIndicator(
+          onRefresh: _loadNotifications,
+          color: themeService.primaryColor,
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 16),
+            itemCount: notifications.length,
+            itemBuilder: (context, index) {
+              final notification = notifications[index];
+              return _buildNotificationCard(notification, themeService);
+            },
+          ),
         );
       },
     );
   }
 
   Widget _buildEmptyState(ThemeService themeService) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return RefreshIndicator(
+      onRefresh: _loadNotifications,
+      color: themeService.primaryColor,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          SizedBox(
-            width: 200,
-            height: 200,
-            child: Lottie.asset(
-              'assets/animations/notification.json',
-              fit: BoxFit.contain,
-              repeat: true,
-              animate: true,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            _showOnlyUnread ? 'No unread notifications' : 'No notifications yet',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: themeService.textColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _showOnlyUnread 
-                ? 'All caught up! 🎉\nYou\'re on top of everything'
-                : 'We\'ll notify you when something happens\nYour updates will appear here',
-            style: TextStyle(
-              fontSize: 16,
-              color: themeService.subtextColor,
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          if (_showOnlyUnread) ...[
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _showOnlyUnread = false;
-                });
-              },
-              icon: const Icon(Icons.visibility),
-              label: const Text('Show All Notifications'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeService.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 200,
+                  height: 200,
+                  child: Lottie.asset(
+                    'assets/animations/empty_notifications.json',
+                    fit: BoxFit.contain,
+                    repeat: true,
+                    animate: true,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 24),
+                Text(
+                  _showOnlyUnread ? 'No unread notifications' : 'No notifications yet',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: themeService.textColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _showOnlyUnread 
+                      ? 'All caught up! 🎉\nYou\'re on top of everything'
+                      : 'We\'ll notify you when something happens\nYour updates will appear here',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: themeService.subtextColor,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (_showOnlyUnread) ...[
+                  const SizedBox(height: 32),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _showOnlyUnread = false;
+                      });
+                    },
+                    icon: const Icon(Icons.visibility),
+                    label: const Text('Show All Notifications'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeService.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -649,24 +645,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       ),
       onDismissed: (direction) {
         _notificationService.deleteNotification(notification.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Notification deleted'),
-            backgroundColor: themeService.primaryColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            action: SnackBarAction(
-              label: 'Undo',
-              textColor: Colors.white,
-              onPressed: () {
-                // In a real app, you'd implement undo functionality
-                _showErrorSnackBar('Undo functionality not implemented');
-              },
-            ),
-          ),
-        );
+        _showSnackBar('Notification deleted');
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -784,7 +763,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
                   PopupMenuButton<String>(
                     icon: Icon(
                       Icons.more_vert,
@@ -871,122 +849,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         break;
       case 'delete':
         _notificationService.deleteNotification(notification.id);
-        _showErrorSnackBar('Notification deleted');
+        _showSnackBar('Notification deleted');
         break;
     }
-  }
-
-  void _handleMenuAction(String action) {
-    switch (action) {
-      case 'toggle_unread':
-        setState(() {
-          _showOnlyUnread = !_showOnlyUnread;
-        });
-        break;
-      case 'mark_all_read':
-        _notificationService.markAllAsRead();
-        _showErrorSnackBar('All notifications marked as read');
-        break;
-      case 'clear_old':
-        _showClearOldDialog();
-        break;
-      case 'clear_all':
-        _showClearAllDialog();
-        break;
-    }
-  }
-
-  void _showClearOldDialog() {
-    final themeService = Provider.of<ThemeService>(context, listen: false);
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: themeService.cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Text(
-          'Clear Old Notifications',
-          style: TextStyle(color: themeService.textColor),
-        ),
-        content: Text(
-          'This will delete notifications older than 30 days. This action cannot be undone.',
-          style: TextStyle(color: themeService.subtextColor),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: themeService.subtextColor),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _notificationService.deleteOldNotifications();
-              _showErrorSnackBar('Old notifications cleared');
-            },
-            style: TextButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Clear Old'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  void _showClearAllDialog() {
-    final themeService = Provider.of<ThemeService>(context, listen: false);
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: themeService.cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Text(
-          'Clear All Notifications',
-          style: TextStyle(color: themeService.textColor),
-        ),
-        content: Text(
-          'This will delete all notifications. This action cannot be undone.',
-          style: TextStyle(color: themeService.subtextColor),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: themeService.subtextColor),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _notificationService.deleteAllNotifications();
-              _showErrorSnackBar('All notifications cleared');
-            },
-            style: TextButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Clear All'),
-          ),
-        ],
-      ),
-    );
   }
 }
