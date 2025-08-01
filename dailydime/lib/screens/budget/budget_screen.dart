@@ -742,7 +742,7 @@ Widget _buildBudgetOverviewCard({
   }
   
   Widget _buildOverviewTab(bool isLoading, List<Budget> budgets, Color accentColor) {
-    final themeService = Provider.of<ThemeService>(context);
+  final themeService = Provider.of<ThemeService>(context);
     
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1135,35 +1135,34 @@ Widget _buildBudgetOverviewCard({
               ),
             ),
           )
-       else if (budgets.isEmpty)
-       _buildEmptyBudgetsCard(themeService.primaryColor, themeService)
-  else
-          Column(
-  children: budgets.take(3).map((budget) {
-    int index = budgets.indexOf(budget);
-    return _buildBudgetListItem(context, budget, themeService.primaryColor, index as ThemeService);
-  }).toList(),
-),
-        
-        const SizedBox(height: 16),
-        
-        if (budgets.length > 3)
-          TextButton(
-            onPressed: () {
-              _tabController.animateTo(1); // Switch to Categories tab
-            },
-            child: Text(
-              'View All Budgets',
-              style: TextStyle(
-                color: themeService.primaryColor,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'DMsans',
-              ),
+       else  if (budgets.isEmpty)
+        _buildEmptyBudgetsCard(themeService.primaryColor, themeService)
+      else
+        Column(
+          children: budgets.take(3).map((budget) {
+            return _buildBudgetListItem(context, budget, themeService.primaryColor, themeService); // Fixed: pass themeService instead of index
+          }).toList(),
+        ),
+      
+      const SizedBox(height: 16),
+      
+      if (budgets.length > 3)
+        TextButton(
+          onPressed: () {
+            _tabController.animateTo(1); // Switch to Categories tab
+          },
+          child: Text(
+            'View All Budgets',
+            style: TextStyle(
+              color: themeService.primaryColor,
+              fontWeight: FontWeight.w500,
+              fontFamily: 'DMsans',
             ),
           ),
-      ],
-    );
-  }
+        ),
+    ],
+  );
+}
   
   Widget _buildCategoriesTab(bool isLoading, List<Budget> budgets, Color accentColor) {
   final themeService = Provider.of<ThemeService>(context);
