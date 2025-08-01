@@ -4,6 +4,8 @@ import 'package:dailydime/services/auth_service.dart';
 import 'package:dailydime/services/profile_service.dart';
 import 'package:dailydime/services/theme_service.dart';
 import 'package:dailydime/utils/settings_storage.dart';
+import 'package:dailydime/screens/budget/budget_screen.dart';
+import 'package:dailydime/screens/savings/savings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -51,14 +53,15 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   String _selectedCurrency = 'KES';
   String _dateFormat = 'dd/MM/yyyy';
   
-  // Custom colors
-  Color _primaryColor = const Color(0xFF26D07C);
-  Color _secondaryColor = const Color(0xFF0AB3B8);
-  
   // Password controllers
   final TextEditingController _currentPasswordController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  
+  // Color picker state
+  Color _tempPrimaryColor = const Color(0xFF26D07C);
+  Color _tempSecondaryColor = const Color(0xFF0AB3B8);
+  Color _tempAccentColor = const Color(0xFF68EFC6);
   
   @override
   void initState() {
@@ -85,6 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     
     try {
       final prefs = await SharedPreferences.getInstance();
+      final themeService = Provider.of<ThemeService>(context, listen: false);
       
       setState(() {
         _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
@@ -92,15 +96,14 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
         _budgetAlertsEnabled = prefs.getBool('budget_alerts_enabled') ?? true;
         _billRemindersEnabled = prefs.getBool('bill_reminders_enabled') ?? true;
         _savingsGoalAlertsEnabled = prefs.getBool('savings_goal_alerts_enabled') ?? true;
-        _textScale = prefs.getDouble('text_scale') ?? 1.0;
+        _textScale = themeService.textScale;
         _selectedCurrency = prefs.getString('selected_currency') ?? 'KES';
         _dateFormat = prefs.getString('date_format') ?? 'dd/MM/yyyy';
         
-        // Load custom colors
-        final primaryColorValue = prefs.getInt('primary_color');
-        final secondaryColorValue = prefs.getInt('secondary_color');
-        if (primaryColorValue != null) _primaryColor = Color(primaryColorValue);
-        if (secondaryColorValue != null) _secondaryColor = Color(secondaryColorValue);
+        // Load current theme colors
+        _tempPrimaryColor = themeService.primaryColor;
+        _tempSecondaryColor = themeService.secondaryColor;
+        _tempAccentColor = themeService.accentColor;
       });
       
     } catch (e) {
@@ -147,8 +150,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   }
   
   Future<void> _updateTextScale(double scale) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('text_scale', scale);
+    final themeService = Provider.of<ThemeService>(context, listen: false);
+    await themeService.updateTextScale(scale);
     setState(() => _textScale = scale);
     _showSuccessSnackBar('Text size updated');
   }
@@ -165,17 +168,6 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     await prefs.setString('date_format', format);
     setState(() => _dateFormat = format);
     _showSuccessSnackBar('Date format updated');
-  }
-  
-  Future<void> _updateCustomColors(Color primary, Color secondary) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('primary_color', primary.value);
-    await prefs.setInt('secondary_color', secondary.value);
-    setState(() {
-      _primaryColor = primary;
-      _secondaryColor = secondary;
-    });
-    _showSuccessSnackBar('Colors updated');
   }
   
   Future<void> _changePassword() async {
@@ -217,11 +209,17 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   }
   
   void _navigateToBudgetScreen() {
-    Navigator.pushNamed(context, '/budget');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => BudgetScreen()),
+    );
   }
   
   void _navigateToSavingsScreen() {
-    Navigator.pushNamed(context, '/savings');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => SavingsScreen()),
+    );
   }
   
   void _showErrorSnackBar(String message) {
@@ -344,7 +342,16 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             subtitle: 'Customize your app colors',
             icon: Icons.color_lens_outlined,
             iconColor: const Color(0xFFFB6340),
-            onTap: () => _showColorPicker(themeService),
+            onTap: () => _showAdvancedColorPicker(themeService),
+          ),
+          _buildSettingsDivider(themeService),
+          _buildSettingsItem(
+            themeService: themeService,
+            title: 'Reset Colors',
+            subtitle: 'Restore default theme colors',
+            icon: Icons.refresh_outlined,
+            iconColor: const Color(0xFF8E8E93),
+            onTap: () => _resetColors(themeService),
           ),
           _buildSettingsDivider(themeService),
           _buildSettingsItem(
@@ -881,48 +888,258 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     );
   }
 
-  // Dialog Methods
-  void _showColorPicker(ThemeService themeService) {
+  // Dialog Methods - Advanced Color Picker
+  void _showAdvancedColorPicker(ThemeService themeService) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: themeService.cardColor,
+          title: Text(
+            'Customize Theme Colors',
+            style: TextStyle(
+              color: themeService.textColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildColorSection(
+                  'Primary Color',
+                  _tempPrimaryColor,
+                  (color) => setState(() => _tempPrimaryColor = color),
+                  themeService,
+                ),
+                const SizedBox(height: 20),
+                _buildColorSection(
+                  'Secondary Color',
+                  _tempSecondaryColor,
+                  (color) => setState(() => _tempSecondaryColor = color),
+                  themeService,
+                ),
+                const SizedBox(height: 20),
+                _buildColorSection(
+                  'Accent Color',
+                  _tempAccentColor,
+                  (color) => setState(() => _tempAccentColor = color),
+                  themeService,
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: themeService.subtextColor.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Preview',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: themeService.textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildColorPreview('Primary', _tempPrimaryColor),
+                          _buildColorPreview('Secondary', _tempSecondaryColor),
+                          _buildColorPreview('Accent', _tempAccentColor),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                // Reset temp colors to current theme colors
+                setState(() {
+                  _tempPrimaryColor = themeService.primaryColor;
+                  _tempSecondaryColor = themeService.secondaryColor;
+                  _tempAccentColor = themeService.accentColor;
+                });
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: themeService.subtextColor),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await themeService.updateAllColors(
+                  primary: _tempPrimaryColor,
+                  secondary: _tempSecondaryColor,
+                  accent: _tempAccentColor,
+                );
+                Navigator.pop(context);
+                _showSuccessSnackBar('Theme colors updated successfully!');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _tempPrimaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Apply Colors'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildColorSection(
+    String title,
+    Color currentColor,
+    Function(Color) onColorChanged,
+    ThemeService themeService,
+  ) {
+    final predefinedColors = [
+      const Color(0xFF26D07C), // Green
+      const Color(0xFF3B82F6), // Blue
+      const Color(0xFF8B5CF6), // Purple
+      const Color(0xFFEF4444), // Red
+      const Color(0xFFF59E0B), // Orange
+      const Color(0xFF10B981), // Emerald
+      const Color(0xFF06B6D4), // Cyan
+      const Color(0xFFEC4899), // Pink
+      const Color(0xFF84CC16), // Lime
+      const Color(0xFF6366F1), // Indigo
+      const Color(0xFFF97316), // Orange
+      const Color(0xFF14B8A6), // Teal
+    ];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: themeService.textColor,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: currentColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: themeService.subtextColor, width: 1),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: predefinedColors.map((color) => GestureDetector(
+            onTap: () => onColorChanged(color),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: currentColor == color 
+                    ? Border.all(color: themeService.textColor, width: 3)
+                    : Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
+                boxShadow: currentColor == color
+                    ? [BoxShadow(
+                        color: color.withOpacity(0.4),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      )]
+                    : null,
+              ),
+              child: currentColor == color
+                  ? Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 20,
+                    )
+                  : null,
+            ),
+          )).toList(),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildColorPreview(String label, Color color) {
+    return Column(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.3),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10),
+        ),
+      ],
+    );
+  }
+  
+  Future<void> _resetColors(ThemeService themeService) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: themeService.cardColor,
-        title: Text('Choose Theme Colors', style: TextStyle(color: themeService.textColor)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Primary Color', style: TextStyle(color: themeService.textColor)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                const Color(0xFF26D07C),
-                const Color(0xFF3B82F6),
-                const Color(0xFF8B5CF6),
-                const Color(0xFFEF4444),
-                const Color(0xFFF59E0B),
-                const Color(0xFF10B981),
-              ].map((color) => GestureDetector(
-                onTap: () => _updateCustomColors(color, _secondaryColor),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: _primaryColor == color 
-                        ? Border.all(color: themeService.textColor, width: 2)
-                        : null,
-                  ),
-                ),
-              )).toList(),
-            ),
-          ],
+        title: Text(
+          'Reset Colors?',
+          style: TextStyle(color: themeService.textColor),
+        ),
+        content: Text(
+          'This will restore the default theme colors. Are you sure?',
+          style: TextStyle(color: themeService.textColor),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Close', style: TextStyle(color: themeService.primaryColor)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: themeService.subtextColor),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await themeService.resetToDefaultColors();
+              Navigator.pop(context);
+              _showSuccessSnackBar('Colors reset to default!');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeService.primaryColor,
+            ),
+            child: const Text(
+              'Reset',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -932,33 +1149,68 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   void _showTextSizeDialog(ThemeService themeService) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: themeService.cardColor,
-        title: Text('Text Size', style: TextStyle(color: themeService.textColor)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Current: ${(_textScale * 100).round()}%', 
-                 style: TextStyle(color: themeService.textColor)),
-            Slider(
-              value: _textScale,
-              min: 0.8,
-              max: 1.5,
-              divisions: 7,
-              activeColor: themeService.primaryColor,
-              onChanged: (value) {
-                setState(() => _textScale = value);
-                _updateTextScale(value);
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: themeService.cardColor,
+          title: Text(
+            'Text Size',
+            style: TextStyle(color: themeService.textColor),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Preview Text',
+                style: TextStyle(
+                  color: themeService.textColor,
+                  fontSize: 16 * _textScale,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Current: ${(_textScale * 100).round()}%',
+                style: TextStyle(color: themeService.textColor),
+              ),
+              Slider(
+                value: _textScale,
+                min: 0.8,
+                max: 1.5,
+                divisions: 14,
+                activeColor: themeService.primaryColor,
+                onChanged: (value) => setState(() => _textScale = value),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('80%', style: TextStyle(color: themeService.subtextColor, fontSize: 12)),
+                  Text('150%', style: TextStyle(color: themeService.subtextColor, fontSize: 12)),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: themeService.subtextColor),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _updateTextScale(_textScale);
+                Navigator.pop(context);
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeService.primaryColor,
+              ),
+              child: const Text(
+                'Apply',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close', style: TextStyle(color: themeService.primaryColor)),
-          ),
-        ],
       ),
     );
   }
