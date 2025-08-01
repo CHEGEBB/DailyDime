@@ -50,6 +50,9 @@ class _HomeScreenState extends State<HomeScreen>
   // Controllers
   late TabController _tabController;
   final TextEditingController _balanceController = TextEditingController();
+  late AppNotificationService _notificationService;
+int _unreadNotificationCount = 0;
+StreamSubscription? _notificationSubscription;
 
   late ThemeService themeService;
 
@@ -95,7 +98,31 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Initialize data
     _initializeData();
+  _initializeNotifications();
   }
+
+  Future<void> _initializeNotifications() async {
+  try {
+    _notificationService = AppNotificationService();
+    await _notificationService.initialize();
+    
+    // Listen to notification count changes
+    _notificationSubscription = _notificationService.notificationsStream.listen((notifications) {
+      if (mounted) {
+        setState(() {
+          _unreadNotificationCount = _notificationService.unreadCount;
+        });
+      }
+    });
+
+    // Get initial count
+    setState(() {
+      _unreadNotificationCount = _notificationService.unreadCount;
+    });
+  } catch (e) {
+    print('Error initializing notifications: $e');
+  }
+}
 
   Future<void> _initializeData() async {
     setState(() {
@@ -472,6 +499,7 @@ class _HomeScreenState extends State<HomeScreen>
     _balanceController.dispose();
     _balanceSubscription?.cancel();
     _transactionsSubscription?.cancel();
+    _notificationSubscription?.cancel();
     super.dispose();
   }
 
@@ -775,49 +803,72 @@ class _HomeScreenState extends State<HomeScreen>
                       Row(
                         children: [
                           // Notification Icon
-                          Container(
-                            margin: const EdgeInsets.only(right: 16),
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: themeService.isDarkMode
-                                  ? Colors.white.withOpacity(0.1)
-                                  : Colors.grey.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: themeService.isDarkMode
-                                      ? Colors.black.withOpacity(0.1)
-                                      : Colors.black.withOpacity(0.03),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Stack(
-                              children: [
-                                Icon(
-                                  Icons.notifications_outlined,
-                                  size: 24,
-                                  color: themeService.textColor,
-                                ),
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: themeService.scaffoldColor,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        GestureDetector(
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NotificationsScreen(),
+      ),
+    );
+  },
+  child: Container(
+    margin: const EdgeInsets.only(right: 16),
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: themeService.isDarkMode
+          ? Colors.white.withOpacity(0.1)
+          : Colors.grey.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: themeService.isDarkMode
+              ? Colors.black.withOpacity(0.1)
+              : Colors.black.withOpacity(0.03),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Stack(
+      children: [
+        Icon(
+          Icons.notifications_outlined,
+          size: 24,
+          color: themeService.textColor,
+        ),
+        if (_unreadNotificationCount > 0)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: themeService.scaffoldColor,
+                  width: 1.5,
+                ),
+              ),
+              constraints: BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              child: Text(
+                _unreadNotificationCount > 99 ? '99+' : '$_unreadNotificationCount',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    ),
+  ),
                           ),
                           // Settings Icon
                           GestureDetector(
