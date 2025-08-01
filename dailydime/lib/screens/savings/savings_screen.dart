@@ -11,6 +11,7 @@ import 'package:dailydime/widgets/common/custom_button.dart';
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/services/appwrite_service.dart';
 import 'package:dailydime/services/storage_service.dart';
+import 'package:dailydime/services/theme_service.dart';
 import 'dart:math' as math;
 
 class SavingsScreen extends StatefulWidget {
@@ -23,7 +24,6 @@ class SavingsScreen extends StatefulWidget {
 class _SavingsScreenState extends State<SavingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final accentColor = const Color(0xFF26D07C); // Emerald green
 
   String _selectedCategory = 'All';
   bool _isRefreshing = false;
@@ -84,12 +84,15 @@ class _SavingsScreenState extends State<SavingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final themeService = Provider.of<ThemeService>(context);
+    final accentColor = themeService.primaryColor;
+
     return Consumer<SavingsProvider>(
       builder: (context, savingsProvider, child) {
         final isLoading = savingsProvider.isLoading;
 
         return Scaffold(
-          backgroundColor: Colors.grey[100],
+          backgroundColor: themeService.scaffoldColor,
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: _refreshData,
@@ -98,15 +101,15 @@ class _SavingsScreenState extends State<SavingsScreen>
                 physics: const BouncingScrollPhysics(),
                 slivers: [
                   // Floating Header with Total Savings
-                  SliverToBoxAdapter(child: _buildHeader(savingsProvider)),
+                  SliverToBoxAdapter(child: _buildHeader(savingsProvider, themeService)),
 
                   // Main content
                   SliverToBoxAdapter(
                     child: Container(
                       margin: const EdgeInsets.only(top: 16),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
+                      decoration: BoxDecoration(
+                        color: themeService.cardColor,
+                        borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(30),
                           topRight: Radius.circular(30),
                         ),
@@ -115,13 +118,13 @@ class _SavingsScreenState extends State<SavingsScreen>
                         children: [
                           // AI Smart Save Suggestion
                           if (savingsProvider.aiSavingSuggestion != null)
-                            _buildAISuggestion(context, savingsProvider),
+                            _buildAISuggestion(context, savingsProvider, themeService),
 
                           // Tab Bar with no divider
                           Container(
                             margin: const EdgeInsets.fromLTRB(12, 20, 12, 0),
                             decoration: BoxDecoration(
-                              color: Colors.grey[100],
+                              color: themeService.isDarkMode ? themeService.surfaceColor : Colors.grey[100],
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: TabBar(
@@ -141,7 +144,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                                   Colors.transparent, // Remove divider
                               indicatorSize: TabBarIndicatorSize.tab,
                               labelColor: Colors.white,
-                              unselectedLabelColor: Colors.grey[700],
+                              unselectedLabelColor: themeService.isDarkMode ? Colors.grey[300] : Colors.grey[700],
                               labelStyle: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w400,
@@ -162,10 +165,10 @@ class _SavingsScreenState extends State<SavingsScreen>
                               controller: _tabController,
                               children: [
                                 // Savings Goals Tab
-                                _buildSavingsGoalsTab(savingsProvider),
+                                _buildSavingsGoalsTab(savingsProvider, themeService),
 
                                 // Challenges Tab
-                                _buildChallengesTab(savingsProvider),
+                                _buildChallengesTab(savingsProvider, themeService),
                               ],
                             ),
                           ),
@@ -201,7 +204,8 @@ class _SavingsScreenState extends State<SavingsScreen>
     );
   }
 
-  Widget _buildHeader(SavingsProvider savingsProvider) {
+  Widget _buildHeader(SavingsProvider savingsProvider, ThemeService themeService) {
+    final accentColor = themeService.primaryColor;
     final totalSavings = savingsProvider.totalSavingsAmount;
     final mtdSavings = savingsProvider.mtdSavingsAmount;
     final avgDailySavings = savingsProvider.averageDailySavings;
@@ -414,6 +418,7 @@ class _SavingsScreenState extends State<SavingsScreen>
   Widget _buildAISuggestion(
     BuildContext context,
     SavingsProvider savingsProvider,
+    ThemeService themeService,
   ) {
     final suggestion = savingsProvider.aiSavingSuggestion;
     if (suggestion == null) return const SizedBox();
@@ -456,7 +461,7 @@ class _SavingsScreenState extends State<SavingsScreen>
               targetDate: DateTime.now().add(const Duration(days: 90)),
               category: SavingsGoalCategory.other,
               iconAsset: 'savings',
-              color: accentColor,
+              color: themeService.primaryColor,
               dailyTarget: null,
               weeklyTarget: null,
               priority: 'medium',
@@ -470,8 +475,8 @@ class _SavingsScreenState extends State<SavingsScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF20B2AA), // Celestial teal
-            accentColor, // Your emerald green (0xFF26D07C)
+            themeService.secondaryColor, // Using theme service secondary color
+            themeService.primaryColor, // Using theme service primary color
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -479,9 +484,7 @@ class _SavingsScreenState extends State<SavingsScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(
-              0xFF20B2AA,
-            ).withOpacity(0.3), // Celestial teal shadow
+            color: themeService.secondaryColor.withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -614,7 +617,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                         child: Text(
                           'Save ${AppConfig.currencySymbol} ${NumberFormat("#,##0").format(savingAmount)}',
                           style: TextStyle(
-                            color: Colors.blue[700],
+                            color: themeService.primaryColor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -649,7 +652,7 @@ class _SavingsScreenState extends State<SavingsScreen>
     );
   }
 
-  Widget _buildSavingsGoalsTab(SavingsProvider savingsProvider) {
+  Widget _buildSavingsGoalsTab(SavingsProvider savingsProvider, ThemeService themeService) {
     final List<String> categories = ['All', 'Active', 'Completed', 'Upcoming'];
 
     List<SavingsGoal> filteredGoals;
@@ -697,15 +700,17 @@ class _SavingsScreenState extends State<SavingsScreen>
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: isSelected ? accentColor : Colors.grey[100],
+                      color: isSelected 
+                          ? themeService.primaryColor 
+                          : themeService.isDarkMode ? themeService.surfaceColor : Colors.grey[100],
                       borderRadius: BorderRadius.circular(20),
                       border: !isSelected
-                          ? Border.all(color: Colors.grey[300]!)
+                          ? Border.all(color: themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[300]!)
                           : null,
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: accentColor.withOpacity(0.3),
+                                color: themeService.primaryColor.withOpacity(0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 3),
                               ),
@@ -715,7 +720,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                     child: Text(
                       category,
                       style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.grey[700],
+                        color: isSelected ? Colors.white : themeService.textColor,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
@@ -733,14 +738,14 @@ class _SavingsScreenState extends State<SavingsScreen>
             child: savingsProvider.isLoading
                 ? Center(child: _buildLoadingAnimation())
                 : filteredGoals.isEmpty
-                ? _buildEmptyState()
+                ? _buildEmptyState(themeService)
                 : ListView.builder(
                     padding: EdgeInsets.zero,
                     physics: const BouncingScrollPhysics(),
                     itemCount: filteredGoals.length,
                     itemBuilder: (context, index) {
                       final goal = filteredGoals[index];
-                      return _buildGoalCard(goal);
+                      return _buildGoalCard(goal, themeService);
                     },
                   ),
           ),
@@ -749,7 +754,7 @@ class _SavingsScreenState extends State<SavingsScreen>
     );
   }
 
-  Widget _buildChallengesTab(SavingsProvider savingsProvider) {
+  Widget _buildChallengesTab(SavingsProvider savingsProvider, ThemeService themeService) {
     final challenges = savingsProvider.savingsChallenges;
 
     return Padding(
@@ -761,9 +766,9 @@ class _SavingsScreenState extends State<SavingsScreen>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.amber[50],
+              color: themeService.isDarkMode ? Colors.amber[900]!.withOpacity(0.2) : Colors.amber[50],
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.amber[200]!),
+              border: Border.all(color: themeService.isDarkMode ? Colors.amber[700]! : Colors.amber[200]!),
             ),
             child: Row(
               children: [
@@ -783,19 +788,19 @@ class _SavingsScreenState extends State<SavingsScreen>
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         'Savings Challenges',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: themeService.textColor,
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Text(
                         'Join fun savings challenges to boost your savings with a structured approach!',
-                        style: TextStyle(fontSize: 14, color: Colors.black87),
+                        style: TextStyle(fontSize: 14, color: themeService.textColor),
                       ),
                     ],
                   ),
@@ -807,12 +812,12 @@ class _SavingsScreenState extends State<SavingsScreen>
           const SizedBox(height: 20),
 
           // Popular challenges section
-          const Text(
+          Text(
             'Popular Challenges',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: themeService.textColor,
             ),
           ),
 
@@ -835,7 +840,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                         Text(
                           'No challenges available',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: themeService.subtextColor,
                             fontSize: 16,
                           ),
                         ),
@@ -909,6 +914,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                         participants: participants,
                         isPopular: isPopular,
                         isAiGenerated: isAiGenerated,
+                        themeService: themeService,
                       );
                     },
                   ),
@@ -926,7 +932,7 @@ class _SavingsScreenState extends State<SavingsScreen>
               isSmall: false,
               isOutlined: true,
               icon: Icons.add_circle_outline,
-              buttonColor: Colors.blue, // or any other MaterialColor
+              buttonColor: themeService.infoColor,
             ),
           ),
         ],
@@ -967,7 +973,7 @@ class _SavingsScreenState extends State<SavingsScreen>
     );
   }
 
-  Widget _buildGoalCard(SavingsGoal goal) {
+  Widget _buildGoalCard(SavingsGoal goal, ThemeService themeService) {
     // Calculate percentage and days left
     final percentage = goal.progressPercentage;
     final daysLeft = goal.daysLeft;
@@ -975,11 +981,11 @@ class _SavingsScreenState extends State<SavingsScreen>
     // Determine status color
     Color statusColor;
     if (goal.status == SavingsGoalStatus.completed) {
-      statusColor = Colors.green;
+      statusColor = themeService.successColor;
     } else if (!goal.isOnTrack) {
-      statusColor = Colors.red;
+      statusColor = themeService.errorColor;
     } else {
-      statusColor = accentColor;
+      statusColor = themeService.primaryColor;
     }
 
     return GestureDetector(
@@ -987,11 +993,13 @@ class _SavingsScreenState extends State<SavingsScreen>
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: themeService.cardColor,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: themeService.isDarkMode 
+                ? Colors.black.withOpacity(0.2)
+                : Colors.black.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -1026,10 +1034,10 @@ class _SavingsScreenState extends State<SavingsScreen>
                       children: [
                         Text(
                           goal.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: themeService.textColor,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -1039,7 +1047,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                               : 'Target date: ${DateFormat('d MMM y').format(goal.targetDate)}',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[600],
+                            color: themeService.subtextColor,
                           ),
                         ),
                       ],
@@ -1049,11 +1057,11 @@ class _SavingsScreenState extends State<SavingsScreen>
                   if (goal.status != SavingsGoalStatus.completed)
                     Container(
                       decoration: BoxDecoration(
-                        color: accentColor.withOpacity(0.1),
+                        color: themeService.primaryColor.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: Icon(Icons.add, color: accentColor),
+                        icon: Icon(Icons.add, color: themeService.primaryColor),
                         onPressed: () =>
                             _showAddContributionModal(context, goal),
                       ),
@@ -1061,7 +1069,7 @@ class _SavingsScreenState extends State<SavingsScreen>
 
                   // Options menu
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                    icon: Icon(Icons.more_vert, color: themeService.subtextColor),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -1081,33 +1089,33 @@ class _SavingsScreenState extends State<SavingsScreen>
                       }
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit, size: 18),
-                            SizedBox(width: 8),
-                            Text('Edit Goal'),
+                            Icon(Icons.edit, size: 18, color: themeService.textColor),
+                            const SizedBox(width: 8),
+                            Text('Edit Goal', style: TextStyle(color: themeService.textColor)),
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'insights',
                         child: Row(
                           children: [
-                            Icon(Icons.auto_awesome, size: 18),
-                            SizedBox(width: 8),
-                            Text('AI Insights'),
+                            Icon(Icons.auto_awesome, size: 18, color: themeService.textColor),
+                            const SizedBox(width: 8),
+                            Text('AI Insights', style: TextStyle(color: themeService.textColor)),
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete, size: 18, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: Colors.red)),
+                            Icon(Icons.delete, size: 18, color: themeService.errorColor),
+                            const SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: themeService.errorColor)),
                           ],
                         ),
                       ),
@@ -1140,7 +1148,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey[700],
+                          color: themeService.subtextColor,
                         ),
                       ),
                     ],
@@ -1152,7 +1160,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                   LinearPercentIndicator(
                     lineHeight: 8.0,
                     percent: percentage.clamp(0.0, 1.0),
-                    backgroundColor: Colors.grey[200],
+                    backgroundColor: themeService.isDarkMode ? Colors.grey[800] : Colors.grey[200],
                     progressColor: statusColor,
                     barRadius: const Radius.circular(8),
                     padding: EdgeInsets.zero,
@@ -1225,8 +1233,8 @@ class _SavingsScreenState extends State<SavingsScreen>
                               Icons.timelapse,
                               size: 14,
                               color: daysLeft < 7
-                                  ? Colors.red
-                                  : Colors.grey[600],
+                                  ? themeService.errorColor
+                                  : themeService.subtextColor,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -1236,8 +1244,8 @@ class _SavingsScreenState extends State<SavingsScreen>
                               style: TextStyle(
                                 fontSize: 13,
                                 color: daysLeft < 7
-                                    ? Colors.red
-                                    : Colors.grey[600],
+                                    ? themeService.errorColor
+                                    : themeService.subtextColor,
                                 fontWeight: daysLeft < 7
                                     ? FontWeight.bold
                                     : FontWeight.normal,
@@ -1264,15 +1272,18 @@ class _SavingsScreenState extends State<SavingsScreen>
     required int participants,
     required bool isPopular,
     bool isAiGenerated = false,
+    required ThemeService themeService,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeService.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: themeService.isDarkMode 
+              ? Colors.black.withOpacity(0.2)
+              : Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -1299,10 +1310,10 @@ class _SavingsScreenState extends State<SavingsScreen>
                     const SizedBox(width: 12),
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: themeService.textColor,
                       ),
                     ),
                   ],
@@ -1369,7 +1380,7 @@ class _SavingsScreenState extends State<SavingsScreen>
               description,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[800],
+                color: themeService.textColor,
                 height: 1.4,
               ),
             ),
@@ -1379,11 +1390,11 @@ class _SavingsScreenState extends State<SavingsScreen>
               children: [
                 Row(
                   children: [
-                    Icon(Icons.group, size: 16, color: Colors.grey[600]),
+                    Icon(Icons.group, size: 16, color: themeService.subtextColor),
                     const SizedBox(width: 4),
                     Text(
                       '$participants participants',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 13, color: themeService.subtextColor),
                     ),
                   ],
                 ),
@@ -1420,7 +1431,7 @@ class _SavingsScreenState extends State<SavingsScreen>
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(ThemeService themeService) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1431,19 +1442,19 @@ class _SavingsScreenState extends State<SavingsScreen>
             fit: BoxFit.contain,
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'No savings goals yet',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: themeService.textColor,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Create your first savings goal to start tracking your progress',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 14, color: themeService.subtextColor),
           ),
           const SizedBox(height: 20),
           CustomButton(
@@ -1457,7 +1468,7 @@ class _SavingsScreenState extends State<SavingsScreen>
               ).then((_) => _fetchData()); // Refresh after creating
             },
             isSmall: true,
-            buttonColor: Colors.blue,
+            buttonColor: themeService.infoColor,
           ),
         ],
       ),
@@ -1519,15 +1530,16 @@ class _SavingsScreenState extends State<SavingsScreen>
       builder: (context) => _buildSavingsDetailsSheet(context, goal),
     );
   }
-
-  Widget _buildSavingsDetailsSheet(BuildContext context, SavingsGoal goal) {
+  
+Widget _buildSavingsDetailsSheet(BuildContext context, SavingsGoal goal) {
     final size = MediaQuery.of(context).size;
+    final themeService = Provider.of<ThemeService>(context);
 
     return Container(
       height: size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(30),
           topRight: Radius.circular(30),
         ),
@@ -1743,7 +1755,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                       Tab(text: 'AI Insights'),
                     ],
                     labelColor: goal.color,
-                    unselectedLabelColor: Colors.grey[600],
+                    unselectedLabelColor: themeService.subtextColor,
                     indicatorColor: goal.color,
                     dividerHeight: 0, // Remove divider line
                   ),
@@ -1819,6 +1831,7 @@ class _SavingsScreenState extends State<SavingsScreen>
   }
 
   Widget _buildTransactionsTab(SavingsGoal goal) {
+    final themeService = Provider.of<ThemeService>(context);
     final transactions = goal.transactions;
 
     if (transactions.isEmpty) {
@@ -1832,14 +1845,21 @@ class _SavingsScreenState extends State<SavingsScreen>
               fit: BoxFit.contain,
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'No transactions yet',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold,
+                color: themeService.textColor,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Add your first contribution to start tracking',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 14, 
+                color: themeService.subtextColor,
+              ),
             ),
           ],
         ),
@@ -1856,9 +1876,9 @@ class _SavingsScreenState extends State<SavingsScreen>
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.grey[50],
+            color: themeService.surfaceColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey[200]!),
+            border: Border.all(color: themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[200]!),
           ),
           child: Row(
             children: [
@@ -1880,15 +1900,19 @@ class _SavingsScreenState extends State<SavingsScreen>
                       transaction.note.isNotEmpty
                           ? transaction.note
                           : 'Contribution',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w500,
                         fontSize: 15,
+                        color: themeService.textColor,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       DateFormat('d MMM y, h:mm a').format(transaction.date),
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 13, 
+                        color: themeService.subtextColor,
+                      ),
                     ),
                   ],
                 ),
@@ -1909,6 +1933,8 @@ class _SavingsScreenState extends State<SavingsScreen>
   }
 
   Widget _buildInsightsTab(SavingsGoal goal) {
+    final themeService = Provider.of<ThemeService>(context);
+    
     return FutureBuilder<Map<String, dynamic>>(
       future: Provider.of<SavingsProvider>(
         context,
@@ -1926,11 +1952,18 @@ class _SavingsScreenState extends State<SavingsScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                Icon(
+                  Icons.error_outline, 
+                  size: 48, 
+                  color: themeService.subtextColor,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Could not load insights',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 16, 
+                    color: themeService.subtextColor,
+                  ),
                 ),
               ],
             ),
@@ -2042,14 +2075,20 @@ class _SavingsScreenState extends State<SavingsScreen>
     String? animation,
     bool isWarning = false,
   }) {
+    final themeService = Provider.of<ThemeService>(context);
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isWarning ? Colors.red[50] : color.withOpacity(0.05),
+        color: isWarning 
+            ? (themeService.isDarkMode ? Colors.red[900]!.withOpacity(0.3) : Colors.red[50])
+            : color.withOpacity(themeService.isDarkMode ? 0.15 : 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isWarning ? Colors.red[200]! : color.withOpacity(0.2),
+          color: isWarning 
+              ? (themeService.isDarkMode ? Colors.red[400]! : Colors.red[200]!)
+              : color.withOpacity(themeService.isDarkMode ? 0.4 : 0.2),
         ),
       ),
       child: Row(
@@ -2087,7 +2126,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                   content,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[800],
+                    color: themeService.textColor,
                     height: 1.4,
                   ),
                 ),
@@ -2100,6 +2139,7 @@ class _SavingsScreenState extends State<SavingsScreen>
   }
 
   void _showAddContributionModal(BuildContext context, SavingsGoal goal) {
+    final themeService = Provider.of<ThemeService>(context);
     final TextEditingController amountController = TextEditingController();
     final TextEditingController noteController = TextEditingController();
 
@@ -2111,9 +2151,9 @@ class _SavingsScreenState extends State<SavingsScreen>
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        decoration: BoxDecoration(
+          color: themeService.cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -2139,17 +2179,21 @@ class _SavingsScreenState extends State<SavingsScreen>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Add Contribution',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: themeService.textColor,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         goal.title,
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                        style: TextStyle(
+                          fontSize: 16, 
+                          color: themeService.subtextColor,
+                        ),
                       ),
                     ],
                   ),
@@ -2228,18 +2272,28 @@ class _SavingsScreenState extends State<SavingsScreen>
   }
 
   void _showDeleteConfirmation(BuildContext context, SavingsGoal goal) {
+    final themeService = Provider.of<ThemeService>(context);
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: themeService.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Delete Goal?'),
+        title: Text(
+          'Delete Goal?',
+          style: TextStyle(color: themeService.textColor),
+        ),
         content: Text(
           'Are you sure you want to delete "${goal.title}"? This action cannot be undone.',
+          style: TextStyle(color: themeService.textColor),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey[700])),
+            child: Text(
+              'Cancel', 
+              style: TextStyle(color: themeService.subtextColor),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -2267,15 +2321,17 @@ class _SavingsScreenState extends State<SavingsScreen>
   }
 
   void _showGoalInsights(BuildContext context, SavingsGoal goal) {
+    final themeService = Provider.of<ThemeService>(context);
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.7,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        decoration: BoxDecoration(
+          color: themeService.cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
         ),
         child: Column(
           children: [
@@ -2285,7 +2341,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                 width: 40,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: themeService.subtextColor,
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
@@ -2298,6 +2354,7 @@ class _SavingsScreenState extends State<SavingsScreen>
   }
 
   void _showCreateChallengeModal(BuildContext context) {
+    final themeService = Provider.of<ThemeService>(context);
     final TextEditingController titleController = TextEditingController();
     final TextEditingController descriptionController = TextEditingController();
     bool useAI = true;
@@ -2311,9 +2368,9 @@ class _SavingsScreenState extends State<SavingsScreen>
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          decoration: BoxDecoration(
+            color: themeService.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -2321,9 +2378,13 @@ class _SavingsScreenState extends State<SavingsScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Create Challenge',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 20, 
+                    fontWeight: FontWeight.bold,
+                    color: themeService.textColor,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 TextField(
@@ -2349,9 +2410,12 @@ class _SavingsScreenState extends State<SavingsScreen>
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'Use AI to enhance challenge',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: themeService.textColor,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     const Icon(
@@ -2367,7 +2431,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                           useAI = value;
                         });
                       },
-                      activeColor: accentColor,
+                      activeColor: themeService.accentColor,
                     ),
                   ],
                 ),
@@ -2393,7 +2457,7 @@ class _SavingsScreenState extends State<SavingsScreen>
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
+                      backgroundColor: themeService.accentColor,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -2423,15 +2487,17 @@ class _SavingsScreenState extends State<SavingsScreen>
     String description,
     Color color,
   ) {
+    final themeService = Provider.of<ThemeService>(context);
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        decoration: BoxDecoration(
+          color: themeService.cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2452,17 +2518,21 @@ class _SavingsScreenState extends State<SavingsScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Join Challenge',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: themeService.textColor,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         title,
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                        style: TextStyle(
+                          fontSize: 16, 
+                          color: themeService.subtextColor,
+                        ),
                       ),
                     ],
                   ),
@@ -2474,23 +2544,27 @@ class _SavingsScreenState extends State<SavingsScreen>
               description,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[800],
+                color: themeService.textColor,
                 height: 1.4,
               ),
             ),
             const SizedBox(height: 16),
             Lottie.asset('assets/animations/challenge.json', height: 120),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Challenge Rules:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold,
+                color: themeService.textColor,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               '• Save the specified amount consistently\n• Track your progress in the app\n• Complete within the timeframe\n• Share your success with the community',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[800],
+                color: themeService.textColor,
                 height: 1.5,
               ),
             ),
@@ -2549,9 +2623,11 @@ class _SavingsScreenState extends State<SavingsScreen>
   }
 
   void _showOptionsMenu(BuildContext context) {
+    final themeService = Provider.of<ThemeService>(context);
+    
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: themeService.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -2563,21 +2639,27 @@ class _SavingsScreenState extends State<SavingsScreen>
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: themeService.subtextColor,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           ListTile(
-            leading: Icon(Icons.refresh, color: accentColor),
-            title: const Text('Refresh Data'),
+            leading: Icon(Icons.refresh, color: themeService.accentColor),
+            title: Text(
+              'Refresh Data',
+              style: TextStyle(color: themeService.textColor),
+            ),
             onTap: () {
               Navigator.pop(context);
               _refreshData();
             },
           ),
           ListTile(
-            leading: Icon(Icons.sync, color: accentColor),
-            title: const Text('Sync with Cloud'),
+            leading: Icon(Icons.sync, color: themeService.accentColor),
+            title: Text(
+              'Sync with Cloud',
+              style: TextStyle(color: themeService.textColor),
+            ),
             onTap: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
@@ -2587,8 +2669,11 @@ class _SavingsScreenState extends State<SavingsScreen>
             },
           ),
           ListTile(
-            leading: const Icon(Icons.settings, color: Colors.grey),
-            title: const Text('Settings'),
+            leading: Icon(Icons.settings, color: themeService.subtextColor),
+            title: Text(
+              'Settings',
+              style: TextStyle(color: themeService.textColor),
+            ),
             onTap: () {
               Navigator.pop(context);
               // Navigate to settings
