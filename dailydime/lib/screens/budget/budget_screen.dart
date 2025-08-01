@@ -1166,150 +1166,147 @@ Widget _buildBudgetOverviewCard({
   }
   
   Widget _buildCategoriesTab(bool isLoading, List<Budget> budgets, Color accentColor) {
-    final themeService = Provider.of<ThemeService>(context);
-    
-    if (isLoading) {
-      return Shimmer.fromColors(
-        baseColor: themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-        highlightColor: themeService.isDarkMode ? Colors.grey[600]! : Colors.grey[100]!,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: 5,
-          itemBuilder: (context, index) => Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Container(
-              height: 100,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: themeService.cardColor,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    
-    if (budgets.isEmpty) {
-      return Padding(
+  final themeService = Provider.of<ThemeService>(context);
+  
+  if (isLoading) {
+    return Shimmer.fromColors(
+      baseColor: themeService.isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+      highlightColor: themeService.isDarkMode ? Colors.grey[600]! : Colors.grey[100]!,
+      child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        child: _buildEmptyBudgetsCard(themeService.primaryColor, themeService)
-      );
-    }
-    
-    // Group budgets by period
-    final dailyBudgets = budgets.where((b) => b.period == BudgetPeriod.daily).toList();
-    final weeklyBudgets = budgets.where((b) => b.period == BudgetPeriod.weekly).toList();
-    final monthlyBudgets = budgets.where((b) => b.period == BudgetPeriod.monthly).toList();
-    final yearlyBudgets = budgets.where((b) => b.period == BudgetPeriod.yearly).toList();
-    
-    return ListView(
-      padding: const EdgeInsets.all(16),
-    children: [
-  if (monthlyBudgets.isNotEmpty) ...[
-    Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        'Monthly Budgets',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'DMsans',
-          color: themeService.textColor,
-        ),
-      ),
-    ),
-    ...monthlyBudgets.asMap().entries.map((entry) {
-      int index = entry.key;
-      var budget = entry.value;
-      return _buildBudgetListItem(context, budget, themeService.primaryColor, index);
-    }),
-    const SizedBox(height: 16),
-  ],
-         if (monthlyBudgets.isNotEmpty) ...[
-    Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        'Monthly Budgets',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'DMsans',
-          color: themeService.textColor,
-        ),
-      ),
-    ),
-    ...monthlyBudgets.asMap().entries.map((entry) {
-      int index = entry.key;
-      var budget = entry.value;
-      return _buildBudgetListItem(context, budget, themeService.primaryColor, index);
-    }),
-    const SizedBox(height: 16),
-  ],
-        
-        // Daily budgets section
-        if (dailyBudgets.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Daily Budgets',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'DMsans',
-                color: themeService.textColor,
-              ),
+        itemCount: 5,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Container(
+            height: 100,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: themeService.cardColor,
             ),
           ),
-          ...dailyBudgets.map((budget) => 
-            _buildBudgetListItem(context, budget, themeService.primaryColor, themeService)
-          ),
-          const SizedBox(height: 16),
-        ],
-        
-        // Yearly budgets section
-        if (yearlyBudgets.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Yearly Budgets',
-              style: TextStyle(
-                fontSize: 18,
-                fontFamily: 'DMsans',
-                fontWeight: FontWeight.bold,
-                color: themeService.textColor,
-              ),
-            ),
-          ),
-            ...yearlyBudgets.asMap().entries.map((entry) {
-      int index = entry.key;
-      var budget = entry.value;
-      return _buildBudgetListItem(context, budget, themeService.primaryColor, index);
-          }),
-          const SizedBox(height: 16),
-        ],
-        
-        // Create budget button
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: CustomButton(
-            isSmall: false,
-            text: 'Create New Budget',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CreateBudgetScreen(),
-                ),
-              );
-            },
-            icon: Icons.add,
-            buttonColor: Colors.blue,
-          ),
         ),
-      ],
+      ),
     );
   }
+  
+  if (budgets.isEmpty) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: _buildEmptyBudgetsCard(themeService.primaryColor, themeService)
+    );
+  }
+  
+  // Group budgets by period
+  final dailyBudgets = budgets.where((b) => b.period == BudgetPeriod.daily).toList();
+  final weeklyBudgets = budgets.where((b) => b.period == BudgetPeriod.weekly).toList();
+  final monthlyBudgets = budgets.where((b) => b.period == BudgetPeriod.monthly).toList();
+  final yearlyBudgets = budgets.where((b) => b.period == BudgetPeriod.yearly).toList();
+  
+  return ListView(
+    padding: const EdgeInsets.all(16),
+    children: [
+      // Monthly budgets section
+      if (monthlyBudgets.isNotEmpty) ...[
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'Monthly Budgets',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'DMsans',
+              color: themeService.textColor,
+            ),
+          ),
+        ),
+        ...monthlyBudgets.map((budget) {
+          return _buildBudgetListItem(context, budget, themeService.primaryColor, themeService);
+        }),
+        const SizedBox(height: 16),
+      ],
+      
+      // Weekly budgets section
+      if (weeklyBudgets.isNotEmpty) ...[
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'Weekly Budgets',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'DMsans',
+              color: themeService.textColor,
+            ),
+          ),
+        ),
+        ...weeklyBudgets.map((budget) => 
+          _buildBudgetListItem(context, budget, themeService.primaryColor, themeService)
+        ),
+        const SizedBox(height: 16),
+      ],
+      
+      // Daily budgets section
+      if (dailyBudgets.isNotEmpty) ...[
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'Daily Budgets',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'DMsans',
+              color: themeService.textColor,
+            ),
+          ),
+        ),
+        ...dailyBudgets.map((budget) => 
+          _buildBudgetListItem(context, budget, themeService.primaryColor, themeService)
+        ),
+        const SizedBox(height: 16),
+      ],
+      
+      // Yearly budgets section
+      if (yearlyBudgets.isNotEmpty) ...[
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'Yearly Budgets',
+            style: TextStyle(
+              fontSize: 18,
+              fontFamily: 'DMsans',
+              fontWeight: FontWeight.bold,
+              color: themeService.textColor,
+            ),
+          ),
+        ),
+        ...yearlyBudgets.map((budget) => 
+          _buildBudgetListItem(context, budget, themeService.primaryColor, themeService)
+        ),
+        const SizedBox(height: 16),
+      ],
+      
+      // Create budget button
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: CustomButton(
+          isSmall: false,
+          text: 'Create New Budget',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CreateBudgetScreen(),
+              ),
+            );
+          },
+          icon: Icons.add,
+          buttonColor: Colors.blue,
+        ),
+      ),
+    ],
+  );
+}
   
   Widget _buildInsightsTab(bool isLoading, Color accentColor) {
     final themeService = Provider.of<ThemeService>(context);

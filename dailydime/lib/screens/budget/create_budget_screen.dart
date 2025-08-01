@@ -1,6 +1,7 @@
 // lib/screens/budget/create_budget_screen.dart
 import 'package:dailydime/models/budget.dart';
 import 'package:dailydime/providers/budget_provider.dart';
+import 'package:dailydime/services/theme_service.dart';
 import 'package:dailydime/widgets/common/custom_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -111,25 +112,26 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final accentColor = const Color(0xFF26D07C);
+    final themeService = Provider.of<ThemeService>(context);
     
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: themeService.scaffoldColor,
       appBar: AppBar(
         title: Text(
           widget.budgetToEdit == null ? 'Create Budget' : 'Edit Budget',
-          style: const TextStyle(
-            color: Colors.black87,
+          style: TextStyle(
+            color: themeService.textColor,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: themeService.surfaceColor,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: themeService.textColor),
           onPressed: () => Navigator.pop(context),
         ),
+        iconTheme: IconThemeData(color: themeService.textColor),
       ),
       body: Form(
         key: _formKey,
@@ -140,11 +142,13 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: themeService.cardColor,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: themeService.isDarkMode 
+                        ? Colors.black.withOpacity(0.3)
+                        : Colors.black.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
@@ -153,12 +157,12 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'How much do you want to budget?',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: themeService.textColor,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -169,14 +173,14 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                       FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                     ],
                     decoration: InputDecoration(
-                      prefixIcon: const Padding(
-                        padding: EdgeInsets.only(left: 16),
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.only(left: 16),
                         child: Text(
                           'KES',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: themeService.textColor,
                           ),
                         ),
                       ),
@@ -185,18 +189,21 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                       hintText: '0.00',
                       hintStyle: TextStyle(
                         fontSize: 20,
-                        color: Colors.grey.shade400,
+                        color: themeService.subtextColor,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: themeService.isDarkMode 
+                          ? const Color(0xFF2D3748)
+                          : Colors.grey.shade100,
                     ),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
+                      color: themeService.textColor,
                     ),
                     textAlign: TextAlign.end,
                     validator: (value) {
@@ -220,11 +227,13 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: themeService.cardColor,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: themeService.isDarkMode 
+                        ? Colors.black.withOpacity(0.3)
+                        : Colors.black.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
@@ -233,12 +242,12 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Category',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: themeService.textColor,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -285,7 +294,9 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                               category['name'],
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isSelected ? category['color'] : Colors.grey.shade700,
+                                color: isSelected 
+                                    ? category['color'] 
+                                    : themeService.subtextColor,
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                               ),
                             ),
@@ -304,11 +315,13 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: themeService.cardColor,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: themeService.isDarkMode 
+                        ? Colors.black.withOpacity(0.3)
+                        : Colors.black.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
@@ -317,12 +330,12 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Budget Details',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: themeService.textColor,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -330,12 +343,36 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                   // Budget name
                   TextFormField(
                     controller: _titleController,
+                    style: TextStyle(color: themeService.textColor),
                     decoration: InputDecoration(
                       labelText: 'Budget Name',
+                      labelStyle: TextStyle(color: themeService.subtextColor),
                       hintText: 'e.g. Groceries, Dining Out',
+                      hintStyle: TextStyle(color: themeService.subtextColor),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: themeService.isDarkMode 
+                              ? Colors.grey[700]! 
+                              : Colors.grey[200]!,
+                        ),
                       ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: themeService.isDarkMode 
+                              ? Colors.grey[700]! 
+                              : Colors.grey[200]!,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: themeService.primaryColor, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: themeService.isDarkMode 
+                          ? const Color(0xFF2D3748)
+                          : Colors.grey[50],
                       prefixIcon: Icon(
                         _selectedIcon,
                         color: _selectedColor,
@@ -352,12 +389,12 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                   const SizedBox(height: 20),
                   
                   // Budget period selection
-                  const Text(
+                  Text(
                     'Budget Period',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: themeService.textColor,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -378,14 +415,20 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                             margin: const EdgeInsets.symmetric(horizontal: 4),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              color: isSelected ? accentColor : Colors.grey.shade100,
+                              color: isSelected 
+                                  ? themeService.primaryColor 
+                                  : themeService.isDarkMode 
+                                      ? const Color(0xFF2D3748)
+                                      : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
                               children: [
                                 Icon(
                                   period['icon'],
-                                  color: isSelected ? Colors.white : Colors.grey.shade700,
+                                  color: isSelected 
+                                      ? Colors.white 
+                                      : themeService.subtextColor,
                                   size: 20,
                                 ),
                                 const SizedBox(height: 4),
@@ -393,7 +436,9 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                   period['name'],
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: isSelected ? Colors.white : Colors.grey.shade700,
+                                    color: isSelected 
+                                        ? Colors.white 
+                                        : themeService.subtextColor,
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                   ),
                                 ),
@@ -414,12 +459,12 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Start Date',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.black87,
+                                color: themeService.textColor,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -434,6 +479,21 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                         initialDate: _startDate,
                                         firstDate: DateTime.now().subtract(const Duration(days: 30)),
                                         lastDate: DateTime.now().add(const Duration(days: 365)),
+                                        builder: (context, child) {
+                                          return Theme(
+                                            data: Theme.of(context).copyWith(
+                                              colorScheme: ColorScheme.fromSwatch(
+                                                primarySwatch: themeService.isDarkMode 
+                                                    ? Colors.teal 
+                                                    : Colors.green,
+                                                brightness: themeService.isDarkMode 
+                                                    ? Brightness.dark 
+                                                    : Brightness.light,
+                                              ),
+                                            ),
+                                            child: child!,
+                                          );
+                                        },
                                       );
                                       
                                       if (date != null) {
@@ -449,9 +509,15 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
+                                  color: themeService.isDarkMode 
+                                      ? const Color(0xFF2D3748)
+                                      : Colors.grey.shade100,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color: themeService.isDarkMode 
+                                        ? Colors.grey[700]! 
+                                        : Colors.grey.shade300,
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
@@ -461,8 +527,8 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                       color: _selectedPeriod == BudgetPeriod.daily || 
                                              _selectedPeriod == BudgetPeriod.monthly || 
                                              _selectedPeriod == BudgetPeriod.yearly
-                                          ? Colors.grey.shade400
-                                          : accentColor,
+                                          ? themeService.subtextColor
+                                          : themeService.primaryColor,
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
@@ -471,8 +537,8 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                         color: _selectedPeriod == BudgetPeriod.daily || 
                                                _selectedPeriod == BudgetPeriod.monthly || 
                                                _selectedPeriod == BudgetPeriod.yearly
-                                            ? Colors.grey.shade700
-                                            : Colors.black87,
+                                            ? themeService.subtextColor
+                                            : themeService.textColor,
                                       ),
                                     ),
                                   ],
@@ -487,12 +553,12 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'End Date',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.black87,
+                                color: themeService.textColor,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -507,6 +573,21 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                         initialDate: _endDate,
                                         firstDate: _startDate,
                                         lastDate: _startDate.add(const Duration(days: 365)),
+                                        builder: (context, child) {
+                                          return Theme(
+                                            data: Theme.of(context).copyWith(
+                                              colorScheme: ColorScheme.fromSwatch(
+                                                primarySwatch: themeService.isDarkMode 
+                                                    ? Colors.teal 
+                                                    : Colors.green,
+                                                brightness: themeService.isDarkMode 
+                                                    ? Brightness.dark 
+                                                    : Brightness.light,
+                                              ),
+                                            ),
+                                            child: child!,
+                                          );
+                                        },
                                       );
                                       
                                       if (date != null) {
@@ -518,9 +599,15 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
+                                  color: themeService.isDarkMode 
+                                      ? const Color(0xFF2D3748)
+                                      : Colors.grey.shade100,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color: themeService.isDarkMode 
+                                        ? Colors.grey[700]! 
+                                        : Colors.grey.shade300,
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
@@ -530,8 +617,8 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                       color: _selectedPeriod == BudgetPeriod.daily || 
                                              _selectedPeriod == BudgetPeriod.monthly || 
                                              _selectedPeriod == BudgetPeriod.yearly
-                                          ? Colors.grey.shade400
-                                          : accentColor,
+                                          ? themeService.subtextColor
+                                          : themeService.primaryColor,
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
@@ -540,8 +627,8 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                         color: _selectedPeriod == BudgetPeriod.daily || 
                                                _selectedPeriod == BudgetPeriod.monthly || 
                                                _selectedPeriod == BudgetPeriod.yearly
-                                            ? Colors.grey.shade700
-                                            : Colors.black87,
+                                            ? themeService.subtextColor
+                                            : themeService.textColor,
                                       ),
                                     ),
                                   ],
@@ -566,7 +653,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
               onPressed: _saveBudget,
               isLoading: _isProcessing,
               icon: widget.budgetToEdit == null ? Icons.add : Icons.save, 
-              buttonColor: Colors.blue,
+              buttonColor: themeService.primaryColor,
             ),
             
             if (widget.budgetToEdit != null) ...[
@@ -577,7 +664,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                 onPressed: _deleteBudget,
                 isOutlined: true,
                 icon: Icons.delete,
-                buttonColor: Colors.red,
+                buttonColor: themeService.errorColor,
               ),
             ],
             
@@ -601,6 +688,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
             : _titleController.text.trim();
         
         final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+        final themeService = Provider.of<ThemeService>(context, listen: false);
         
         if (widget.budgetToEdit == null) {
           // Create new budget
@@ -620,9 +708,9 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Budget created successfully'),
-                backgroundColor: Color(0xFF26D07C),
+              SnackBar(
+                content: const Text('Budget created successfully'),
+                backgroundColor: themeService.successColor,
               ),
             );
             Navigator.pop(context);
@@ -645,19 +733,20 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Budget updated successfully'),
-                backgroundColor: Color(0xFF26D07C),
+              SnackBar(
+                content: const Text('Budget updated successfully'),
+                backgroundColor: themeService.successColor,
               ),
             );
             Navigator.pop(context);
           }
         }
       } catch (e) {
+        final themeService = Provider.of<ThemeService>(context, listen: false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: themeService.errorColor,
           ),
         );
       } finally {
@@ -671,21 +760,33 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
   }
   
   void _deleteBudget() async {
+    final themeService = Provider.of<ThemeService>(context, listen: false);
+    
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Budget'),
-        content: const Text('Are you sure you want to delete this budget? This action cannot be undone.'),
+        backgroundColor: themeService.cardColor,
+        title: Text(
+          'Delete Budget',
+          style: TextStyle(color: themeService.textColor),
+        ),
+        content: Text(
+          'Are you sure you want to delete this budget? This action cannot be undone.',
+          style: TextStyle(color: themeService.subtextColor),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: themeService.subtextColor),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
+              foregroundColor: themeService.errorColor,
             ),
             child: const Text('Delete'),
           ),
@@ -704,9 +805,9 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Budget deleted successfully'),
-              backgroundColor: Color(0xFF26D07C),
+            SnackBar(
+              content: const Text('Budget deleted successfully'),
+              backgroundColor: themeService.successColor,
             ),
           );
           Navigator.pop(context);
@@ -715,7 +816,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: themeService.errorColor,
           ),
         );
       } finally {
