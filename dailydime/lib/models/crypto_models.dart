@@ -28,7 +28,7 @@ class Token {
     this.currentPrice = 0.0,
     this.priceChangePercent24h = 0.0,
     this.ath = 0.0,
-    this.atl = 0.0,
+    this.atl = 0.0, required amount, required usdValue,
   });
   
   Token copyWith({
@@ -391,6 +391,8 @@ class Transaction {
   final TransactionStatus status;
   final String budgetCategory;
   final String description;
+
+  var date;
   
   const Transaction({
     required this.id,
@@ -745,6 +747,8 @@ class MarketData {
   final double marketCapChange24h;
   final Map<String, dynamic> trending;
   final Map<String, dynamic> fear;
+
+  var volumeData;
   
   const MarketData({
     required this.totalMarketCap,
@@ -928,6 +932,12 @@ class RiskAssessment {
   final Map<String, double> riskFactors;
   final List<String> suggestions;
   final Map<String, dynamic> metadata;
+
+  var riskLevel;
+
+  var analysis;
+
+  var recommendations;
   
   const RiskAssessment({
     required this.overallRisk,
@@ -1005,7 +1015,7 @@ enum TransactionType {
   stake,
   unstake,
   claim,
-  contract,
+  contract, sent, received,
 }
 
 /// Enumeration for transaction status
