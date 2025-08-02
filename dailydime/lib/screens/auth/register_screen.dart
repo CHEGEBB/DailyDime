@@ -130,7 +130,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     } else if (_currentStep == 1) {
       if (_step2FormKey.currentState!.validate()) {
         if (!_agreeToTerms) {
-          _showSnackBar('Please agree to the Terms and Privacy Policy', Colors.red);
+          _showSnackBar('Please agree to the Terms and Privacy Policy', Provider.of<ThemeService>(context, listen: false).errorColor);
           return;
         }
         _registerUser();
@@ -205,7 +205,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         _isLoading = false;
         _errorMessage = _authService.handleAuthError(e);
       });
-      _showSnackBar(_errorMessage, Colors.red);
+      _showSnackBar(_errorMessage, Provider.of<ThemeService>(context, listen: false).errorColor);
     }
   }
 
@@ -224,14 +224,14 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         _userId = token.userId;
       });
       
-      _showSnackBar('Verification code resent to your email', Colors.green);
+      _showSnackBar('Verification code resent to your email', Provider.of<ThemeService>(context, listen: false).successColor);
       
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = _authService.handleAuthError(e);
       });
-      _showSnackBar(_errorMessage, Colors.red);
+      _showSnackBar(_errorMessage, Provider.of<ThemeService>(context, listen: false).errorColor);
     }
   }
 
@@ -253,7 +253,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         _isLoading = false;
         _errorMessage = _authService.handleAuthError(e);
       });
-      _showSnackBar(_errorMessage, Colors.red);
+      _showSnackBar(_errorMessage, Provider.of<ThemeService>(context, listen: false).errorColor);
     }
   }
 
@@ -274,7 +274,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         _isLoading = false;
         _errorMessage = _authService.handleAuthError(e);
       });
-      _showSnackBar(_errorMessage, Colors.red);
+      _showSnackBar(_errorMessage, Provider.of<ThemeService>(context, listen: false).errorColor);
     }
   }
 
@@ -295,7 +295,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         _isLoading = false;
         _errorMessage = _authService.handleAuthError(e);
       });
-      _showSnackBar(_errorMessage, Colors.red);
+      _showSnackBar(_errorMessage, Provider.of<ThemeService>(context, listen: false).errorColor);
     }
   }
 
@@ -303,7 +303,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     final otp = _otpControllers.map((controller) => controller.text).join();
     
     if (otp.length != 6) {
-      _showSnackBar('Please enter the 6-digit verification code', Colors.red);
+      _showSnackBar('Please enter the 6-digit verification code', Provider.of<ThemeService>(context, listen: false).errorColor);
       return;
     }
     
@@ -332,7 +332,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         _isLoading = false;
         _errorMessage = _authService.handleAuthError(e);
       });
-      _showSnackBar(_errorMessage, Colors.red);
+      _showSnackBar(_errorMessage, Provider.of<ThemeService>(context, listen: false).errorColor);
     }
   }
 
@@ -378,7 +378,6 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   @override
   Widget build(BuildContext context) {
     final themeService = Provider.of<ThemeService>(context);
-    final isDarkMode = themeService.isDarkMode;
     final size = MediaQuery.of(context).size;
     
     return Scaffold(
@@ -386,33 +385,19 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         height: size.height,
         width: size.width,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDarkMode 
-                ? [
-                    const Color(0xFF1a1a2e),
-                    const Color(0xFF16213e),
-                    const Color(0xFF0f3460),
-                  ]
-                : [
-                    const Color(0xFF4CAF50),
-                    const Color(0xFF45A049),
-                    const Color(0xFF2E7D32),
-                  ],
-          ),
+          gradient: themeService.backgroundGradient,
         ),
         child: Stack(
           children: [
             // Decorative elements
-            _buildDecorativeElements(size, isDarkMode),
+            _buildDecorativeElements(size, themeService),
             
             // Main content
             SafeArea(
               child: Column(
                 children: [
                   // Header with back button and progress
-                  _buildHeader(context),
+                  _buildHeader(context, themeService),
                   
                   // Main content
                   Expanded(
@@ -420,9 +405,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       controller: _pageController,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        _buildStep1(context),
-                        _buildStep2(context),
-                        _buildStep3(context),
+                        _buildStep1(context, themeService),
+                        _buildStep2(context, themeService),
+                        _buildStep3(context, themeService),
                       ],
                     ),
                   ),
@@ -435,7 +420,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildDecorativeElements(Size size, bool isDarkMode) {
+  Widget _buildDecorativeElements(Size size, ThemeService themeService) {
     return Stack(
       children: [
         // Top right circle
@@ -447,7 +432,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             height: size.width * 0.6,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(isDarkMode ? 0.05 : 0.1),
+              color: themeService.primaryColor.withOpacity(themeService.isDarkMode ? 0.05 : 0.1),
             ),
           ),
         ),
@@ -461,7 +446,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             height: size.width * 0.8,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(isDarkMode ? 0.03 : 0.08),
+              color: themeService.secondaryColor.withOpacity(themeService.isDarkMode ? 0.03 : 0.08),
             ),
           ),
         ),
@@ -475,7 +460,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             height: 20,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.1),
+              color: themeService.accentColor.withOpacity(0.1),
             ),
           ),
         ),
@@ -488,7 +473,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             height: 15,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.08),
+              color: themeService.primaryColor.withOpacity(0.08),
             ),
           ),
         ),
@@ -496,9 +481,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
-    
+  Widget _buildHeader(BuildContext context, ThemeService themeService) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Column(
@@ -512,16 +495,16 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: themeService.surfaceColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(15),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
+                      color: themeService.primaryColor.withOpacity(0.3),
                       width: 1,
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.arrow_back_ios_new,
-                    color: Colors.white,
+                    color: themeService.textColor,
                     size: 18,
                   ),
                 ),
@@ -533,7 +516,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: themeService.textColor,
                   fontFamily: 'Pacifico',
                   letterSpacing: 0.5,
                 ),
@@ -546,13 +529,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: themeService.surfaceColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Skip',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: themeService.textColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -574,8 +557,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                   height: 4,
                   decoration: BoxDecoration(
                     color: index <= _currentStep 
-                        ? Colors.white 
-                        : Colors.white.withOpacity(0.3),
+                        ? themeService.primaryColor 
+                        : themeService.primaryColor.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -587,9 +570,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildStep1(BuildContext context) {
+  Widget _buildStep1(BuildContext context, ThemeService themeService) {
     final size = MediaQuery.of(context).size;
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
     
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -598,7 +580,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         child: Container(
           margin: const EdgeInsets.only(top: 20),
           decoration: BoxDecoration(
-            color: isDarkMode ? const Color(0xFF1E1E2E) : Colors.white,
+            color: themeService.cardColor,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(30),
               topRight: Radius.circular(30),
@@ -619,7 +601,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : const Color(0xFF2D3748),
+                        color: themeService.textColor,
                       ),
                     ),
                     
@@ -629,7 +611,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       'Start your financial journey with us',
                       style: TextStyle(
                         fontSize: 16,
-                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        color: themeService.subtextColor,
                       ),
                     ),
                     
@@ -646,13 +628,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                             Container(
                               height: size.height * 0.25,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF4CAF50).withOpacity(0.1),
+                                color: themeService.primaryColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.account_circle_outlined,
                                 size: 120,
-                                color: Color(0xFF4CAF50),
+                                color: themeService.primaryColor,
                               ),
                             ),
                         ),
@@ -669,6 +651,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       keyboardType: TextInputType.emailAddress,
                       validator: _validateEmail,
                       hintText: 'Enter your email address',
+                      themeService: themeService,
                     ),
                     
                     const SizedBox(height: 20),
@@ -681,6 +664,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       obscureText: _obscurePassword,
                       validator: _validatePassword,
                       hintText: 'Create a strong password',
+                      themeService: themeService,
                       suffixIcon: GestureDetector(
                         onTap: () {
                           setState(() {
@@ -689,7 +673,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                         },
                         child: Icon(
                           _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                          color: themeService.subtextColor,
                           size: 20,
                         ),
                       ),
@@ -698,7 +682,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                     const SizedBox(height: 16),
                     
                     // Password strength indicator
-                    _buildPasswordStrength(),
+                    _buildPasswordStrength(themeService),
                     
                     const SizedBox(height: 40),
                     
@@ -707,22 +691,23 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       text: 'Continue',
                       onPressed: _nextStep,
                       isLoading: _isLoading,
+                      themeService: themeService,
                     ),
                     
                     const SizedBox(height: 30),
                     
                     // Divider
-                    _buildDivider('Or sign up with'),
+                    _buildDivider('Or sign up with', themeService),
                     
                     const SizedBox(height: 30),
                     
                     // Social login buttons
-                    _buildSocialButtons(),
+                    _buildSocialButtons(themeService),
                     
                     const SizedBox(height: 30),
                     
                     // Login link
-                    _buildLoginLink(),
+                    _buildLoginLink(themeService),
                     
                     const SizedBox(height: 20),
                   ],
@@ -735,9 +720,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildStep2(BuildContext context) {
+  Widget _buildStep2(BuildContext context, ThemeService themeService) {
     final size = MediaQuery.of(context).size;
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
     
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -746,7 +730,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         child: Container(
           margin: const EdgeInsets.only(top: 20),
           decoration: BoxDecoration(
-            color: isDarkMode ? const Color(0xFF1E1E2E) : Colors.white,
+            color: themeService.cardColor,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(30),
               topRight: Radius.circular(30),
@@ -766,7 +750,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : const Color(0xFF2D3748),
+                        color: themeService.textColor,
                       ),
                     ),
                     
@@ -776,7 +760,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       'Tell us more about yourself',
                       style: TextStyle(
                         fontSize: 16,
-                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        color: themeService.subtextColor,
                       ),
                     ),
                     
@@ -793,13 +777,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                             Container(
                               height: size.height * 0.22,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF4CAF50).withOpacity(0.1),
+                                color: themeService.primaryColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.person_outline,
                                 size: 120,
-                                color: Color(0xFF4CAF50),
+                                color: themeService.primaryColor,
                               ),
                             ),
                         ),
@@ -818,6 +802,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                             prefixIcon: Icons.person_outline,
                             validator: _validateName,
                             hintText: 'First name',
+                            themeService: themeService,
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -828,6 +813,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                             prefixIcon: Icons.person_outline,
                             validator: _validateName,
                             hintText: 'Last name',
+                            themeService: themeService,
                           ),
                         ),
                       ],
@@ -843,6 +829,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       keyboardType: TextInputType.phone,
                       validator: _validatePhone,
                       hintText: '+1 (555) 123-4567',
+                      themeService: themeService,
                     ),
                     
                     const SizedBox(height: 20),
@@ -853,12 +840,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       controller: _businessNameController,
                       prefixIcon: Icons.business_outlined,
                       hintText: 'Your business name',
+                      themeService: themeService,
                     ),
                     
                     const SizedBox(height: 30),
                     
                     // Terms and conditions
-                    _buildTermsCheckbox(),
+                    _buildTermsCheckbox(themeService),
                     
                     const SizedBox(height: 40),
                     
@@ -867,6 +855,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       text: 'Create Account',
                       onPressed: _nextStep,
                       isLoading: _isLoading,
+                      themeService: themeService,
                     ),
                     
                     const SizedBox(height: 20),
@@ -880,9 +869,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildStep3(BuildContext context) {
+  Widget _buildStep3(BuildContext context, ThemeService themeService) {
     final size = MediaQuery.of(context).size;
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
     
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -891,7 +879,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         child: Container(
           margin: const EdgeInsets.only(top: 20),
           decoration: BoxDecoration(
-            color: isDarkMode ? const Color(0xFF1E1E2E) : Colors.white,
+            color: themeService.cardColor,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(30),
               topRight: Radius.circular(30),
@@ -909,7 +897,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : const Color(0xFF2D3748),
+                      color: themeService.textColor,
                     ),
                   ),
                   
@@ -920,7 +908,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      color: themeService.subtextColor,
                     ),
                   ),
                   
@@ -936,13 +924,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                         Container(
                           height: size.height * 0.22,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4CAF50).withOpacity(0.1),
+                            color: themeService.primaryColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.mark_email_read_outlined,
                             size: 120,
-                            color: Color(0xFF4CAF50),
+                            color: themeService.primaryColor,
                           ),
                         ),
                     ),
@@ -955,7 +943,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                     'Code sent to:',
                     style: TextStyle(
                       fontSize: 14,
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      color: themeService.subtextColor,
                     ),
                   ),
                   
@@ -966,14 +954,14 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF4CAF50),
+                      color: themeService.primaryColor,
                     ),
                   ),
                   
                   const SizedBox(height: 40),
                   
                   // OTP input fields
-                  _buildOtpFields(),
+                  _buildOtpFields(themeService),
                   
                   const SizedBox(height: 40),
                   
@@ -982,6 +970,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                     text: 'Verify Email',
                     onPressed: _verifyEmail,
                     isLoading: _isLoading,
+                    themeService: themeService,
                   ),
                   
                   const SizedBox(height: 30),
@@ -993,15 +982,15 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       Text(
                         "Didn't receive the code? ",
                         style: TextStyle(
-                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                          color: themeService.subtextColor,
                         ),
                       ),
                       GestureDetector(
                         onTap: _resendVerificationCode,
-                        child: const Text(
+                        child: Text(
                           'Resend',
                           style: TextStyle(
-                            color: Color(0xFF4CAF50),
+                            color: themeService.primaryColor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -1022,7 +1011,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                     child: Text(
                       'Skip verification for now',
                       style: TextStyle(
-                        color: isDarkMode ? Colors.grey[500] : Colors.grey[500],
+                        color: themeService.subtextColor.withOpacity(0.8),
                       ),
                     ),
                   ),
@@ -1041,14 +1030,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     required String label,
     required TextEditingController controller,
     required IconData prefixIcon,
+    required ThemeService themeService,
     TextInputType? keyboardType,
     bool obscureText = false,
     String? Function(String?)? validator,
     Widget? suffixIcon,
     required String hintText,
   }) {
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
-    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1057,7 +1045,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: isDarkMode ? Colors.grey[300] : const Color(0xFF4A5568),
+            color: themeService.textColor,
           ),
         ),
         const SizedBox(height: 8),
@@ -1078,13 +1066,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             obscureText: obscureText,
             validator: validator,
             style: TextStyle(
-              color: isDarkMode ? Colors.white : const Color(0xFF2D3748),
+              color: themeService.textColor,
               fontSize: 16,
             ),
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(
-                color: isDarkMode ? Colors.grey[500] : Colors.grey[400],
+                color: themeService.subtextColor,
                 fontSize: 15,
               ),
               contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
@@ -1092,18 +1080,20 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                 margin: const EdgeInsets.all(8),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50).withOpacity(0.1),
+                  color: themeService.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   prefixIcon,
-                  color: const Color(0xFF4CAF50),
+                  color: themeService.primaryColor,
                   size: 20,
                 ),
               ),
               suffixIcon: suffixIcon,
               filled: true,
-              fillColor: isDarkMode ? const Color(0xFF2A2D3A) : Colors.grey[50],
+              fillColor: themeService.isDarkMode 
+                  ? themeService.surfaceColor 
+                  : themeService.surfaceColor.withOpacity(0.5),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
@@ -1111,28 +1101,30 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(
-                  color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!,
+                  color: themeService.isDarkMode 
+                      ? themeService.subtextColor.withOpacity(0.3)
+                      : themeService.subtextColor.withOpacity(0.2),
                   width: 1,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(
-                  color: Color(0xFF4CAF50),
+                borderSide: BorderSide(
+                  color: themeService.primaryColor,
                   width: 2,
                 ),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(
-                  color: Colors.red,
+                borderSide: BorderSide(
+                  color: themeService.errorColor,
                   width: 1.5,
                 ),
               ),
               focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(
-                  color: Colors.red,
+                borderSide: BorderSide(
+                  color: themeService.errorColor,
                   width: 2,
                 ),
               ),
@@ -1143,17 +1135,16 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildPasswordStrength() {
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
+  Widget _buildPasswordStrength(ThemeService themeService) {
     final password = _passwordController.text;
     
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF2A2D3A) : Colors.grey[50],
+        color: themeService.surfaceColor.withOpacity(0.5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!,
+          color: themeService.subtextColor.withOpacity(0.2),
         ),
       ),
       child: Column(
@@ -1164,7 +1155,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+              color: themeService.textColor,
             ),
           ),
           const SizedBox(height: 8),
@@ -1173,19 +1164,19 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
               _buildStrengthIndicator(
                 password.length >= 8,
                 'Min. 8 characters',
-                isDarkMode,
+                themeService,
               ),
               const SizedBox(width: 16),
               _buildStrengthIndicator(
                 RegExp(r'[0-9]').hasMatch(password),
                 'Numbers',
-                isDarkMode,
+                themeService,
               ),
               const SizedBox(width: 16),
               _buildStrengthIndicator(
                 RegExp(r'[A-Z]').hasMatch(password),
                 'Uppercase',
-                isDarkMode,
+                themeService,
               ),
             ],
           ),
@@ -1194,7 +1185,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildStrengthIndicator(bool isValid, String text, bool isDarkMode) {
+  Widget _buildStrengthIndicator(bool isValid, String text, ThemeService themeService) {
     return Expanded(
       child: Row(
         children: [
@@ -1203,9 +1194,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             width: 16,
             height: 16,
             decoration: BoxDecoration(
-              color: isValid ? const Color(0xFF4CAF50) : Colors.transparent,
+              color: isValid ? themeService.successColor : Colors.transparent,
               border: Border.all(
-                color: isValid ? const Color(0xFF4CAF50) : Colors.grey[400]!,
+                color: isValid ? themeService.successColor : themeService.subtextColor,
               ),
               borderRadius: BorderRadius.circular(4),
             ),
@@ -1220,8 +1211,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
               style: TextStyle(
                 fontSize: 11,
                 color: isValid 
-                    ? (isDarkMode ? Colors.white : Colors.grey[800])
-                    : Colors.grey[500],
+                    ? themeService.textColor
+                    : themeService.subtextColor,
                 fontWeight: isValid ? FontWeight.w500 : FontWeight.normal,
               ),
               overflow: TextOverflow.ellipsis,
@@ -1236,20 +1227,21 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     required String text,
     required VoidCallback onPressed,
     required bool isLoading,
+    required ThemeService themeService,
   }) {
     return Container(
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4CAF50), Color(0xFF45A049)],
+        gradient: LinearGradient(
+          colors: [themeService.primaryColor, themeService.secondaryColor],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4CAF50).withOpacity(0.3),
+            color: themeService.primaryColor.withOpacity(0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -1285,14 +1277,12 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildDivider(String text) {
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
-    
+  Widget _buildDivider(String text, ThemeService themeService) {
     return Row(
       children: [
         Expanded(
           child: Divider(
-            color: isDarkMode ? Colors.grey[600] : Colors.grey[300],
+            color: themeService.subtextColor.withOpacity(0.5),
             thickness: 1,
           ),
         ),
@@ -1301,7 +1291,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
           child: Text(
             text,
             style: TextStyle(
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              color: themeService.subtextColor,
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -1309,7 +1299,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         ),
         Expanded(
           child: Divider(
-            color: isDarkMode ? Colors.grey[600] : Colors.grey[300],
+            color: themeService.subtextColor.withOpacity(0.5),
             thickness: 1,
           ),
         ),
@@ -1317,9 +1307,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildSocialButtons() {
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
-    
+  Widget _buildSocialButtons(ThemeService themeService) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -1327,19 +1315,19 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
           icon: Icons.g_mobiledata_rounded,
           color: Colors.red,
           onTap: _signUpWithGoogle,
-          isDarkMode: isDarkMode,
+          themeService: themeService,
         ),
         _buildSocialButton(
           icon: Icons.facebook_rounded,
           color: const Color(0xFF1877F2),
           onTap: _signUpWithFacebook,
-          isDarkMode: isDarkMode,
+          themeService: themeService,
         ),
         _buildSocialButton(
           icon: Icons.apple_rounded,
-          color: isDarkMode ? Colors.white : Colors.black,
+          color: themeService.isDarkMode ? Colors.white : Colors.black,
           onTap: _signUpWithApple,
-          isDarkMode: isDarkMode,
+          themeService: themeService,
         ),
       ],
     );
@@ -1349,7 +1337,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
-    required bool isDarkMode,
+    required ThemeService themeService,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -1357,10 +1345,10 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         width: 70,
         height: 70,
         decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF2A2D3A) : Colors.white,
+          color: themeService.surfaceColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!,
+            color: themeService.subtextColor.withOpacity(0.2),
             width: 1,
           ),
           boxShadow: [
@@ -1380,9 +1368,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildLoginLink() {
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
-    
+  Widget _buildLoginLink(ThemeService themeService) {
     return Center(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1390,16 +1376,16 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
           Text(
             'Already have an account? ',
             style: TextStyle(
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              color: themeService.subtextColor,
               fontSize: 15,
             ),
           ),
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Text(
+            child: Text(
               'Sign In',
               style: TextStyle(
-                color: Color(0xFF4CAF50),
+                color: themeService.primaryColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 15,
               ),
@@ -1410,16 +1396,14 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildTermsCheckbox() {
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
-    
+  Widget _buildTermsCheckbox(ThemeService themeService) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF2A2D3A) : Colors.grey[50],
+        color: themeService.surfaceColor.withOpacity(0.5),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!,
+          color: themeService.subtextColor.withOpacity(0.2),
         ),
       ),
       child: Row(
@@ -1430,7 +1414,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             height: 24,
             child: Checkbox(
               value: _agreeToTerms,
-              activeColor: const Color(0xFF4CAF50),
+              activeColor: themeService.primaryColor,
               checkColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
@@ -1449,21 +1433,21 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                 text: 'I agree to the ',
                 style: TextStyle(
                   fontSize: 14,
-                  color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                  color: themeService.textColor,
                 ),
                 children: [
-                  const TextSpan(
+                  TextSpan(
                     text: 'Terms of Service',
                     style: TextStyle(
-                      color: Color(0xFF4CAF50),
+                      color: themeService.primaryColor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const TextSpan(text: ' and '),
-                  const TextSpan(
+                  TextSpan(
                     text: 'Privacy Policy',
                     style: TextStyle(
-                      color: Color(0xFF4CAF50),
+                      color: themeService.primaryColor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1476,9 +1460,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildOtpFields() {
-    final isDarkMode = Provider.of<ThemeService>(context).isDarkMode;
-    
+  Widget _buildOtpFields(ThemeService themeService) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -1506,12 +1488,12 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : const Color(0xFF2D3748),
+                color: themeService.textColor,
               ),
               decoration: InputDecoration(
                 counterText: '',
                 filled: true,
-                fillColor: isDarkMode ? const Color(0xFF2A2D3A) : Colors.white,
+                fillColor: themeService.surfaceColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -1519,14 +1501,14 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!,
+                    color: themeService.subtextColor.withOpacity(0.2),
                     width: 1,
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF4CAF50),
+                  borderSide: BorderSide(
+                    color: themeService.primaryColor,
                     width: 2,
                   ),
                 ),
