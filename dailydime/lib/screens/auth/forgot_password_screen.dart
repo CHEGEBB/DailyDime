@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lottie/lottie.dart';
 import 'package:dailydime/screens/auth/login_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:dailydime/services/theme_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({Key? key}) : super(key: key);
@@ -23,7 +25,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1200),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
@@ -56,189 +58,120 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
 
       // Simulate network delay
       Future.delayed(const Duration(seconds: 2), () {
-        setState(() {
-          _isLoading = false;
-          _emailSent = true;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _emailSent = true;
+          });
+        }
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final themeService = Provider.of<ThemeService>(context);
+    final isDark = themeService.isDarkMode;
+    final primaryColor = themeService.primaryColor;
     final size = MediaQuery.of(context).size;
     
     return Scaffold(
       body: Stack(
         children: [
-          // Background image - positioned higher to be more visible in header
+          // Background
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: themeService.scaffoldColor,
+          ),
+          
+          // Floating design elements
           Positioned(
             top: -50,
-            left: 0,
-            right: 0,
-            height: size.height * 0.55, // Cover more of the screen
-            child: Image.asset(
-              'assets/images/pass.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF2E8B57),
-                        Color(0xFF20B2AA),
-                        Color(0xFF48D1CC),
-                      ],
-                    ),
-                  ),
-                );
-              },
+            right: -50,
+            child: Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: primaryColor.withOpacity(0.1),
+              ),
             ),
           ),
           
-          // Green gradient overlay
           Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: size.height * 0.5, // Cover more of the screen
+            bottom: 150,
+            left: -80,
             child: Container(
+              width: 200,
+              height: 200,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF2E8B57).withOpacity(0.8),
-                    Color(0xFF20B2AA).withOpacity(0.8),
-                    Color(0xFF48D1CC).withOpacity(0.8),
-                  ],
-                ),
+                shape: BoxShape.circle,
+                color: themeService.secondaryColor.withOpacity(0.1),
               ),
             ),
           ),
           
           // Main content
           SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  // App bar with back button
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    
+                    // Back button
+                    InkWell(
+                      onTap: () => Navigator.pop(context),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isDark 
+                              ? Colors.grey.withOpacity(0.2)
+                              : Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Header section - much larger to show more of the background image
-                  Container(
-                    height: size.height * 0.28, // Increased height for header
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Add icon in header
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Icon(
-                              Icons.lock_reset_outlined,
-                              size: 40,
-                              color: Colors.white,
-                            ),
-                          ),
+                        child: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 20,
+                          color: themeService.textColor,
                         ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        Text(
-                          'Forgot Password',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'DMsans',
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'We\'ll help you reset it',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontFamily: 'DMsans',
-                            color: Colors.white.withOpacity(0.9),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // White content area
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.95),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(32),
-                          topRight: Radius.circular(32),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, -3),
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        children: [
-                          // Decorative elements
-                          Positioned(
-                            top: 20,
-                            right: 20,
-                            child: _buildCircleSvg(16, Colors.green.withOpacity(0.1)),
-                          ),
-                          Positioned(
-                            top: 100,
-                            left: 30,
-                            child: _buildCircleSvg(8, Colors.green.withOpacity(0.1)),
-                          ),
-                          Positioned(
-                            bottom: 80,
-                            right: 40,
-                            child: _buildCircleSvg(12, Colors.green.withOpacity(0.1)),
-                          ),
-                          
-                          // Form content
-                          Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Form(
-                              key: _formKey,
-                              child: _emailSent 
-                                  ? _buildSuccessView(theme) 
-                                  : _buildInputView(theme),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
-                  ),
-                ],
+                    
+                    // Animation
+                    Center(
+                      child: Container(
+                        height: size.height * 0.3,
+                        width: size.width * 0.8,
+                        margin: const EdgeInsets.only(top: 20),
+                        child: FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: Lottie.asset(
+                            _emailSent 
+                              ? 'assets/animations/email_sent.json'
+                              : 'assets/animations/forgot_password.json',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Page content based on state
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: _emailSent 
+                          ? _buildSuccessView(themeService)
+                          : _buildInputView(themeService),
+                    ),
+                    
+                    const SizedBox(height: 30),
+                  ],
+                ),
               ),
             ),
           ),
@@ -247,322 +180,319 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
     );
   }
 
-  // Helper method to create circle SVG decorations
-  Widget _buildCircleSvg(double size, Color color) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
-    );
-  }
-
-  Widget _buildInputView(ThemeData theme) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Reset your password',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'DMsans',
-              color: theme.colorScheme.onBackground,
-            ),
+  Widget _buildInputView(ThemeService themeService) {
+    final isDark = themeService.isDarkMode;
+    final primaryColor = themeService.primaryColor;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Main heading
+        Text(
+          'Forgot Password?',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: themeService.textColor,
+            fontFamily: 'DMsans',
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Enter your email address and we\'ll send you a link to reset your password.',
-            style: TextStyle(
-              fontSize: 16,
-              fontFamily: 'DMsans',
-              color: Colors.grey.shade600,
-            ),
+        ),
+        
+        const SizedBox(height: 8),
+        
+        // Subtitle
+        Text(
+          'Enter your email and we\'ll send you a link to reset your password',
+          style: TextStyle(
+            fontSize: 14,
+            color: themeService.subtextColor,
+            fontFamily: 'DMsans',
           ),
-          const SizedBox(height: 32),
-          
-          // Email field
-          Column(
+        ),
+        
+        const SizedBox(height: 32),
+        
+        // Email form
+        Form(
+          key: _formKey,
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Email field
               Text(
                 'Email Address',
                 style: TextStyle(
-                  fontWeight: FontWeight.w600,
                   fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: themeService.textColor,
                   fontFamily: 'DMsans',
-                  color: Colors.grey.shade800,
                 ),
               ),
+              
               const SizedBox(height: 8),
+              
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: isDark ? themeService.surfaceColor : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.shade200.withOpacity(0.5),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  border: Border.all(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
+                  ),
                 ),
                 child: TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   validator: _validateEmail,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                  style: TextStyle(
+                    color: themeService.textColor,
                     fontFamily: 'DMsans',
                   ),
                   decoration: InputDecoration(
                     hintText: 'Enter your email address',
                     hintStyle: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontSize: 15,
+                      color: themeService.subtextColor.withOpacity(0.7),
                       fontFamily: 'DMsans',
                     ),
                     prefixIcon: Icon(
                       Icons.email_outlined,
-                      color: theme.colorScheme.primary,
+                      color: primaryColor,
                       size: 20,
                     ),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                   ),
+                ),
+              ),
+              
+              const SizedBox(height: 32),
+              
+              // Submit button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _sendResetLink,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: primaryColor.withOpacity(0.6),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: isDark ? Colors.black : Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Send Reset Link',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'DMsans',
+                          ),
+                        ),
+                ),
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Back to login
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Remember your password? ',
+                      style: TextStyle(
+                        color: themeService.subtextColor,
+                        fontFamily: 'DMsans',
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                      child: Text(
+                        'Log In',
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'DMsans',
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          
-          const SizedBox(height: 40),
-          
-          // Send reset link button
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _sendResetLink,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 0,
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.0,
-                      ),
-                    )
-                  : const Text(
-                      'Reset Password',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'DMsans',
-                      ),
-                    ),
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Remember password? Go back to login
-          Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Remember your password?',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontFamily: 'DMsans',
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: Text(
-                    'Log In',
-                    style: TextStyle(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'DMsans',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildSuccessView(ThemeData theme) {
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(height: 20),
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.mark_email_read_outlined,
-              size: 60,
-              color: theme.colorScheme.primary,
-            ),
+  Widget _buildSuccessView(ThemeService themeService) {
+    final isDark = themeService.isDarkMode;
+    final primaryColor = themeService.primaryColor;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Main heading
+        Text(
+          'Check Your Email',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: themeService.textColor,
+            fontFamily: 'DMsans',
           ),
-          const SizedBox(height: 32),
-          Text(
-            'Check Your Email',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'DMsans',
-              color: theme.colorScheme.onBackground,
-            ),
-            textAlign: TextAlign.center,
+          textAlign: TextAlign.center,
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Description
+        Text(
+          'We\'ve sent a password reset link to:',
+          style: TextStyle(
+            fontSize: 14,
+            color: themeService.subtextColor,
+            fontFamily: 'DMsans',
           ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              'We\'ve sent a password reset link to:',
-              style: TextStyle(
-                fontSize: 16,
-                fontFamily: 'DMsans',
-                color: Colors.grey.shade600,
-              ),
-              textAlign: TextAlign.center,
-            ),
+          textAlign: TextAlign.center,
+        ),
+        
+        const SizedBox(height: 8),
+        
+        // Email address
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            color: primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
           ),
-          const SizedBox(height: 8),
-          Text(
+          child: Text(
             _emailController.text,
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: primaryColor,
               fontFamily: 'DMsans',
-              color: theme.colorScheme.primary,
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              'Please check your inbox and follow the instructions to reset your password.',
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Further instructions
+        Text(
+          'Please check your inbox and follow the instructions to reset your password.',
+          style: TextStyle(
+            fontSize: 14,
+            color: themeService.subtextColor,
+            fontFamily: 'DMsans',
+          ),
+          textAlign: TextAlign.center,
+        ),
+        
+        const SizedBox(height: 32),
+        
+        // Open email app button
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: () {
+              // Would typically open the email app
+              // For demo purposes, go back to login
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LoginScreen(),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Text(
+              'Open Email App',
               style: TextStyle(
                 fontSize: 16,
+                fontWeight: FontWeight.w600,
                 fontFamily: 'DMsans',
-                color: Colors.grey.shade600,
               ),
-              textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 40),
-          
-          // Check email button
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: () {
-                // In a real app, this could open the user's email app
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 0,
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Back to login text button
+        TextButton(
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const LoginScreen(),
               ),
-              child: const Text(
-                'Open Email App',
+            );
+          },
+          child: Text(
+            'Back to Login',
+            style: TextStyle(
+              color: primaryColor,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'DMsans',
+              fontSize: 16,
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // Didn't receive email
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Didn\'t receive the email? ',
+              style: TextStyle(
+                color: themeService.subtextColor,
+                fontFamily: 'DMsans',
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _emailSent = false;
+                });
+              },
+              child: Text(
+                'Try Again',
                 style: TextStyle(
-                  fontSize: 16,
+                  color: primaryColor,
                   fontWeight: FontWeight.w600,
                   fontFamily: 'DMsans',
                 ),
               ),
             ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Return to login
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
-            },
-            child: Text(
-              'Return to Login',
-              style: TextStyle(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-                fontFamily: 'DMsans',
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Didn't receive email?
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Didn\'t receive the email?',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontFamily: 'DMsans',
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _emailSent = false;
-                  });
-                },
-                child: Text(
-                  'Try Again',
-                  style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'DMsans',
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 }
