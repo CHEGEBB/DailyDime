@@ -53,7 +53,7 @@ class Token {
       currentPrice: currentPrice ?? this.currentPrice,
       priceChangePercent24h: priceChangePercent24h ?? this.priceChangePercent24h,
       ath: ath ?? this.ath,
-      atl: atl ?? this.atl,
+      atl: atl ?? this.atl, amount: null, usdValue: null,
     );
   }
   
@@ -68,7 +68,7 @@ class Token {
       currentPrice: (json['current_price'] as num?)?.toDouble() ?? 0.0,
       priceChangePercent24h: (json['price_change_percent_24h'] as num?)?.toDouble() ?? 0.0,
       ath: (json['ath'] as num?)?.toDouble() ?? 0.0,
-      atl: (json['atl'] as num?)?.toDouble() ?? 0.0,
+      atl: (json['atl'] as num?)?.toDouble() ?? 0.0, amount: null, usdValue: null,
     );
   }
   
@@ -394,25 +394,25 @@ class Transaction {
 
   var date;
   
-  const Transaction({
-    required this.id,
-    required this.hash,
-    required this.from,
-    required this.to,
-    required this.tokenAddress,
-    required this.tokenSymbol,
-    required this.tokenName,
-    required this.tokenLogo,
-    required this.value,
-    required this.valueUsd,
-    required this.timestamp,
-    required this.type,
-    required this.networkId,
-    required this.networkName,
-    this.status = TransactionStatus.confirmed,
-    this.budgetCategory = '',
-    this.description = '',
-  });
+ Transaction({
+  required this.id,
+  required this.hash,
+  required this.from,
+  required this.to,
+  required this.tokenAddress,
+  required this.tokenSymbol,
+  required this.tokenName,
+  required this.tokenLogo,
+  required this.value,
+  required this.valueUsd,
+  required this.timestamp,
+  required this.type,
+  required this.networkId,
+  required this.networkName,
+  this.status = TransactionStatus.confirmed,
+  this.budgetCategory = '',
+  this.description = '',
+});
   
   Transaction copyWith({
     String? id,
@@ -534,6 +534,12 @@ class Transaction {
         return Icons.redeem;
       case TransactionType.contract:
         return Icons.smart_toy_outlined;
+      case TransactionType.sent:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case TransactionType.received:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
   
@@ -561,6 +567,12 @@ class Transaction {
         return const Color(0xFF10B981); // Green
       case TransactionType.contract:
         return const Color(0xFF6B7280); // Gray
+      case TransactionType.sent:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case TransactionType.received:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
   
@@ -750,7 +762,7 @@ class MarketData {
 
   var volumeData;
   
-  const MarketData({
+   MarketData({
     required this.totalMarketCap,
     required this.totalVolume24h,
     required this.btcDominance,
@@ -939,7 +951,7 @@ class RiskAssessment {
 
   var recommendations;
   
-  const RiskAssessment({
+  RiskAssessment({
     required this.overallRisk,
     required this.riskFactors,
     required this.suggestions,

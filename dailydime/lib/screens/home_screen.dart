@@ -1,5 +1,6 @@
 // lib/screens/home_screen.dart
 import 'dart:async';
+import 'package:dailydime/screens/crypto_screen.dart';
 import 'package:dailydime/screens/profile_screen.dart';
 import 'package:dailydime/screens/settings_screen.dart';
 import 'package:flutter/material.dart';
@@ -1238,12 +1239,12 @@ StreamSubscription? _notificationSubscription;
                                     context,
                                     iconData: Icons.phone_android,
                                     iconColor: themeService.successColor,
-                                    label: 'M-PESA',
+                                    label: 'My crypto',
                                     onTap: () {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => MpesaScreen(),
+                                          builder: (context) => CryptoScreen(),
                                         ),
                                       );
                                     },
