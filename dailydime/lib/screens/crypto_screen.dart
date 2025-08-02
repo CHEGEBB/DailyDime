@@ -1886,87 +1886,90 @@ Widget _buildAssetsGrid() {
 }
 
   
-  Widget _buildRiskAssessment(dynamic RiskLevel) {
- final theme = Provider.of<ThemeService>(context);
- 
- if (_riskAssessment == null) {
-   return SizedBox.shrink();
- }
- 
- return Container(
-   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-   child: Card(
-     elevation: 4,
-     shape: RoundedRectangleBorder(
-       borderRadius: BorderRadius.circular(16),
-     ),
-     child: Padding(
-       padding: const EdgeInsets.all(20),
-       child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-           Row(
-             children: [
-               Icon(
-                 Icons.security,
-                 color: _getRiskColor(_riskAssessment!.riskLevel ?? RiskLevel.medium),
-                 size: 24,
-               ),
-               const SizedBox(width: 8),
-               Text(
-                'Portfolio Risk: ${_getRiskLevelName(_riskAssessment!.riskLevel ?? RiskLevel.medium)}',
-                 style: TextStyle(
-                   fontSize: 16,
-                   fontWeight: FontWeight.bold,
-                   color: _getRiskColor(_riskAssessment!.riskLevel ?? RiskLevel.medium),
-                 ),
-               ),
-             ],
-           ),
-           const SizedBox(height: 16),
-           ClipRRect(
-             borderRadius: BorderRadius.circular(8),
-             child: LinearProgressIndicator(
-               value: _getRiskValue(_riskAssessment!.riskLevel ?? RiskLevel.medium),
-               minHeight: 8,
-               backgroundColor: theme.cardColor,
-               valueColor: AlwaysStoppedAnimation<Color>(
-                 _getRiskColor(_riskAssessment!.riskLevel ?? RiskLevel.medium),
-               ),
-             ),
-           ),
-           const SizedBox(height: 16),
-           Text(
-             _riskAssessment!.analysis ?? 'Risk analysis unavailable',
-             style: TextStyle(
-               fontSize: 14,
-               color: theme.textColor,
-               height: 1.4,
-             ),
-           ),
-           const SizedBox(height: 16),
-           Wrap(
-             spacing: 8,
-             runSpacing: 8,
-             children: (_riskAssessment!.suggestions ?? _riskAssessment!.recommendations ?? []).map((rec) {
-               return Chip(
-                 label: Text(
-                   rec,
-                   style: TextStyle(
-                     fontSize: 12,
-                     color: theme.isDarkMode ? Colors.white : Colors.black87,
-                   ),
-                 ),
-                 backgroundColor: theme.primaryColor.withOpacity(0.2),
-                 padding: const EdgeInsets.symmetric(horizontal: 8),
-               );
-             }).toList(),
-           ),
-         ],
-       ),
-     ),
-   ),
- );
+  Widget _buildRiskAssessment(String defaultRiskLevel) {
+  final theme = Provider.of<ThemeService>(context);
+  
+  if (_riskAssessment == null) {
+    return const SizedBox.shrink();
+  }
+  
+  // Use a default risk level if _riskAssessment.riskLevel is null
+  final riskLevel = _riskAssessment!.riskLevel ?? RiskLevel.medium;
+  
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.security,
+                  color: _getRiskColor(riskLevel),
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Portfolio Risk: ${_getRiskLevelName(riskLevel)}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _getRiskColor(riskLevel),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: _getRiskValue(riskLevel),
+                minHeight: 8,
+                backgroundColor: theme.cardColor,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  _getRiskColor(riskLevel),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _riskAssessment!.analysis ?? 'Risk analysis unavailable',
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.textColor,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: (_riskAssessment!.suggestions ?? _riskAssessment!.recommendations ?? []).map((rec) {
+                return Chip(
+                  label: Text(
+                    rec,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  backgroundColor: theme.primaryColor.withOpacity(0.2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
   Widget _buildBudgetIntegration() {
     final theme = Provider.of<ThemeService>(context);
