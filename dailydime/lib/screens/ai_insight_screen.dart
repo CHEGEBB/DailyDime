@@ -967,7 +967,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
           ),
           children: [
             TextSpan(
-              text: AppConfig.formatCurrency((value * 100).toInt()),
+              text: AppConfig.formatCurrency((value * 100).toInt() as double),
               style: TextStyle(
                 fontFamily: 'DMsans',
                 color: themeService.primaryColor,
@@ -1271,7 +1271,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          AppConfig.formatCurrency((spent * 100).toInt()),
+                          AppConfig.formatCurrency((spent * 100).toInt() as double),
                           style: TextStyle(
     fontFamily: 'DMsans',
                             fontSize: 12,
@@ -1279,7 +1279,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                           ),
                         ),
                         Text(
-                          AppConfig.formatCurrency((total * 100).toInt()),
+                          AppConfig.formatCurrency((total * 100).toInt() as double),
                           style: TextStyle(
     fontFamily: 'DMsans',
                             fontSize: 12,
@@ -1598,7 +1598,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
             ),
             children: [
               TextSpan(
-                text: AppConfig.formatCurrency((balance * 100).toInt()),
+                text: AppConfig.formatCurrency((balance * 100).toInt() as double),
                 style: TextStyle(
                   fontFamily: 'DMsans',
                   color: _getForecastTrendColor(themeService),
@@ -1656,7 +1656,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        AppConfig.formatCurrency((avgDailyIncome * 100).toInt()),
+                        AppConfig.formatCurrency((avgDailyIncome * 100).toInt() as double),
                         style: TextStyle(
     fontFamily: 'DMsans',
                           fontSize: 16,
@@ -1690,7 +1690,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        AppConfig.formatCurrency((avgDailyExpense * 100).toInt()),
+                        AppConfig.formatCurrency((avgDailyExpense * 100).toInt() as double),
                         style: TextStyle(
     fontFamily: 'DMsans',
                           fontSize: 16,
@@ -1735,7 +1735,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      AppConfig.formatCurrency((netDaily * 100).toInt()),
+                      AppConfig.formatCurrency((netDaily * 100).toInt() as double),
                       style: TextStyle(
     fontFamily: 'DMsans',
                         fontSize: 18,
@@ -1858,12 +1858,12 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
     
     switch (trend) {
       case 'growing':
-        return 'Your balance is projected to grow to ${AppConfig.formatCurrency((projectedBalance * 100).toInt())}';
+        return 'Your balance is projected to grow to ${AppConfig.formatCurrency((projectedBalance * 100).toInt() as double)}';
       case 'declining':
-        return 'Your balance is projected to decline to ${AppConfig.formatCurrency((projectedBalance * 100).toInt())}';
+        return 'Your balance is projected to decline to ${AppConfig.formatCurrency((projectedBalance * 100).toInt() as double)}';
       case 'stable':
       default:
-        return 'Your balance is projected to remain stable at ${AppConfig.formatCurrency((projectedBalance * 100).toInt())}';
+        return 'Your balance is projected to remain stable at ${AppConfig.formatCurrency((projectedBalance * 100).toInt() as double)}';
     }
   }
 

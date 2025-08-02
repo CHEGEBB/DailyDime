@@ -1035,7 +1035,7 @@ class AIInsightsService {
           alerts.add({
             'type': 'budget_warning',
             'title': '${budget.category} Budget Alert',
-            'message': 'You\'ve spent ${AppConfig.formatCurrency((spent * 100).toInt())} of your ${AppConfig.formatCurrency((budget.amount * 100).toInt())} budget',
+            'message': 'You\'ve spent ${AppConfig.formatCurrency((spent * 100).toInt() as double)} of your ${AppConfig.formatCurrency((budget.amount * 100).toInt() as double)} budget',
             'severity': spent > budget.amount ? 'high' : 'medium',
             'action': 'Review your spending'
           });
@@ -1048,7 +1048,7 @@ class AIInsightsService {
       alerts.add({
         'type': 'low_balance',
         'title': 'Low Balance Warning',
-        'message': 'Your balance is below ${AppConfig.formatCurrency(100000)} (${AppConfig.formatCurrency((currentBalance * 100).toInt())})',
+        'message': 'Your balance is below ${AppConfig.formatCurrency(100000)} (${AppConfig.formatCurrency((currentBalance * 100).toInt() as double)})',
         'severity': 'high',
         'action': 'Add funds to your account'
       });
@@ -1106,7 +1106,7 @@ class AIInsightsService {
     if (savingsGoals.where((g) => g.title.contains('Emergency')).isEmpty) {
       recommendations.add({
         'title': 'Build an Emergency Fund',
-        'description': 'Save ${AppConfig.formatCurrency((avgMonthlyIncome * 300).toInt())} (3 months of expenses) for unexpected needs.',
+        'description': 'Save ${AppConfig.formatCurrency((avgMonthlyIncome * 300).toInt() as double)} (3 months of expenses) for unexpected needs.',
         'type': 'emergency',
         'priority': 'high',
         'action': 'Start an emergency fund'
@@ -1120,7 +1120,7 @@ class AIInsightsService {
       
       recommendations.add({
         'title': 'Reduce ${topCategory.key} Spending',
-        'description': 'This is your highest spending category at ${AppConfig.formatCurrency((topCategory.value * 100).toInt())}. Try to reduce it by 10%.',
+        'description': 'This is your highest spending category at ${AppConfig.formatCurrency((topCategory.value * 100).toInt() as double)}. Try to reduce it by 10%.',
         'type': 'spending',
         'priority': 'medium',
         'action': 'Set a budget for ${topCategory.key}'
@@ -1132,7 +1132,7 @@ class AIInsightsService {
       final savingsPotential = (totalIncome - totalExpenses) * 0.2;
       recommendations.add({
         'title': 'Increase Your Savings',
-        'description': 'You could save an additional ${AppConfig.formatCurrency((savingsPotential * 100).toInt())} per month.',
+        'description': 'You could save an additional ${AppConfig.formatCurrency((savingsPotential * 100).toInt() as double)} per month.',
         'type': 'savings',
         'priority': 'medium',
         'action': 'Set up automatic savings'

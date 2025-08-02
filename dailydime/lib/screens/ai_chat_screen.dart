@@ -300,9 +300,9 @@ class _AIChatScreenState extends State<AIChatScreen>
           }
         }
         
-        context.writeln("- Recent spending: ${AppConfig.formatCurrency((totalSpent * 100).toInt())}");
+        context.writeln("- Recent spending: ${AppConfig.formatCurrency((totalSpent * 100).toInt() as double)}");
         if (categories.isNotEmpty) {
-          context.writeln("- Top spending categories: ${categories.entries.take(3).map((e) => "${e.key}: ${AppConfig.formatCurrency((e.value * 100).toInt())}").join(", ")}");
+          context.writeln("- Top spending categories: ${categories.entries.take(3).map((e) => "${e.key}: ${AppConfig.formatCurrency((e.value * 100).toInt() as double)}").join(", ")}");
         }
       }
       
