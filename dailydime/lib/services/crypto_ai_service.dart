@@ -4,7 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../config/app_config.dart';
 import 'package:dailydime/models/crypto_models.dart';
 import 'package:dailydime/utils/crypto_repository.dart';
-import './crypto_service.dart';
+import 'package:dailydime/services/crypto_service.dart';
 
 /// Service for AI-powered insights using Gemini API
 class CryptoAiService {
