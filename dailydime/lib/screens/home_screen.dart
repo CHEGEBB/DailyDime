@@ -1,8 +1,10 @@
 // lib/screens/home_screen.dart
 import 'dart:async';
+import 'package:appwrite/models.dart';
 import 'package:dailydime/screens/crypto_screen.dart';
 import 'package:dailydime/screens/profile_screen.dart';
 import 'package:dailydime/screens/settings_screen.dart';
+import 'package:dailydime/services/profile_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -22,6 +24,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:provider/provider.dart';
+import 'package:dailydime/services/profile_service.dart';
+import 'package:dailydime/config/app_config.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:appwrite/models.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToTransactions;
@@ -48,6 +54,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
+        late ProfileService _profileService;
+  User? _currentUser;
+  Document? _userProfile;
+  String? _profileImageUrl;
+  String? _profileImageId;
+  bool _imageError = false;
+  bool _isLoadingProfile = false;
   // Controllers
   late TabController _tabController;
   final TextEditingController _balanceController = TextEditingController();
@@ -100,6 +113,69 @@ StreamSubscription? _notificationSubscription;
     // Initialize data
     _initializeData();
   _initializeNotifications();
+  _loadUserProfile();
+  }
+
+   Future<void> _loadUserProfile() async {
+    setState(() {
+      _isLoadingProfile = true;
+    });
+
+    try {
+      final AppwriteService appwrite = AppwriteService();
+      
+      // Get current user
+      _currentUser = await appwrite.getCurrentUser();
+      
+      if (_currentUser != null) {
+        // Get user profile
+        _userProfile = await appwrite.getUserProfile(_currentUser!.$id);
+        
+        // Load profile image
+        await _loadProfileImage();
+      }
+    } catch (e) {
+      print('Error loading user profile: $e');
+    } finally {
+      setState(() {
+        _isLoadingProfile = false;
+      });
+    }
+  }
+
+  Future<void> _loadProfileImage() async {
+    if (_userProfile != null &&
+        _userProfile!.data.containsKey('profileImageId') &&
+        _userProfile!.data['profileImageId'] != null) {
+      try {
+        _profileImageId = _userProfile!.data['profileImageId'];
+        
+        // Generate the image URL with proper encoding and no cache-busting for now
+        _profileImageUrl = '${AppConfig.appwriteEndpoint}/storage/buckets/${AppConfig.mainBucket}/files/$_profileImageId/view?project=${AppConfig.appwriteProjectId}&mode=admin';
+        
+        print('Profile image URL: $_profileImageUrl');
+        _imageError = false;
+        
+        if (mounted) {
+          setState(() {});
+        }
+      } catch (e) {
+        print('Error loading profile image: $e');
+        _imageError = true;
+        _profileImageUrl = null;
+        
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    } else {
+      _profileImageUrl = null;
+      _profileImageId = null;
+      
+      if (mounted) {
+        setState(() {});
+      }
+    }
   }
 
   Future<void> _initializeNotifications() async {
@@ -133,6 +209,7 @@ StreamSubscription? _notificationSubscription;
     try {
       // Initialize balance service
       await BalanceService.instance.initialize();
+      await _loadUserProfile();
 
       // Listen to balance updates
       _balanceSubscription = BalanceService.instance.balanceStream.listen((
@@ -646,6 +723,131 @@ StreamSubscription? _notificationSubscription;
       ),
     );
   }
+  Widget _buildProfileAvatar() {
+  return GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfileScreen(),
+        ),
+      );
+    },
+    child: Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: themeService.primaryColor,
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: themeService.primaryColor.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: themeService.isDarkMode
+                ? Colors.black.withOpacity(0.4)
+                : Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(11), // Slightly smaller to show border
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(11),
+          child: _isLoadingProfile
+              ? Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        themeService.primaryColor.withOpacity(0.1),
+                        themeService.primaryColor.withOpacity(0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          themeService.primaryColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : _profileImageUrl != null && !_imageError
+                  ? CachedNetworkImage(
+                      imageUrl: _profileImageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              themeService.primaryColor.withOpacity(0.1),
+                              themeService.primaryColor.withOpacity(0.05),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                themeService.primaryColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) {
+                        print('Error loading profile image: $error');
+                        return _buildDefaultAvatar();
+                      },
+                    )
+                  : _buildDefaultAvatar(),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildDefaultAvatar() {
+  return Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          themeService.primaryColor.withOpacity(0.15),
+          themeService.primaryColor.withOpacity(0.08),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(11),
+    ),
+    child: Icon(
+      Icons.person_outline,
+      size: 24,
+      color: themeService.primaryColor,
+    ),
+  );
+}
 
   Widget _buildTopUpOption({
     required IconData icon,
@@ -766,6 +968,7 @@ StreamSubscription? _notificationSubscription;
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Profile Icon on the left
+                      _buildProfileAvatar(),
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
@@ -792,11 +995,11 @@ StreamSubscription? _notificationSubscription;
                               ),
                             ],
                           ),
-                          child: Icon(
-                            Icons.person_outline,
-                            size: 24,
-                            color: themeService.textColor,
-                          ),
+                          // child: Icon(
+                          //   Icons.person_outline,
+                          //   size: 24,
+                          //   color: themeService.textColor,
+                          // ),
                         ),
                       ),
 

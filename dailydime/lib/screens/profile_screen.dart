@@ -35,6 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   late final ProfileService _profileService;
   final _settingsStorage = SettingsStorage();
   
+  
   // Animation controller
   late AnimationController _animationController;
   
@@ -49,6 +50,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   bool _isSaving = false;
   bool _isEditing = false;
   bool _imageError = false;
+  
+
   
   // Form controllers
   final _nameController = TextEditingController();
@@ -65,6 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     super.initState();
     _profileService = ProfileService();
     _loadUserData();
+    
     
     // Initialize animation controller
     _animationController = AnimationController(

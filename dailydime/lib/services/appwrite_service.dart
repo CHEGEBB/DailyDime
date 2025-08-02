@@ -1,11 +1,13 @@
 // lib/services/appwrite_service.dart
 
 import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/models.dart' as models;
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/models/transaction.dart';
 import 'package:dailydime/models/budget.dart';
 import 'package:flutter/material.dart';
 import 'package:dailydime/models/savings_goal.dart';
+import 'dart:typed_data';
 
 class AppwriteService {
   static final AppwriteService _instance = AppwriteService._internal();
@@ -50,8 +52,475 @@ class AppwriteService {
       throw Exception('User is not logged in');
     }
   }
+
+  // USER AUTHENTICATION METHODS
+
+  /// Get current user
+  Future<models.User?> getCurrentUser() async {
+    try {
+      final user = await account.get();
+      currentUserId = user.$id;
+      return user;
+    } catch (e) {
+      debugPrint('Error getting current user: $e');
+      currentUserId = null;
+      return null;
+    }
+  }
+
+  /// Check if user is logged in
+  Future<bool> isUserLoggedIn() async {
+    try {
+      await account.get();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Login user with email and password
+  Future<models.Session?> loginUser({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final session = await account.createEmailPasswordSession(
+        email: email,
+        password: password,
+      );
+      
+      // Update current user ID
+      final user = await account.get();
+      currentUserId = user.$id;
+      
+      return session;
+    } catch (e) {
+      debugPrint('Error logging in user: $e');
+      throw Exception('Failed to login: $e');
+    }
+  }
+
+  /// Register new user
+  Future<models.User?> registerUser({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
+    try {
+      final user = await account.create(
+        userId: ID.unique(),
+        email: email,
+        password: password,
+        name: name,
+      );
+      
+      // Auto-login after registration
+      await loginUser(email: email, password: password);
+      
+      return user;
+    } catch (e) {
+      debugPrint('Error registering user: $e');
+      throw Exception('Failed to register: $e');
+    }
+  }
+
+  /// Logout current user
+  Future<void> logoutUser() async {
+    try {
+      await account.deleteSession(sessionId: 'current');
+      currentUserId = null;
+    } catch (e) {
+      debugPrint('Error logging out user: $e');
+      throw Exception('Failed to logout: $e');
+    }
+  }
+
+  /// Delete current user account
+  Future<void> deleteCurrentUser() async {
+    try {
+      await _checkUserSession();
+      
+      // Delete user profile first if it exists
+      final profile = await getUserProfile(currentUserId!);
+      if (profile != null) {
+        await deleteUserProfile(profile.$id);
+      }
+      
+      // Delete user account
+      await account.updateStatus();
+      currentUserId = null;
+    } catch (e) {
+      debugPrint('Error deleting user account: $e');
+      throw Exception('Failed to delete account: $e');
+    }
+  }
+
+  // USER PROFILE METHODS
+
+  /// Create user profile
+  Future<models.Document> createUserProfile({
+    required String userId,
+    required String name,
+    required String email,
+    String? phone,
+    String? occupation,
+    String? location,
+  }) async {
+    try {
+      return await databases.createDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.profilesCollection,
+        documentId: ID.unique(),
+        data: {
+          'userId': userId,
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'occupation': occupation,
+          'location': location,
+          'profileImageId': null,
+          'notificationsEnabled': true,
+          'darkModeEnabled': false,
+          'biometricsEnabled': false,
+          'createdAt': DateTime.now().toIso8601String(),
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      debugPrint('Error creating user profile: $e');
+      throw Exception('Failed to create profile: $e');
+    }
+  }
+
+  /// Get user profile by user ID
+  Future<models.Document?> getUserProfile(String userId) async {
+    try {
+      final response = await databases.listDocuments(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.profilesCollection,
+        queries: [
+          Query.equal('userId', userId),
+        ],
+      );
+
+      if (response.documents.isNotEmpty) {
+        return response.documents.first;
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('Error getting user profile: $e');
+      return null;
+    }
+  }
+
+  /// Get profile by document ID
+  Future<models.Document?> getProfileById(String profileId) async {
+    try {
+      return await databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.profilesCollection,
+        documentId: profileId,
+      );
+    } catch (e) {
+      if (e is AppwriteException && e.code == 404) {
+        return null; // Profile not found
+      }
+      debugPrint('Error getting profile by ID: $e');
+      return null;
+    }
+  }
+
+  /// Update user profile
+  Future<models.Document> updateUserProfile({
+    required String profileId,
+    String? name,
+    String? phone,
+    String? occupation,
+    String? location,
+    bool? notificationsEnabled,
+    bool? darkModeEnabled,
+    bool? biometricsEnabled,
+  }) async {
+    try {
+      Map<String, dynamic> data = {
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+
+      if (name != null) data['name'] = name;
+      if (phone != null) data['phone'] = phone;
+      if (occupation != null) data['occupation'] = occupation;
+      if (location != null) data['location'] = location;
+      if (notificationsEnabled != null) data['notificationsEnabled'] = notificationsEnabled;
+      if (darkModeEnabled != null) data['darkModeEnabled'] = darkModeEnabled;
+      if (biometricsEnabled != null) data['biometricsEnabled'] = biometricsEnabled;
+
+      return await databases.updateDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.profilesCollection,
+        documentId: profileId,
+        data: data,
+      );
+    } catch (e) {
+      debugPrint('Error updating user profile: $e');
+      throw Exception('Failed to update profile: $e');
+    }
+  }
+
+  /// Delete user profile
+  Future<void> deleteUserProfile(String profileId) async {
+    try {
+      // First, get the profile to check for profile image
+      final profile = await databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.profilesCollection,
+        documentId: profileId,
+      );
+      
+      // Delete profile image if exists
+      final imageId = profile.data['profileImageId'];
+      if (imageId != null) {
+        try {
+          await storage.deleteFile(
+            bucketId: AppConfig.mainBucket,
+            fileId: imageId,
+          );
+        } catch (e) {
+          debugPrint('Error deleting profile image: $e');
+        }
+      }
+      
+      // Delete the profile document
+      await databases.deleteDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.profilesCollection,
+        documentId: profileId,
+      );
+    } catch (e) {
+      debugPrint('Error deleting user profile: $e');
+      throw Exception('Failed to delete profile: $e');
+    }
+  }
+
+  /// Upload profile image
+  Future<String?> uploadProfileImage({
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    try {
+      final file = await storage.createFile(
+        bucketId: AppConfig.mainBucket,
+        fileId: ID.unique(),
+        file: InputFile.fromBytes(
+          bytes: bytes,
+          filename: fileName,
+        ),
+      );
+      
+      return file.$id;
+    } catch (e) {
+      debugPrint('Error uploading profile image: $e');
+      throw Exception('Failed to upload image: $e');
+    }
+  }
+
+  /// Update profile image
+  Future<models.Document> updateProfileImage({
+    required String profileId,
+    required String imageId,
+  }) async {
+    try {
+      // Delete old profile image if exists
+      final profile = await databases.getDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.profilesCollection,
+        documentId: profileId,
+      );
+      
+      final oldImageId = profile.data['profileImageId'];
+      
+      if (oldImageId != null) {
+        try {
+          await storage.deleteFile(
+            bucketId: AppConfig.mainBucket,
+            fileId: oldImageId,
+          );
+        } catch (e) {
+          debugPrint('Error deleting old image: $e');
+        }
+      }
+      
+      // Update profile with new image ID
+      return await databases.updateDocument(
+        databaseId: AppConfig.databaseId,
+        collectionId: AppConfig.profilesCollection,
+        documentId: profileId,
+        data: {
+          'profileImageId': imageId,
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      debugPrint('Error updating profile image: $e');
+      throw Exception('Failed to update profile image: $e');
+    }
+  }
+
+  /// Get profile image URL
+  String getProfileImageUrl(String imageId) {
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      return '${AppConfig.appwriteEndpoint}/storage/buckets/${AppConfig.mainBucket}/files/$imageId/view?project=${AppConfig.appwriteProjectId}&mode=admin&cache=$timestamp';
+    } catch (e) {
+      debugPrint('Error getting profile image URL: $e');
+      throw Exception('Failed to get image URL: $e');
+    }
+  }
+
+  /// Check if profile exists for user
+  Future<bool> profileExists(String userId) async {
+    try {
+      final profile = await getUserProfile(userId);
+      return profile != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Get current user profile (convenience method)
+  Future<models.Document?> getCurrentUserProfile() async {
+    try {
+      final user = await getCurrentUser();
+      if (user != null) {
+        return await getUserProfile(user.$id);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting current user profile: $e');
+      return null;
+    }
+  }
+
+  /// Create profile for current user
+  Future<models.Document?> createCurrentUserProfile({
+    required String name,
+    String? phone,
+    String? occupation,
+    String? location,
+  }) async {
+    try {
+      final user = await getCurrentUser();
+      if (user != null) {
+        return await createUserProfile(
+          userId: user.$id,
+          name: name,
+          email: user.email,
+          phone: phone,
+          occupation: occupation,
+          location: location,
+        );
+      }
+      throw Exception('No user logged in');
+    } catch (e) {
+      debugPrint('Error creating current user profile: $e');
+      throw Exception('Failed to create profile: $e');
+    }
+  }
+
+  /// Send password recovery email
+  Future<void> sendPasswordRecovery(String email) async {
+    try {
+      await account.createRecovery(
+        email: email,
+        url: '${AppConfig.appUrl}/reset-password', // Configure this URL
+      );
+    } catch (e) {
+      debugPrint('Error sending password recovery: $e');
+      throw Exception('Failed to send recovery email: $e');
+    }
+  }
+
+  /// Complete password recovery
+  Future<void> completePasswordRecovery({
+    required String userId,
+    required String secret,
+    required String newPassword,
+  }) async {
+    try {
+      await account.updateRecovery(
+        userId: userId,
+        secret: secret,
+        password: newPassword,
+      );
+    } catch (e) {
+      debugPrint('Error completing password recovery: $e');
+      throw Exception('Failed to reset password: $e');
+    }
+  }
+
+  /// Update user password
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await account.updatePassword(
+        password: newPassword,
+        oldPassword: currentPassword,
+      );
+    } catch (e) {
+      debugPrint('Error updating password: $e');
+      throw Exception('Failed to update password: $e');
+    }
+  }
+
+  /// Update user email
+  Future<void> updateEmail({
+    required String newEmail,
+    required String password,
+  }) async {
+    try {
+      await account.updateEmail(
+        email: newEmail,
+        password: password,
+      );
+    } catch (e) {
+      debugPrint('Error updating email: $e');
+      throw Exception('Failed to update email: $e');
+    }
+  }
+
+  /// Get user sessions
+  Future<models.SessionList> getUserSessions() async {
+    try {
+      return await account.listSessions();
+    } catch (e) {
+      debugPrint('Error getting user sessions: $e');
+      throw Exception('Failed to get sessions: $e');
+    }
+  }
+
+  /// Delete specific session
+  Future<void> deleteSession(String sessionId) async {
+    try {
+      await account.deleteSession(sessionId: sessionId);
+    } catch (e) {
+      debugPrint('Error deleting session: $e');
+      throw Exception('Failed to delete session: $e');
+    }
+  }
+
+  /// Delete all sessions except current
+  Future<void> deleteAllOtherSessions() async {
+    try {
+      await account.deleteSessions();
+    } catch (e) {
+      debugPrint('Error deleting sessions: $e');
+      throw Exception('Failed to delete sessions: $e');
+    }
+  }
   
-  // BUDGET METHODS
+  // BUDGET METHODS (keeping existing methods)
   
   // Get all budgets from Appwrite
   Future<List<Budget>> getBudgets({int? limit, String? cursor}) async {
@@ -348,7 +817,7 @@ class AppwriteService {
     }
   }
   
-  // TRANSACTION METHODS
+  // TRANSACTION METHODS (keeping existing methods)
   
   // Sync transaction to Appwrite
   Future<void> syncTransaction(Transaction transaction) async {
@@ -503,7 +972,9 @@ class AppwriteService {
     }
   }
 
-  // SAVINGS GOAL METHODS
+  // SAVINGS GOAL METHODS (keeping existing methods but truncated for space)
+
+  // SAVINGS GOAL METHODS (continuing from previous)
 
   // Helper method to convert SavingsGoalCategory enum to string for Appwrite
   String _savingsGoalCategoryToString(SavingsGoalCategory category) {
