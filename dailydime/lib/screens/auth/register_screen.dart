@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
@@ -15,7 +17,7 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProviderStateMixin {
+class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _currentStep = 0;
   bool _isLoading = false;
@@ -26,7 +28,11 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   
   // Animation controllers
   late AnimationController _animationController;
+  late AnimationController _slideAnimationController;
+  late AnimationController _scaleAnimationController;
   late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
   
   // Initialize auth service
   final AuthService _authService = AuthService();
@@ -61,8 +67,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   
   // Animation files for each step
   final List<String> _animationFiles = [
-    'animations/register_step1.json', // Replace with your actual Lottie animation
-    'animations/register_step2.json',
+    'animations/register_step1.json',
+    'animations/register_step2.json', 
     'animations/verification.json',
   ];
 
@@ -71,12 +77,31 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     super.initState();
     _animationController = AnimationController(
       vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _slideAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _scaleAnimationController = AnimationController(
+      vsync: this,
       duration: const Duration(milliseconds: 800),
     );
+    
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideAnimationController, curve: Curves.elasticOut));
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleAnimationController, curve: Curves.bounceOut),
+    );
+    
     _animationController.forward();
+    _slideAnimationController.forward();
+    _scaleAnimationController.forward();
   }
 
   @override
@@ -89,6 +114,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     _phoneController.dispose();
     _businessNameController.dispose();
     _animationController.dispose();
+    _slideAnimationController.dispose();
+    _scaleAnimationController.dispose();
     
     for (var controller in _otpControllers) {
       controller.dispose();
@@ -101,26 +128,29 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     super.dispose();
   }
 
-  void _nextStep() {
+  void _nextStep() async {
     if (_currentStep == 0) {
       if (_step1FormKey.currentState!.validate()) {
+        // Reset animations for next step
+        _slideAnimationController.reset();
+        _scaleAnimationController.reset();
+        
         setState(() {
           _currentStep++;
         });
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
+        
+        await _pageController.nextPage(
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOutCubic,
         );
+        
+        _slideAnimationController.forward();
+        _scaleAnimationController.forward();
       }
     } else if (_currentStep == 1) {
       if (_step2FormKey.currentState!.validate()) {
         if (!_agreeToTerms) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please agree to the Terms and Privacy Policy'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          _showCustomSnackBar('Please agree to the Terms and Privacy Policy', isError: true);
           return;
         }
         
@@ -129,18 +159,47 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     }
   }
 
-  void _previousStep() {
+  void _previousStep() async {
     if (_currentStep > 0) {
+      _slideAnimationController.reset();
+      _scaleAnimationController.reset();
+      
       setState(() {
         _currentStep--;
       });
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+      
+      await _pageController.previousPage(
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOutCubic,
       );
+      
+      _slideAnimationController.forward();
+      _scaleAnimationController.forward();
     } else {
       Navigator.pop(context);
     }
+  }
+
+  void _showCustomSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   Future<void> _registerUser() async {
@@ -163,6 +222,9 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         email: _emailController.text.trim()
       );
       
+      _slideAnimationController.reset();
+      _scaleAnimationController.reset();
+      
       setState(() {
         _isLoading = false;
         _currentStep++;
@@ -170,10 +232,13 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         _userEmail = _emailController.text.trim();
       });
       
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+      await _pageController.nextPage(
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOutCubic,
       );
+      
+      _slideAnimationController.forward();
+      _scaleAnimationController.forward();
       
     } catch (e) {
       setState(() {
@@ -181,12 +246,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         _errorMessage = _authService.handleAuthError(e);
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showCustomSnackBar(_errorMessage, isError: true);
     }
   }
 
@@ -205,12 +265,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         _userId = token.userId;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Verification code resent to your email'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      _showCustomSnackBar('Verification code resent to your email');
       
     } catch (e) {
       setState(() {
@@ -218,16 +273,11 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         _errorMessage = _authService.handleAuthError(e);
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showCustomSnackBar(_errorMessage, isError: true);
     }
   }
 
-  // For social login with Google
+  // Social login methods remain the same
   Future<void> _signUpWithGoogle() async {
     setState(() {
       _isLoading = true;
@@ -236,29 +286,19 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     
     try {
       await _authService.createOAuthSession('google');
-      
-      // Successful login will redirect
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const MainNavigation()),
         (route) => false,
       );
-      
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = _authService.handleAuthError(e);
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showCustomSnackBar(_errorMessage, isError: true);
     }
   }
 
-  // For social login with Facebook
   Future<void> _signUpWithFacebook() async {
     setState(() {
       _isLoading = true;
@@ -267,29 +307,19 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     
     try {
       await _authService.createOAuthSession('facebook');
-      
-      // Successful login will redirect
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const MainNavigation()),
         (route) => false,
       );
-      
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = _authService.handleAuthError(e);
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showCustomSnackBar(_errorMessage, isError: true);
     }
   }
 
-  // For social login with Apple
   Future<void> _signUpWithApple() async {
     setState(() {
       _isLoading = true;
@@ -298,39 +328,24 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     
     try {
       await _authService.createOAuthSession('apple');
-      
-      // Successful login will redirect
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const MainNavigation()),
         (route) => false,
       );
-      
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = _authService.handleAuthError(e);
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showCustomSnackBar(_errorMessage, isError: true);
     }
   }
 
   Future<void> _verifyEmail() async {
-    // Combine all OTP fields into one string
     final otp = _otpControllers.map((controller) => controller.text).join();
     
     if (otp.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter the 6-digit verification code'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showCustomSnackBar('Please enter the 6-digit verification code', isError: true);
       return;
     }
     
@@ -340,7 +355,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     });
 
     try {
-      // Verify the email token with the 6-digit code
       await _authService.verifyEmailToken(
         userId: _userId ?? '',
         secret: otp,
@@ -350,7 +364,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         _isLoading = false;
       });
       
-      // Navigate to home screen
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const MainNavigation()),
         (route) => false,
@@ -362,16 +375,11 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         _errorMessage = _authService.handleAuthError(e);
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showCustomSnackBar(_errorMessage, isError: true);
     }
   }
 
-  // Validators
+  // Validators remain the same
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Please enter your email';
@@ -403,10 +411,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     if (value == null || value.isEmpty) {
       return 'Please enter your phone number';
     }
-    // Remove spaces, dashes, parentheses for validation
     String cleanedValue = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    
-    // Allow + at the beginning followed by 10-15 digits
     if (!RegExp(r'^\+?\d{10,15}$').hasMatch(cleanedValue)) {
       return 'Please enter a valid phone number';
     }
@@ -416,142 +421,312 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     final themeService = Provider.of<ThemeService>(context);
-    final isDarkMode = themeService.isDarkMode;
     final colorScheme = Theme.of(context).colorScheme;
     final size = MediaQuery.of(context).size;
     
     return Scaffold(
-      backgroundColor: themeService.scaffoldColor,
-      body: Stack(
+      body: Container(
+        height: size.height,
+        width: size.width,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: themeService.isDarkMode
+                ? [
+                    const Color(0xFF1A1B2E),
+                    const Color(0xFF16213E),
+                    const Color(0xFF0F3460),
+                  ]
+                : [
+                    const Color(0xFFF8F9FA),
+                    const Color(0xFFE3F2FD),
+                    const Color(0xFFBBDEFB),
+                  ],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Animated floating elements
+            _buildFloatingElements(size, themeService),
+            
+            // Main content
+            SafeArea(
+              child: Column(
+                children: [
+                  _buildCustomAppBar(colorScheme),
+                  _buildProgressIndicator(colorScheme),
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _buildStep1(context),
+                        _buildStep2(context),
+                        _buildStep3(context),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFloatingElements(Size size, ThemeService themeService) {
+    return Stack(
+      children: [
+        // Top right floating element
+        Positioned(
+          top: -size.height * 0.1,
+          right: -size.width * 0.2,
+          child: AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: _animationController.value * 0.5,
+                child: Container(
+                  width: size.width * 0.6,
+                  height: size.width * 0.6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        themeService.primaryColor.withOpacity(0.15),
+                        themeService.primaryColor.withOpacity(0.05),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        
+        // Bottom left floating element
+        Positioned(
+          bottom: -size.height * 0.15,
+          left: -size.width * 0.25,
+          child: AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: -_animationController.value * 0.3,
+                child: Container(
+                  width: size.width * 0.8,
+                  height: size.width * 0.8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        themeService.secondaryColor.withOpacity(0.12),
+                        themeService.secondaryColor.withOpacity(0.03),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        
+        // Small floating dots
+        ...List.generate(6, (index) {
+          final random = (index + 1) * 0.7;
+          return Positioned(
+            top: size.height * (0.2 + random * 0.1),
+            left: size.width * (0.1 + random * 0.15),
+            child: AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(
+                    10 * sin(_animationController.value * 2 * pi + index),
+                    10 * cos(_animationController.value * 2 * pi + index),
+                  ),
+                  child: Container(
+                    width: 8 + (index % 3) * 4,
+                    height: 8 + (index % 3) * 4,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: themeService.primaryColor.withOpacity(0.3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: themeService.primaryColor.withOpacity(0.2),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildCustomAppBar(ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Background gradient
-          Container(
-            height: size.height,
-            width: size.width,
-            decoration: BoxDecoration(
-              gradient: themeService.backgroundGradient,
-            ),
-          ),
-          
-          // Floating design elements - small circle
-          Positioned(
-            top: size.height * 0.05,
-            right: -size.width * 0.15,
-            child: Container(
-              width: size.width * 0.5,
-              height: size.width * 0.5,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: themeService.primaryColor.withOpacity(0.1),
-              ),
-            ),
-          ),
-          
-          // Floating design elements - large circle
-          Positioned(
-            bottom: -size.height * 0.1,
-            left: -size.width * 0.2,
-            child: Container(
-              width: size.width * 0.7,
-              height: size.width * 0.7,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: themeService.secondaryColor.withOpacity(0.1),
-              ),
-            ),
-          ),
-          
-          // Main content
-          SafeArea(
-            child: Column(
-              children: [
-                // App bar with back button
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Back button
-                      Material(
-                        color: colorScheme.surface.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: _previousStep,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Icon(
-                              Icons.arrow_back_ios_new, 
-                              color: colorScheme.primary,
-                              size: 18,
-                            ),
-                          ),
+          // Custom back button
+          AnimatedBuilder(
+            animation: _fadeAnimation,
+            builder: (context, child) {
+              return Opacity(
+                opacity: _fadeAnimation.value,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: _previousStep,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Icon(
+                          Icons.arrow_back_ios_new,
+                          color: colorScheme.primary,
+                          size: 20,
                         ),
                       ),
-                      
-                      // Skip button
-                      if (_currentStep < 2)
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          
+          // Skip button with subtle animation
+          if (_currentStep < 2)
+            AnimatedBuilder(
+              animation: _fadeAnimation,
+              builder: (context, child) {
+                return Opacity(
+                  opacity: _fadeAnimation.value,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: colorScheme.primary.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => Navigator.pop(context),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           child: Text(
                             'Skip',
                             style: TextStyle(
                               color: colorScheme.primary,
                               fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                
-                // Progress indicator
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Step indicators
-                      Row(
-                        children: List.generate(
-                          3,
-                          (index) => Expanded(
-                            child: Container(
-                              margin: EdgeInsets.only(right: index < 2 ? 8 : 0),
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: index <= _currentStep 
-                                    ? colorScheme.primary 
-                                    : colorScheme.onBackground.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
+                              fontSize: 14,
                             ),
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                
-                // Main content
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      _buildStep1(context),
-                      _buildStep2(context),
-                      _buildStep3(context),
-                    ],
-                  ),
-                ),
-              ],
+                );
+              },
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressIndicator(ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(
+        children: [
+          Row(
+            children: List.generate(3, (index) {
+              return Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeInOutCubic,
+                  margin: EdgeInsets.only(right: index < 2 ? 8 : 0),
+                  height: 6,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(3),
+                    gradient: index <= _currentStep
+                        ? LinearGradient(
+                            colors: [
+                              colorScheme.primary,
+                              colorScheme.primary.withOpacity(0.7),
+                            ],
+                          )
+                        : null,
+                    color: index > _currentStep
+                        ? colorScheme.onBackground.withOpacity(0.1)
+                        : null,
+                    boxShadow: index <= _currentStep
+                        ? [
+                            BoxShadow(
+                              color: colorScheme.primary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStepLabel('Account', 0, colorScheme),
+              _buildStepLabel('Details', 1, colorScheme),
+              _buildStepLabel('Verify', 2, colorScheme),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStepLabel(String label, int stepIndex, ColorScheme colorScheme) {
+    final isActive = stepIndex == _currentStep;
+    final isCompleted = stepIndex < _currentStep;
+    
+    return AnimatedDefaultTextStyle(
+      duration: const Duration(milliseconds: 300),
+      style: TextStyle(
+        fontSize: isActive ? 13 : 11,
+        fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+        color: isActive || isCompleted
+            ? colorScheme.primary
+            : colorScheme.onBackground.withOpacity(0.5),
+      ),
+      child: Text(label),
     );
   }
 
@@ -562,224 +737,187 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Form(
-          key: _step1FormKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              const SizedBox(height: 16),
-              Text(
-                'Create Account',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onBackground,
-                ),
-              ),
-              
-              const SizedBox(height: 8),
-              
-              Text(
-                'Enter your details to get started',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: colorScheme.onBackground.withOpacity(0.7),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Lottie animation
-              Center(
-                child: SizedBox(
-                  height: size.height * 0.22,
-                  child: Lottie.asset(
-                    _animationFiles[0],
-                    errorBuilder: (context, error, stackTrace) => 
-                      Icon(
-                        Icons.account_circle_outlined,
-                        size: 100,
-                        color: colorScheme.primary,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Form(
+              key: _step1FormKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 10),
+                  
+                  // Enhanced title section with animation
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Create Account',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            color: colorScheme.onBackground,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '🚀 Your journey starts here',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // Enhanced Lottie animation with curve background
+                  Container(
+                    height: size.height * 0.28,
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          colorScheme.primary.withOpacity(0.08),
+                          colorScheme.secondary.withOpacity(0.05),
+                        ],
                       ),
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Error message if any
-              if (_errorMessage.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 14,
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: colorScheme.primary.withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                    child: ClipPath(
+                      clipper: CurvedClipper(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              colorScheme.surface.withOpacity(0.8),
+                              colorScheme.surface.withOpacity(0.4),
+                            ],
+                          ),
+                        ),
+                        child: Center(
+                          child: ScaleTransition(
+                            scale: _scaleAnimation,
+                            child: Lottie.asset(
+                              _animationFiles[0],
+                              height: size.height * 0.2,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => 
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.account_circle_outlined,
+                                    size: 80,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                            ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              
-              // Email field
-              _buildTextField(
-                label: 'Email',
-                controller: _emailController,
-                prefixIcon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
-                validator: _validateEmail,
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Password field
-              _buildTextField(
-                label: 'Password',
-                controller: _passwordController,
-                prefixIcon: Icons.lock_outline,
-                obscureText: _obscurePassword,
-                validator: _validatePassword,
-                suffixIcon: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                  child: Icon(
-                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                    color: colorScheme.onSurface.withOpacity(0.6),
-                    size: 20,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 12),
-              
-              // Password strength indicator
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Row(
-                  children: [
-                    _buildStrengthIndicator(
-                      _passwordController.text.length >= 8,
-                      'Min. 8 characters',
-                      colorScheme,
-                    ),
-                    const SizedBox(width: 12),
-                    _buildStrengthIndicator(
-                      RegExp(r'[0-9]').hasMatch(_passwordController.text),
-                      'Numbers',
-                      colorScheme,
-                    ),
-                    const SizedBox(width: 12),
-                    _buildStrengthIndicator(
-                      RegExp(r'[A-Z]').hasMatch(_passwordController.text),
-                      'Uppercase',
-                      colorScheme,
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Continue button
-              _buildMainButton(
-                text: 'Continue',
-                onPressed: _nextStep,
-                isLoading: _isLoading,
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Or sign up with
-              Row(
-                children: [
-                  Expanded(child: Divider(color: colorScheme.onBackground.withOpacity(0.2))),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'Or sign up with',
-                      style: TextStyle(
-                        color: colorScheme.onBackground.withOpacity(0.6),
-                        fontSize: 14,
-                      ),
                     ),
                   ),
-                  Expanded(child: Divider(color: colorScheme.onBackground.withOpacity(0.2))),
-                ],
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Social login buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildSocialButton(
-                    icon: Icons.g_mobiledata_rounded,
-                    color: Colors.red,
-                    onTap: _signUpWithGoogle,
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Enhanced form fields
+                  _buildEnhancedTextField(
+                    label: 'Email Address',
+                    hint: 'Enter your email address',
+                    controller: _emailController,
+                    prefixIcon: Icons.email_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: _validateEmail,
                   ),
-                  _buildSocialButton(
-                    icon: Icons.facebook_rounded,
-                    color: Colors.blue.shade700,
-                    onTap: _signUpWithFacebook,
-                  ),
-                  _buildSocialButton(
-                    icon: Icons.apple_rounded,
-                    color: themeService.isDarkMode ? Colors.white : Colors.black,
-                    onTap: _signUpWithApple,
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Already have an account
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Already have an account? ',
-                      style: TextStyle(
-                        color: colorScheme.onBackground.withOpacity(0.7),
-                      ),
-                    ),
-                    GestureDetector(
+                  
+                  const SizedBox(height: 20),
+                  
+                  _buildEnhancedTextField(
+                    label: 'Password',
+                    hint: 'Create a strong password',
+                    controller: _passwordController,
+                    prefixIcon: Icons.lock_rounded,
+                    obscureText: _obscurePassword,
+                    validator: _validatePassword,
+                    suffixIcon: GestureDetector(
                       onTap: () {
-                        Navigator.pop(context);
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
                       },
-                      child: Text(
-                        'Login',
-                        style: TextStyle(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Icon(
+                        _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                        color: colorScheme.primary,
+                        size: 22,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Enhanced password strength indicators
+                  _buildEnhancedPasswordStrength(colorScheme),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Enhanced continue button
+                  _buildEnhancedButton(
+                    text: 'Continue',
+                    onPressed: _nextStep,
+                    isLoading: _isLoading,
+                    isPrimary: true,
+                  ),
+                  
+                  const SizedBox(height: 28),
+                  
+                  // Enhanced divider
+                  _buildEnhancedDivider('Or sign up with', colorScheme),
+                  
+                  const SizedBox(height: 28),
+                  
+                  // Enhanced social buttons
+                  _buildEnhancedSocialButtons(themeService),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Enhanced bottom text
+                  _buildEnhancedBottomText('Already have an account?', 'Login', colorScheme, () {
+                    Navigator.pop(context);
+                  }),
+                  
+                  const SizedBox(height: 24),
+                ],
               ),
-              
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         ),
       ),
@@ -793,201 +931,182 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Form(
-          key: _step2FormKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              const SizedBox(height: 16),
-              Text(
-                'Personal Details',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onBackground,
-                ),
-              ),
-              
-              const SizedBox(height: 8),
-              
-              Text(
-                'Tell us more about yourself',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: colorScheme.onBackground.withOpacity(0.7),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Lottie animation
-              Center(
-                child: SizedBox(
-                  height: size.height * 0.2,
-                  child: Lottie.asset(
-                    _animationFiles[1],
-                    errorBuilder: (context, error, stackTrace) => 
-                      Icon(
-                        Icons.person_outline,
-                        size: 100,
-                        color: colorScheme.primary,
-                      ),
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Error message if any
-              if (_errorMessage.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 14,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Form(
+              key: _step2FormKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 10),
+                  
+                  // Enhanced title section
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Personal Details',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            color: colorScheme.onBackground,
+                            height: 1.2,
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '✨ Tell us about yourself',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // Enhanced Lottie animation with curve background
+                  Container(
+                    height: size.height * 0.25,
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft,
+                        colors: [
+                          colorScheme.secondary.withOpacity(0.08),
+                          colorScheme.primary.withOpacity(0.05),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: colorScheme.secondary.withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                    child: ClipPath(
+                      clipper: CurvedClipper(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              colorScheme.surface.withOpacity(0.8),
+                              colorScheme.surface.withOpacity(0.4),
+                            ],
+                          ),
+                        ),
+                        child: Center(
+                          child: ScaleTransition(
+                            scale: _scaleAnimation,
+                            child: Lottie.asset(
+                              _animationFiles[1],
+                              height: size.height * 0.18,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => 
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.secondary.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.person_outline_rounded,
+                                    size: 80,
+                                    color: colorScheme.secondary,
+                                  ),
+                                ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Enhanced form fields in rows
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildEnhancedTextField(
+                          label: 'First Name',
+                          hint: 'Your first name',
+                          controller: _nameController,
+                          prefixIcon: Icons.person_outline_rounded,
+                          validator: _validateName,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildEnhancedTextField(
+                          label: 'Last Name',
+                          hint: 'Your last name',
+                          controller: _lastNameController,
+                          prefixIcon: Icons.person_outline_rounded,
+                          validator: _validateName,
                         ),
                       ),
                     ],
                   ),
-                ),
-              
-              // First and Last name in a row
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      label: 'First Name',
-                      controller: _nameController,
-                      prefixIcon: Icons.person_outline,
-                      validator: _validateName,
-                    ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  _buildEnhancedTextField(
+                    label: 'Phone Number',
+                    hint: 'Enter your phone number',
+                    controller: _phoneController,
+                    prefixIcon: Icons.phone_rounded,
+                    keyboardType: TextInputType.phone,
+                    validator: _validatePhone,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildTextField(
-                      label: 'Last Name',
-                      controller: _lastNameController,
-                      prefixIcon: Icons.person_outline,
-                      validator: _validateName,
-                    ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  _buildEnhancedTextField(
+                    label: 'Business Name (Optional)',
+                    hint: 'Your business or company name',
+                    controller: _businessNameController,
+                    prefixIcon: Icons.business_center_rounded,
                   ),
+                  
+                  const SizedBox(height: 28),
+                  
+                  // Enhanced terms and conditions
+                  _buildEnhancedTermsCheckbox(colorScheme),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Enhanced register button
+                  _buildEnhancedButton(
+                    text: 'Create Account',
+                    onPressed: _nextStep,
+                    isLoading: _isLoading,
+                    isPrimary: true,
+                  ),
+                  
+                  const SizedBox(height: 24),
                 ],
               ),
-              
-              const SizedBox(height: 16),
-              
-              // Phone number
-              _buildTextField(
-                label: 'Phone Number',
-                controller: _phoneController,
-                prefixIcon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
-                validator: _validatePhone,
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Business name (optional)
-              _buildTextField(
-                label: 'Business Name (Optional)',
-                controller: _businessNameController,
-                prefixIcon: Icons.business_outlined,
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Terms and conditions
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: colorScheme.onBackground.withOpacity(0.1),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Checkbox(
-                        value: _agreeToTerms,
-                        activeColor: colorScheme.primary,
-                        checkColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _agreeToTerms = value ?? false;
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          text: 'I agree to the ',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: colorScheme.onBackground.withOpacity(0.8),
-                          ),
-                          children: [
-                            TextSpan(
-                              text: 'Terms of Service',
-                              style: TextStyle(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const TextSpan(
-                              text: ' and ',
-                            ),
-                            TextSpan(
-                              text: 'Privacy Policy',
-                              style: TextStyle(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Register button
-              _buildMainButton(
-                text: 'Register',
-                onPressed: _nextStep,
-                isLoading: _isLoading,
-              ),
-              
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         ),
       ),
@@ -1001,175 +1120,207 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Title
-            const SizedBox(height: 16),
-            Text(
-              'Verification',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onBackground,
-              ),
-            ),
-            
-            const SizedBox(height: 8),
-            
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                'Enter the 6-digit code sent to your email',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: colorScheme.onBackground.withOpacity(0.7),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Lottie animation
-            SizedBox(
-              height: size.height * 0.2,
-              child: Lottie.asset(
-                _animationFiles[2],
-                errorBuilder: (context, error, stackTrace) => 
-                  Icon(
-                    Icons.mark_email_read_outlined,
-                    size: 100,
-                    color: colorScheme.primary,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 10),
+                
+                // Enhanced title section
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    children: [
+                      Text(
+                        'Verification',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: colorScheme.onBackground,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '🔐 Almost there!',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Error message if any
-            if (_errorMessage.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _errorMessage,
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontSize: 14,
+                
+                const SizedBox(height: 20),
+                
+                // Enhanced Lottie animation
+                Container(
+                  height: size.height * 0.22,
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.green.withOpacity(0.08),
+                        colorScheme.primary.withOpacity(0.05),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: Colors.green.withOpacity(0.1),
+                      width: 1,
+                    ),
+                  ),
+                  child: ClipPath(
+                    clipper: CurvedClipper(),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            colorScheme.surface.withOpacity(0.8),
+                            colorScheme.surface.withOpacity(0.4),
+                          ],
+                        ),
+                      ),
+                      child: Center(
+                        child: ScaleTransition(
+                          scale: _scaleAnimation,
+                          child: Lottie.asset(
+                            _animationFiles[2],
+                            height: size.height * 0.16,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => 
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.mark_email_read_rounded,
+                                  size: 80,
+                                  color: Colors.green,
+                                ),
+                              ),
+                          ),
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            
-            // Email sent to
-            Text(
-              'We sent a verification code to',
-              style: TextStyle(
-                fontSize: 14,
-                color: colorScheme.onBackground.withOpacity(0.7),
-              ),
-            ),
-            
-            const SizedBox(height: 4),
-            
-            Text(
-              _userEmail ?? _emailController.text,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.primary,
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            
-            // OTP input fields
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(
-                  6,
-                  (index) => _buildOtpField(context, index),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            
-            // Verify button
-            _buildMainButton(
-              text: 'Verify',
-              onPressed: _verifyEmail,
-              isLoading: _isLoading,
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Resend code
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Didn't receive the code? ",
-                  style: TextStyle(
-                    color: colorScheme.onBackground.withOpacity(0.7),
                   ),
                 ),
-                GestureDetector(
-                  onTap: _resendVerificationCode,
+                
+                const SizedBox(height: 24),
+                
+                // Enhanced email info
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: colorScheme.primary.withOpacity(0.1),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'We sent a verification code to',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onBackground.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _userEmail ?? _emailController.text,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // Enhanced OTP input fields
+                _buildEnhancedOtpFields(colorScheme),
+                
+                const SizedBox(height: 32),
+                
+                // Enhanced verify button
+                _buildEnhancedButton(
+                  text: 'Verify Account',
+                  onPressed: _verifyEmail,
+                  isLoading: _isLoading,
+                  isPrimary: true,
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Enhanced resend section
+                _buildEnhancedResendSection(colorScheme),
+                
+                const SizedBox(height: 16),
+                
+                // Skip verification
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const MainNavigation()),
+                      (route) => false,
+                    );
+                  },
                   child: Text(
-                    'Resend',
+                    'Skip verification for now',
                     style: TextStyle(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onBackground.withOpacity(0.5),
+                      fontSize: 14,
                     ),
                   ),
                 ),
+                
+                const SizedBox(height: 24),
               ],
             ),
-            
-            const SizedBox(height: 16),
-            
-            // Skip for now
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const MainNavigation()),
-                  (route) => false,
-                );
-              },
-              child: Text(
-                'Skip verification for now',
-                style: TextStyle(
-                  color: colorScheme.onBackground.withOpacity(0.5),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTextField({
+  // Enhanced helper widgets
+  Widget _buildEnhancedTextField({
     required String label,
+    required String hint,
     required TextEditingController controller,
     required IconData prefixIcon,
     TextInputType? keyboardType,
@@ -1178,61 +1329,98 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     Widget? suffixIcon,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
+    final themeService = Provider.of<ThemeService>(context);
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: colorScheme.onBackground.withOpacity(0.8),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onBackground.withOpacity(0.8),
+            ),
           ),
         ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          obscureText: obscureText,
-          validator: validator,
-          style: TextStyle(
-            color: colorScheme.onBackground,
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          decoration: InputDecoration(
-            contentPadding: const EdgeInsets.symmetric(vertical: 16),
-            prefixIcon: Icon(
-              prefixIcon,
-              color: colorScheme.primary,
-              size: 20,
+          child: TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            obscureText: obscureText,
+            validator: validator,
+            style: TextStyle(
+              color: colorScheme.onBackground,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
             ),
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: colorScheme.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: colorScheme.onBackground.withOpacity(0.1),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(
+                color: themeService.isDarkMode 
+                    ? colorScheme.onBackground.withOpacity(0.5)
+                    : colorScheme.onBackground.withOpacity(0.6),
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
               ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: colorScheme.onBackground.withOpacity(0.1),
+              contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+              prefixIcon: Container(
+                margin: const EdgeInsets.only(right: 12),
+                child: Icon(
+                  prefixIcon,
+                  color: colorScheme.primary,
+                  size: 22,
+                ),
               ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: colorScheme.primary,
-                width: 1.5,
+              suffixIcon: suffixIcon,
+              filled: true,
+              fillColor: colorScheme.surface.withOpacity(0.9),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: colorScheme.onBackground.withOpacity(0.08),
+                  width: 1,
+                ),
               ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.red,
-                width: 1.5,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: colorScheme.onBackground.withOpacity(0.08),
+                  width: 1,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: colorScheme.primary,
+                  width: 2,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 2,
+                ),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 2,
+                ),
               ),
             ),
           ),
@@ -1240,86 +1428,112 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
       ],
     );
   }
-  
-  Widget _buildStrengthIndicator(bool isValid, String text, ColorScheme colorScheme) {
-    return Expanded(
-      child: Row(
+
+  Widget _buildEnhancedPasswordStrength(ColorScheme colorScheme) {
+    final password = _passwordController.text;
+    final hasMinLength = password.length >= 8;
+    final hasNumber = RegExp(r'[0-9]').hasMatch(password);
+    final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+    final hasSpecialChar = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password);
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.onBackground.withOpacity(0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            width: 16,
-            height: 16,
-            decoration: BoxDecoration(
-              color: isValid ? colorScheme.primary : Colors.transparent,
-              border: Border.all(
-                color: isValid ? colorScheme.primary : colorScheme.onBackground.withOpacity(0.3),
-              ),
-              borderRadius: BorderRadius.circular(4),
+          Text(
+            'Password Strength',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onBackground.withOpacity(0.8),
             ),
-            child: isValid 
-                ? const Icon(Icons.check, color: Colors.white, size: 12) 
-                : null,
           ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 12,
-                color: isValid 
-                    ? colorScheme.onBackground 
-                    : colorScheme.onBackground.withOpacity(0.5),
-              ),
-              overflow: TextOverflow.ellipsis,
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildStrengthChip('8+ characters', hasMinLength, colorScheme),
+              _buildStrengthChip('Number', hasNumber, colorScheme),
+              _buildStrengthChip('Uppercase', hasUppercase, colorScheme),
+              _buildStrengthChip('Special char', hasSpecialChar, colorScheme),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStrengthChip(String text, bool isValid, ColorScheme colorScheme) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isValid 
+            ? colorScheme.primary.withOpacity(0.1) 
+            : colorScheme.onBackground.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isValid 
+              ? colorScheme.primary.withOpacity(0.3) 
+              : colorScheme.onBackground.withOpacity(0.1),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isValid ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 16,
+            color: isValid 
+                ? colorScheme.primary 
+                : colorScheme.onBackground.withOpacity(0.4),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isValid 
+                  ? colorScheme.primary 
+                  : colorScheme.onBackground.withOpacity(0.6),
             ),
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildSocialButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          color: color,
-          size: 32,
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildMainButton({
+
+  Widget _buildEnhancedButton({
     required String text,
     required VoidCallback onPressed,
     required bool isLoading,
+    required bool isPrimary,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     
-    return SizedBox(
+    return Container(
       width: double.infinity,
       height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
@@ -1337,75 +1551,403 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 height: 24,
                 child: CircularProgressIndicator(
                   color: Colors.white,
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                 ),
               )
-            : Text(
-                text,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    text,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_rounded, size: 18),
+                ],
               ),
       ),
     );
   }
-  
-  Widget _buildOtpField(BuildContext context, int index) {
+
+  Widget _buildEnhancedDivider(String text, ColorScheme colorScheme) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  colorScheme.onBackground.withOpacity(0.2),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: colorScheme.surface.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              text,
+              style: TextStyle(
+                color: colorScheme.onBackground.withOpacity(0.6),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  colorScheme.onBackground.withOpacity(0.2),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEnhancedSocialButtons(ThemeService themeService) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildEnhancedSocialButton(
+          icon: Icons.g_mobiledata_rounded,
+          color: Colors.red,
+          label: 'Google',
+          onTap: _signUpWithGoogle,
+        ),
+        _buildEnhancedSocialButton(
+          icon: Icons.facebook_rounded,
+          color: Colors.blue.shade700,
+          label: 'Facebook',
+          onTap: _signUpWithFacebook,
+        ),
+        _buildEnhancedSocialButton(
+          icon: Icons.apple_rounded,
+          color: themeService.isDarkMode ? Colors.white : Colors.black,
+          label: 'Apple',
+          onTap: _signUpWithApple,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEnhancedSocialButton({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     final colorScheme = Theme.of(context).colorScheme;
     
-    return SizedBox(
-      width: 45,
-      height: 56,
-      child: TextFormField(
-        controller: _otpControllers[index],
-        focusNode: _otpFocusNodes[index],
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        maxLength: 1,
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: colorScheme.onBackground,
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        height: 56,
+        child: Material(
+          color: colorScheme.surface.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(16),
+          elevation: 0,
+          shadowColor: Colors.black.withOpacity(0.1),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: colorScheme.onBackground.withOpacity(0.08),
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: color, size: 24),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: colorScheme.onBackground.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        decoration: InputDecoration(
-          counterText: '',
-          filled: true,
-          fillColor: colorScheme.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: colorScheme.onBackground.withOpacity(0.1),
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: colorScheme.onBackground.withOpacity(0.1),
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: colorScheme.primary,
-              width: 1.5,
-            ),
-          ),
-        ),
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-        ],
-        onChanged: (value) {
-          if (value.isNotEmpty && index < 5) {
-            _otpFocusNodes[index + 1].requestFocus();
-          }
-        },
-        onFieldSubmitted: (_) {
-          if (index < 5) {
-            _otpFocusNodes[index + 1].requestFocus();
-          }
-        },
       ),
     );
   }
+
+  Widget _buildEnhancedBottomText(String text1, String text2, ColorScheme colorScheme, VoidCallback onTap) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: colorScheme.surface.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              text1,
+              style: TextStyle(
+                color: colorScheme.onBackground.withOpacity(0.7),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: onTap,
+              child: Text(
+                text2,
+                style: TextStyle(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEnhancedTermsCheckbox(ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colorScheme.surface.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.onBackground.withOpacity(0.08),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: _agreeToTerms 
+                    ? colorScheme.primary 
+                    : colorScheme.onBackground.withOpacity(0.3),
+                width: 2,
+              ),
+              color: _agreeToTerms 
+                  ? colorScheme.primary 
+                  : Colors.transparent,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () {
+                  setState(() {
+                    _agreeToTerms = !_agreeToTerms;
+                  });
+                },
+                child: _agreeToTerms
+                    ? const Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: 16,
+                      )
+                    : null,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                text: 'I agree to the ',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onBackground.withOpacity(0.8),
+                  height: 1.4,
+                ),
+                children: [
+                  TextSpan(
+                    text: 'Terms of Service',
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                  const TextSpan(text: ' and '),
+                  TextSpan(
+                    text: 'Privacy Policy',
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnhancedOtpFields(ColorScheme colorScheme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: List.generate(6, (index) {
+        return Container(
+          width: 50,
+          height: 60,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: TextFormField(
+            controller: _otpControllers[index],
+            focusNode: _otpFocusNodes[index],
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            maxLength: 1,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onBackground,
+            ),
+            decoration: InputDecoration(
+              counterText: '',
+              filled: true,
+              fillColor: colorScheme.surface.withOpacity(0.9),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: colorScheme.onBackground.withOpacity(0.1),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: colorScheme.onBackground.withOpacity(0.1),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: colorScheme.primary,
+                  width: 2,
+                ),
+              ),
+            ),
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+            ],
+            onChanged: (value) {
+              if (value.isNotEmpty && index < 5) {
+                _otpFocusNodes[index + 1].requestFocus();
+              } else if (value.isEmpty && index > 0) {
+                _otpFocusNodes[index - 1].requestFocus();
+              }
+            },
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildEnhancedResendSection(ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            "Didn't receive the code? ",
+            style: TextStyle(
+              color: colorScheme.onBackground.withOpacity(0.7),
+              fontSize: 14,
+            ),
+          ),
+          GestureDetector(
+            onTap: _resendVerificationCode,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Resend Code',
+                style: TextStyle(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Custom clipper for curved background
+class CurvedClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height * 0.8);
+    
+    final firstCurve = Offset(size.width * 0.25, size.height);
+    final firstEnd = Offset(size.width * 0.5, size.height * 0.95);
+    path.quadraticBezierTo(firstCurve.dx, firstCurve.dy, firstEnd.dx, firstEnd.dy);
+    
+    final secondCurve = Offset(size.width * 0.75, size.height * 0.9);
+    final secondEnd = Offset(size.width, size.height * 0.85);
+    path.quadraticBezierTo(secondCurve.dx, secondCurve.dy, secondEnd.dx, secondEnd.dy);
+    
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
