@@ -1291,12 +1291,12 @@ StreamSubscription? _notificationSubscription;
                                   context,
                                   iconData: Icons.phone_android,
                                   iconColor: themeService.successColor,
-                                  label: 'M-PESA',
+                                  label: 'My Crypto',
                                   onTap: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => MpesaScreen(),
+                                        builder: (context) => CryptoScreen(),
                                       ),
                                     );
                                   },
