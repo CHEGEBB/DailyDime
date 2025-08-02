@@ -24,15 +24,14 @@ class AppNotificationAdapter extends TypeAdapter<AppNotification> {
       type: fields[4] as NotificationType,
       isRead: fields[5] as bool,
       data: (fields[6] as Map?)?.cast<String, dynamic>(),
-      iconName: fields[7] as String?,
-      actionData: fields[8] as String?,
+      actionData: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, AppNotification obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -48,8 +47,6 @@ class AppNotificationAdapter extends TypeAdapter<AppNotification> {
       ..writeByte(6)
       ..write(obj.data)
       ..writeByte(7)
-      ..write(obj.iconName)
-      ..writeByte(8)
       ..write(obj.actionData);
   }
 
@@ -78,17 +75,17 @@ class NotificationTypeAdapter extends TypeAdapter<NotificationType> {
       case 2:
         return NotificationType.goal;
       case 3:
-        return NotificationType.challenge;
-      case 4:
         return NotificationType.balance;
+      case 4:
+        return NotificationType.system;
       case 5:
         return NotificationType.reminder;
       case 6:
-        return NotificationType.alert;
+        return NotificationType.challenge;
       case 7:
-        return NotificationType.achievement;
+        return NotificationType.alert;
       case 8:
-        return NotificationType.system;
+        return NotificationType.achievement;
       default:
         return NotificationType.transaction;
     }
@@ -106,22 +103,22 @@ class NotificationTypeAdapter extends TypeAdapter<NotificationType> {
       case NotificationType.goal:
         writer.writeByte(2);
         break;
-      case NotificationType.challenge:
+      case NotificationType.balance:
         writer.writeByte(3);
         break;
-      case NotificationType.balance:
+      case NotificationType.system:
         writer.writeByte(4);
         break;
       case NotificationType.reminder:
         writer.writeByte(5);
         break;
-      case NotificationType.alert:
+      case NotificationType.challenge:
         writer.writeByte(6);
         break;
-      case NotificationType.achievement:
+      case NotificationType.alert:
         writer.writeByte(7);
         break;
-      case NotificationType.system:
+      case NotificationType.achievement:
         writer.writeByte(8);
         break;
     }
