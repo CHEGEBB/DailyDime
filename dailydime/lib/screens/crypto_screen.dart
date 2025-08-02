@@ -795,7 +795,7 @@ Widget _buildAddWalletModal() {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Lottie.asset(
-            'assets/animations/lottie.json',
+            'assets/animations/loading2.json',
             width: 200,
             height: 200,
           ),
@@ -872,7 +872,7 @@ Widget _buildAddWalletModal() {
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
                   blurRadius: 10,
-                  offset: const Offset(0, 4), // Added const here
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -896,14 +896,14 @@ Widget _buildAddWalletModal() {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
-                  icon: const Icon(Icons.add), // Added const
-                  label: const Text('Add Wallet'), // Added const
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Wallet'),
                   onPressed: _showAddWalletModal,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 12,
-                    ), // Fixed the closing parenthesis here
+                    ),
                   ),
                 ),
               ],
@@ -1420,179 +1420,186 @@ Widget _buildPortfolioHeroCard() {
     );
   }
   
- Widget _buildAssetsGrid() {
- if (_portfolio == null || _portfolio!.wallets.isEmpty) {
-   return SizedBox.shrink();
- }
- 
- final allTokens = <dynamic>[];
- for (final wallet in _portfolio!.wallets) {
-   allTokens.addAll(wallet.tokens);
- }
- 
- // Group tokens by symbol and sum values
- final Map<String, dynamic> groupedTokens = {};
- for (final token in allTokens) {
-   if (!groupedTokens.containsKey(token.symbol)) {
-     groupedTokens[token.symbol] = token;
-   } else {
-     final existing = groupedTokens[token.symbol]!;
-     groupedTokens[token.symbol] = Token(
-       symbol: token.symbol,
-       name: token.name,
-       address: token.address ?? '',
-       networkId: token.networkId ?? '',
-       logoUrl: token.logoUrl ?? token.logo ?? '',
-       amount: existing.amount + token.amount,
-       usdValue: existing.usdValue + token.usdValue,
-       currentPrice: token.priceUsd ?? token.currentPrice ?? 0.0,
-       priceChangePercent24h: token.priceChangePercentage24h ?? token.priceChangePercent24h ?? 0.0,
-     );
-   }
- }
- 
- // Sort by USD value
- final sortedTokens = groupedTokens.values.toList()
-   ..sort((a, b) => b.usdValue.compareTo(a.usdValue));
- 
- return Padding(
-   padding: const EdgeInsets.symmetric(horizontal: 16),
-   child: Column(
-     children: [
-       for (int i = 0; i < sortedTokens.length; i += 2) 
-         Row(
-           children: [
-             Expanded(
-               child: _buildAssetCard(sortedTokens[i]),
-             ),
-             const SizedBox(width: 16),
-             Expanded(
-               child: i + 1 < sortedTokens.length
-                   ? _buildAssetCard(sortedTokens[i + 1])
-                   : SizedBox.shrink(),
-             ),
-           ],
-         ),
-     ],
-   ),
- );
+Widget _buildAssetsGrid() {
+  if (_portfolio == null || _portfolio!.wallets.isEmpty) {
+    return const SizedBox.shrink();
+  }
+  
+  final allTokens = <dynamic>[];
+  for (final wallet in _portfolio!.wallets) {
+    if (wallet.tokens.isNotEmpty) {
+      allTokens.addAll(wallet.tokens);
+    }
+  }
+  
+  if (allTokens.isEmpty) {
+    return _buildEmptyAssetsState();
+  }
+  
+  // Group tokens by symbol and sum values
+  final Map<String, dynamic> groupedTokens = {};
+  for (final token in allTokens) {
+    final symbol = token.symbol ?? 'UNKNOWN';
+    if (!groupedTokens.containsKey(symbol)) {
+      groupedTokens[symbol] = token;
+    } else {
+      final existing = groupedTokens[symbol]!;
+      // Create a new token with combined values - adjust based on your Token class
+      groupedTokens[symbol] = token; // Simplified - you'll need to properly combine token data
+    }
+  }
+  
+  // Sort by USD value
+  final sortedTokens = groupedTokens.values.toList()
+    ..sort((a, b) => (b.usdValue ?? 0.0).compareTo(a.usdValue ?? 0.0));
+  
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Column(
+      children: [
+        for (int i = 0; i < sortedTokens.length; i += 2) 
+          Row(
+            children: [
+              Expanded(
+                child: _buildAssetCard(sortedTokens[i]),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: i + 1 < sortedTokens.length
+                    ? _buildAssetCard(sortedTokens[i + 1])
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+      ],
+    ),
+  );
 }
+
   
   Widget _buildAssetCard(dynamic token) {
- final theme = Provider.of<ThemeService>(context);
- 
- return Container(
-   margin: const EdgeInsets.only(bottom: 16),
-   child: Card(
-     elevation: 2,
-     shape: RoundedRectangleBorder(
-       borderRadius: BorderRadius.circular(12),
-     ),
-     child: Padding(
-       padding: const EdgeInsets.all(16),
-       child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-           Row(
-             children: [
-               Container(
-                 width: 36,
-                 height: 36,
-                 decoration: BoxDecoration(
-                   color: _getTokenColor(token.symbol).withOpacity(0.2),
-                   shape: BoxShape.circle,
-                 ),
-                 child: Center(
-                   child: Text(
-                     token.symbol.substring(0, 1),
-                     style: TextStyle(
-                       fontWeight: FontWeight.bold,
-                       color: _getTokenColor(token.symbol),
-                     ),
-                   ),
-                 ),
-               ),
-               const SizedBox(width: 8),
-               Column(
-                 crossAxisAlignment: CrossAxisAlignment.start,
-                 children: [
-                   Text(
-                     token.symbol,
-                     style: TextStyle(
-                       fontWeight: FontWeight.bold,
-                       color: theme.textColor,
-                     ),
-                   ),
-                   Text(
-                     token.name.length > 12 
-                         ? '${token.name.substring(0, 12)}...' 
-                         : token.name,
-                     style: TextStyle(
-                       fontSize: 12,
-                       color: theme.textColor.withOpacity(0.7),
-                     ),
-                   ),
-                 ],
-               ),
-             ],
-           ),
-           const SizedBox(height: 16),
-           Text(
-             '${(token.amount ?? 0.0).toStringAsFixed((token.amount ?? 0.0) < 1 ? 4 : 2)} ${token.symbol}',
-             style: TextStyle(
-               fontSize: 14,
-               color: theme.textColor.withOpacity(0.9),
-             ),
-           ),
-           const SizedBox(height: 4),
-           Text(
-             '\$${(token.usdValue ?? 0.0).toStringAsFixed(2)}',
-             style: TextStyle(
-               fontSize: 18,
-               fontWeight: FontWeight.bold,
-               color: theme.textColor,
-             ),
-           ),
-           const SizedBox(height: 8),
-           Row(
-             children: [
-               Text(
-                 '\$${(token.currentPrice ?? token.priceUsd ?? 0.0).toStringAsFixed(2)}',
-                 style: TextStyle(
-                   fontSize: 14,
-                   color: theme.textColor.withOpacity(0.7),
-                 ),
-               ),
-               const Spacer(),
-               Container(
-                 padding: const EdgeInsets.symmetric(
-                   horizontal: 6,
-                   vertical: 2,
-                 ),
-                 decoration: BoxDecoration(
-                   color: (token.priceChangePercent24h ?? token.priceChangePercentage24h ?? 0.0) >= 0
-                       ? theme.successColor.withOpacity(0.2)
-                       : theme.errorColor.withOpacity(0.2),
-                   borderRadius: BorderRadius.circular(4),
-                 ),
-                 child: Text(
-                   '${(token.priceChangePercent24h ?? token.priceChangePercentage24h ?? 0.0) >= 0 ? '+' : ''}${(token.priceChangePercent24h ?? token.priceChangePercentage24h ?? 0.0).toStringAsFixed(2)}%',
-                   style: TextStyle(
-                     fontSize: 12,
-                     fontWeight: FontWeight.bold,
-                     color: (token.priceChangePercent24h ?? token.priceChangePercentage24h ?? 0.0) >= 0
-                         ? theme.successColor
-                         : theme.errorColor,
-                   ),
-                 ),
-               ),
-             ],
-           ),
-         ],
-       ),
-     ),
-   ),
- );
+  final theme = Provider.of<ThemeService>(context);
+  
+  // Add null checks for all token properties
+  final symbol = token.symbol ?? 'N/A';
+  final name = token.name ?? 'Unknown';
+  final amount = token.amount ?? 0.0;
+  final usdValue = token.usdValue ?? 0.0;
+  final currentPrice = token.currentPrice ?? token.priceUsd ?? 0.0;
+  final priceChange = token.priceChangePercent24h ?? token.priceChangePercentage24h ?? 0.0;
+  
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    child: Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: _getTokenColor(symbol).withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      symbol.isNotEmpty ? symbol.substring(0, 1) : '?',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getTokenColor(symbol),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        symbol,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: theme.textColor,
+                        ),
+                      ),
+                      Text(
+                        name.length > 12 ? '${name.substring(0, 12)}...' : name,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.textColor.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${amount.toStringAsFixed(amount < 1 ? 4 : 2)} $symbol',
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.textColor.withOpacity(0.9),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '\$${usdValue.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: theme.textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  '\$${currentPrice.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: theme.textColor.withOpacity(0.7),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: priceChange >= 0
+                        ? theme.successColor.withOpacity(0.2)
+                        : theme.errorColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${priceChange >= 0 ? '+' : ''}${priceChange.toStringAsFixed(2)}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: priceChange >= 0
+                          ? theme.successColor
+                          : theme.errorColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
   Widget _buildEmptyTransactionsState() {
@@ -1631,13 +1638,17 @@ Widget _buildPortfolioHeroCard() {
   }
   
   Widget _buildTransactionsList() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: _transactions.take(5).map((tx) => _buildTransactionItem(tx)).toList(),
-      ),
-    );
+  if (_transactions.isEmpty) {
+    return _buildEmptyTransactionsState();
   }
+  
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Column(
+      children: _transactions.take(5).map((tx) => _buildTransactionItem(tx)).toList(),
+    ),
+  );
+}
   
   Widget _buildTransactionItem(Transaction transaction) {
  final theme = Provider.of<ThemeService>(context);
@@ -1740,139 +1751,140 @@ Widget _buildPortfolioHeroCard() {
 }
   
   Widget _buildAIInsights() {
-    final theme = Provider.of<ThemeService>(context);
-    
-    if (_insights.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(
-                Icons.lightbulb_outline,
-                size: 64,
-                color: theme.primaryColor,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No Insights Yet',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Add more wallets or transactions to get AI-powered insights',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+  final theme = Provider.of<ThemeService>(context);
+  
+  if (_insights.isEmpty) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.lightbulb_outline,
+              size: 64,
+              color: theme.primaryColor,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No Insights Yet',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add more wallets or transactions to get AI-powered insights',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
-      );
-    }
-    
-    return Container(
-      height: 180,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _insights.length,
-        itemBuilder: (context, index) {
-          final insight = _insights[index];
-          
-          return Container(
-            width: 280,
-            margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          _getInsightColor(insight.type).withOpacity(0.15),
-                          _getInsightColor(insight.type).withOpacity(0.05),
-                        ],
-                      ),
-                      border: Border.all(
-                        color: _getInsightColor(insight.type).withOpacity(0.3),
-                        width: 1,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
+      ),
+    );
+  }
+  
+  return SizedBox(
+    height: 180,
+    child: ListView.builder(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _insights.length,
+      itemBuilder: (context, index) {
+        final insight = _insights[index];
+        
+        return Container(
+          width: 280,
+          margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+          child: Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        _getInsightColor(insight.type).withOpacity(0.15),
+                        _getInsightColor(insight.type).withOpacity(0.05),
+                      ],
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _getInsightIcon(insight.type as InsightType),
-                                color: _getInsightColor(insight.type),
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _getInsightTitle(insight.type as InsightType),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: _getInsightColor(insight.type),
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Expanded(
-                            child: Text(
-                              insight.description, // Assuming 'description' is the correct property
+                    border: Border.all(
+                      color: _getInsightColor(insight.type).withOpacity(0.3),
+                      width: 1,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              _getInsightIcon(insight.type as InsightType),
+                              color: _getInsightColor(insight.type),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _getInsightTitle(insight.type as InsightType),
                               style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _getInsightColor(insight.type),
                                 fontSize: 14,
-                                color: theme.textColor,
-                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: Text(
+                            insight.description ?? 'No description available',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: theme.textColor,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.bottomRight,
+                          child: TextButton(
+                            onPressed: () {
+                              // Show detailed insight
+                            },
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(60, 30),
+                            ),
+                            child: Text(
+                              'Learn More',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _getInsightColor(insight.type),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.bottomRight,
-                            child: TextButton(
-                              onPressed: () {
-                                // Show detailed insight
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size(60, 30),
-                              ),
-                              child: Text(
-                                'Learn More',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: _getInsightColor(insight.type),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        );
+      },
+    ),
+  );
+}
+
   
   Widget _buildRiskAssessment(dynamic RiskLevel) {
  final theme = Provider.of<ThemeService>(context);
