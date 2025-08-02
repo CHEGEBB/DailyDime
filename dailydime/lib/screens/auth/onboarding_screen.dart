@@ -93,7 +93,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   
   // For returning users - teal/emerald colors only
   final ReturningUserContent _returningUserContent = ReturningUserContent(
-    mainLottieAsset: 'assets/animations/Login.json',
+    mainLottieAsset: 'assets/animations/Login2.json',
     welcomeText: 'Welcome Back!',
     subtitle: 'Continue your journey to financial freedom',
     description: 'Your financial insights and budgets are ready for you. Sign in to access your DailyDime dashboard.',
