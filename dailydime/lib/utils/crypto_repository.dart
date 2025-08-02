@@ -264,7 +264,7 @@ class CryptoRepository {
         collectionId: _cryptoTransactionsCollection,
         queries: [
           Query.equal('userId', _userId),
-          Query.orQueries([
+          Query.or([
             Query.equal('from', walletAddress.toLowerCase()),
             Query.equal('to', walletAddress.toLowerCase()),
           ]),

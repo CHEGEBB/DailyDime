@@ -166,6 +166,26 @@ class TokenBalance extends Equatable {
   factory TokenBalance.fromJson(Map<String, dynamic> json) => _$TokenBalanceFromJson(json);
   Map<String, dynamic> toJson() => _$TokenBalanceToJson(this);
 
+  TokenBalance copyWith({
+    String? token,
+    String? tokenAddress,
+    String? symbol,
+    double? balance,
+    double? valueUsd,
+    int? decimals,
+    String? logoUrl,
+  }) {
+    return TokenBalance(
+      token: token ?? this.token,
+      tokenAddress: tokenAddress ?? this.tokenAddress,
+      symbol: symbol ?? this.symbol,
+      balance: balance ?? this.balance,
+      valueUsd: valueUsd ?? this.valueUsd,
+      decimals: decimals ?? this.decimals,
+      logoUrl: logoUrl ?? this.logoUrl,
+    );
+  }
+
   @override
   List<Object?> get props => [token, tokenAddress, symbol, balance, valueUsd, decimals, logoUrl];
 }
@@ -309,40 +329,52 @@ class CryptoTransaction extends Equatable {
 }
 
 /// Enum representing the type of cryptocurrency transaction
+@JsonEnum()
 @HiveType(typeId: 14)
 enum TransactionType {
+  @JsonValue('send')
   @HiveField(0)
   send,
   
+  @JsonValue('receive')
   @HiveField(1)
   receive,
   
+  @JsonValue('swap')
   @HiveField(2)
   swap,
   
+  @JsonValue('stake')
   @HiveField(3)
   stake,
   
+  @JsonValue('unstake')
   @HiveField(4)
   unstake,
   
+  @JsonValue('reward')
   @HiveField(5)
   reward,
   
+  @JsonValue('bridge')
   @HiveField(6)
   bridge,
   
+  @JsonValue('liquidity')
   @HiveField(7)
   liquidity,
   
+  @JsonValue('nft')
   @HiveField(8)
   nft,
   
+  @JsonValue('contract')
   @HiveField(9)
   contract,
   
+  @JsonValue('unknown')
   @HiveField(10)
-  unknown
+  unknown, mint, burn
 }
 
 /// Represents current price data for a token
@@ -382,6 +414,26 @@ class TokenPrice extends Equatable {
 
   factory TokenPrice.fromJson(Map<String, dynamic> json) => _$TokenPriceFromJson(json);
   Map<String, dynamic> toJson() => _$TokenPriceToJson(this);
+
+  TokenPrice copyWith({
+    String? token,
+    String? symbol,
+    double? price,
+    double? change24h,
+    double? volume24h,
+    double? marketCap,
+    DateTime? lastUpdated,
+  }) {
+    return TokenPrice(
+      token: token ?? this.token,
+      symbol: symbol ?? this.symbol,
+      price: price ?? this.price,
+      change24h: change24h ?? this.change24h,
+      volume24h: volume24h ?? this.volume24h,
+      marketCap: marketCap ?? this.marketCap,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+    );
+  }
 
   @override
   List<Object?> get props => [token, symbol, price, change24h, volume24h, marketCap, lastUpdated];
@@ -425,6 +477,26 @@ class PriceHistory extends Equatable {
   factory PriceHistory.fromJson(Map<String, dynamic> json) => _$PriceHistoryFromJson(json);
   Map<String, dynamic> toJson() => _$PriceHistoryToJson(this);
 
+  PriceHistory copyWith({
+    String? token,
+    String? symbol,
+    List<PricePoint>? prices,
+    String? interval,
+    DateTime? startDate,
+    DateTime? endDate,
+    DateTime? lastUpdated,
+  }) {
+    return PriceHistory(
+      token: token ?? this.token,
+      symbol: symbol ?? this.symbol,
+      prices: prices ?? this.prices,
+      interval: interval ?? this.interval,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+    );
+  }
+
   @override
   List<Object?> get props => [token, symbol, prices, interval, startDate, endDate, lastUpdated];
 }
@@ -450,6 +522,18 @@ class PricePoint extends Equatable {
 
   factory PricePoint.fromJson(Map<String, dynamic> json) => _$PricePointFromJson(json);
   Map<String, dynamic> toJson() => _$PricePointToJson(this);
+
+  PricePoint copyWith({
+    DateTime? timestamp,
+    double? price,
+    double? volume,
+  }) {
+    return PricePoint(
+      timestamp: timestamp ?? this.timestamp,
+      price: price ?? this.price,
+      volume: volume ?? this.volume,
+    );
+  }
 
   @override
   List<Object?> get props => [timestamp, price, volume];
@@ -492,6 +576,26 @@ class MarketData extends Equatable {
 
   factory MarketData.fromJson(Map<String, dynamic> json) => _$MarketDataFromJson(json);
   Map<String, dynamic> toJson() => _$MarketDataToJson(this);
+
+  MarketData copyWith({
+    double? totalMarketCap,
+    double? totalVolume24h,
+    double? btcDominance,
+    double? marketCapChange24h,
+    List<TokenPrice>? topGainers,
+    List<TokenPrice>? topLosers,
+    DateTime? lastUpdated,
+  }) {
+    return MarketData(
+      totalMarketCap: totalMarketCap ?? this.totalMarketCap,
+      totalVolume24h: totalVolume24h ?? this.totalVolume24h,
+      btcDominance: btcDominance ?? this.btcDominance,
+      marketCapChange24h: marketCapChange24h ?? this.marketCapChange24h,
+      topGainers: topGainers ?? this.topGainers,
+      topLosers: topLosers ?? this.topLosers,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+    );
+  }
 
   @override
   List<Object?> get props => [totalMarketCap, totalVolume24h, btcDominance, marketCapChange24h, topGainers, topLosers, lastUpdated];
@@ -539,6 +643,28 @@ class BudgetSuggestion extends Equatable {
   factory BudgetSuggestion.fromJson(Map<String, dynamic> json) => _$BudgetSuggestionFromJson(json);
   Map<String, dynamic> toJson() => _$BudgetSuggestionToJson(this);
 
+  BudgetSuggestion copyWith({
+    String? id,
+    String? title,
+    String? description,
+    List<String>? actions,
+    double? potentialSavings,
+    String? riskLevel,
+    DateTime? generated,
+    bool? isApplied,
+  }) {
+    return BudgetSuggestion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      actions: actions ?? this.actions,
+      potentialSavings: potentialSavings ?? this.potentialSavings,
+      riskLevel: riskLevel ?? this.riskLevel,
+      generated: generated ?? this.generated,
+      isApplied: isApplied ?? this.isApplied,
+    );
+  }
+
   @override
   List<Object?> get props => [id, title, description, actions, potentialSavings, riskLevel, generated, isApplied];
 }
@@ -585,34 +711,65 @@ class Insight extends Equatable {
   factory Insight.fromJson(Map<String, dynamic> json) => _$InsightFromJson(json);
   Map<String, dynamic> toJson() => _$InsightToJson(this);
 
+  Insight copyWith({
+    String? id,
+    String? title,
+    String? description,
+    InsightType? type,
+    String? assetReference,
+    double? impactValue,
+    DateTime? generated,
+    bool? isRead,
+  }) {
+    return Insight(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      type: type ?? this.type,
+      assetReference: assetReference ?? this.assetReference,
+      impactValue: impactValue ?? this.impactValue,
+      generated: generated ?? this.generated,
+      isRead: isRead ?? this.isRead,
+    );
+  }
+
   @override
   List<Object?> get props => [id, title, description, type, assetReference, impactValue, generated, isRead];
 }
 
 /// Types of portfolio insights
+@JsonEnum()
 @HiveType(typeId: 21)
 enum InsightType {
+  @JsonValue('risk_warning')
   @HiveField(0)
   riskWarning,
   
+  @JsonValue('opportunity_alert')
   @HiveField(1)
   opportunityAlert,
   
+  @JsonValue('market_trend')
   @HiveField(2)
   marketTrend,
   
+  @JsonValue('portfolio_imbalance')
   @HiveField(3)
   portfolioImbalance,
   
+  @JsonValue('fee_optimization')
   @HiveField(4)
   feeOptimization,
   
+  @JsonValue('tax_consideration')
   @HiveField(5)
   taxConsideration,
   
+  @JsonValue('educational_content')
   @HiveField(6)
   educationalContent,
   
+  @JsonValue('price_alert')
   @HiveField(7)
   priceAlert
 }
@@ -654,6 +811,26 @@ class RiskAssessment extends Equatable {
 
   factory RiskAssessment.fromJson(Map<String, dynamic> json) => _$RiskAssessmentFromJson(json);
   Map<String, dynamic> toJson() => _$RiskAssessmentToJson(this);
+
+  RiskAssessment copyWith({
+    String? id,
+    double? overallRiskScore,
+    String? riskCategory,
+    Map<String, double>? riskFactors,
+    List<String>? riskMitigationSuggestions,
+    double? portfolioVolatility,
+    DateTime? generated,
+  }) {
+    return RiskAssessment(
+      id: id ?? this.id,
+      overallRiskScore: overallRiskScore ?? this.overallRiskScore,
+      riskCategory: riskCategory ?? this.riskCategory,
+      riskFactors: riskFactors ?? this.riskFactors,
+      riskMitigationSuggestions: riskMitigationSuggestions ?? this.riskMitigationSuggestions,
+      portfolioVolatility: portfolioVolatility ?? this.portfolioVolatility,
+      generated: generated ?? this.generated,
+    );
+  }
 
   @override
   List<Object?> get props => [id, overallRiskScore, riskCategory, riskFactors, riskMitigationSuggestions, portfolioVolatility, generated];
@@ -729,6 +906,42 @@ class DeFiPosition extends Equatable {
   factory DeFiPosition.fromJson(Map<String, dynamic> json) => _$DeFiPositionFromJson(json);
   Map<String, dynamic> toJson() => _$DeFiPositionToJson(this);
 
+  DeFiPosition copyWith({
+    String? id,
+    String? protocol,
+    String? positionType,
+    String? asset,
+    double? amount,
+    double? valueUsd,
+    double? apr,
+    double? earned,
+    double? earnedUsd,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? walletAddress,
+    String? network,
+    String? userId,
+    DateTime? lastUpdated,
+  }) {
+    return DeFiPosition(
+      id: id ?? this.id,
+      protocol: protocol ?? this.protocol,
+      positionType: positionType ?? this.positionType,
+      asset: asset ?? this.asset,
+      amount: amount ?? this.amount,
+      valueUsd: valueUsd ?? this.valueUsd,
+      apr: apr ?? this.apr,
+      earned: earned ?? this.earned,
+      earnedUsd: earnedUsd ?? this.earnedUsd,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      walletAddress: walletAddress ?? this.walletAddress,
+      network: network ?? this.network,
+      userId: userId ?? this.userId,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+    );
+  }
+
   @override
   List<Object?> get props => [
     id, protocol, positionType, asset, amount, valueUsd, 
@@ -803,6 +1016,40 @@ class NFTAsset extends Equatable {
   factory NFTAsset.fromJson(Map<String, dynamic> json) => _$NFTAssetFromJson(json);
   Map<String, dynamic> toJson() => _$NFTAssetToJson(this);
 
+  NFTAsset copyWith({
+    String? id,
+    String? contractAddress,
+    String? tokenId,
+    String? name,
+    String? description,
+    String? collection,
+    String? imageUrl,
+    double? lastPrice,
+    double? floorPrice,
+    String? network,
+    String? walletAddress,
+    String? userId,
+    DateTime? acquiredDate,
+    DateTime? lastUpdated,
+  }) {
+    return NFTAsset(
+      id: id ?? this.id,
+      contractAddress: contractAddress ?? this.contractAddress,
+      tokenId: tokenId ?? this.tokenId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      collection: collection ?? this.collection,
+      imageUrl: imageUrl ?? this.imageUrl,
+      lastPrice: lastPrice ?? this.lastPrice,
+      floorPrice: floorPrice ?? this.floorPrice,
+      network: network ?? this.network,
+      walletAddress: walletAddress ?? this.walletAddress,
+      userId: userId ?? this.userId,
+      acquiredDate: acquiredDate ?? this.acquiredDate,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+    );
+  }
+
   @override
   List<Object?> get props => [
     id, contractAddress, tokenId, name, description, collection,
@@ -828,6 +1075,20 @@ class CryptoApiError extends Equatable {
 
   factory CryptoApiError.fromJson(Map<String, dynamic> json) => _$CryptoApiErrorFromJson(json);
   Map<String, dynamic> toJson() => _$CryptoApiErrorToJson(this);
+
+  CryptoApiError copyWith({
+    String? code,
+    String? message,
+    String? details,
+    DateTime? timestamp,
+  }) {
+    return CryptoApiError(
+      code: code ?? this.code,
+      message: message ?? this.message,
+      details: details ?? this.details,
+      timestamp: timestamp ?? this.timestamp,
+    );
+  }
 
   @override
   List<Object?> get props => [code, message, details, timestamp];
