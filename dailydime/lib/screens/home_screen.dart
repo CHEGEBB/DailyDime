@@ -16,6 +16,7 @@ import 'package:dailydime/services/appwrite_service.dart';
 import 'package:dailydime/services/theme_service.dart';
 import 'package:dailydime/screens/notifications_screen.dart';
 import 'package:dailydime/services/app_notification_service.dart';
+import 'package:dailydime/services/expense_service.dart';
 import 'package:dailydime/models/transaction.dart';
 import 'package:dailydime/models/savings_goal.dart';
 import 'package:dailydime/models/budget.dart';
@@ -36,7 +37,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToAI;
   final VoidCallback? onNavigateToSettings;
   final VoidCallback? onAddTransaction;
-
+  
   const HomeScreen({
     Key? key,
     this.onNavigateToTransactions,
@@ -61,6 +62,11 @@ class _HomeScreenState extends State<HomeScreen>
   String? _profileImageId;
   bool _imageError = false;
   bool _isLoadingProfile = false;
+  ExpenseService? _expenseService;
+List<ExpenseAnalytics> _expenseAnalytics = [];
+List<MonthlyExpenseData> _monthlyExpenseData = [];
+bool _isLoadingExpenseData = false;
+StreamSubscription<List<ExpenseAnalytics>>? _expenseAnalyticsSubscription;
   // Controllers
   late TabController _tabController;
   final TextEditingController _balanceController = TextEditingController();
@@ -114,7 +120,46 @@ StreamSubscription? _notificationSubscription;
     _initializeData();
   _initializeNotifications();
   _loadUserProfile();
+  _initializeExpenseService();
   }
+
+  Future<void> _initializeExpenseService() async {
+  try {
+    _expenseService = ExpenseService();
+    await _expenseService!.initialize();
+    
+    // Listen to expense analytics stream
+    _expenseAnalyticsSubscription = _expenseService!.analyticsStream.listen((analytics) {
+      if (mounted) {
+        setState(() {
+          _expenseAnalytics = analytics;
+          _isLoadingExpenseData = false;
+        });
+      }
+    });
+
+    // Listen to monthly data stream
+    _expenseService!.monthlyDataStream.listen((monthlyData) {
+      if (mounted) {
+        setState(() {
+          _monthlyExpenseData = monthlyData;
+        });
+      }
+    });
+
+    setState(() {
+      _isLoadingExpenseData = true;
+    });
+    
+    // Generate initial analytics
+    await _expenseService!.refreshData();
+  } catch (e) {
+    print('Error initializing expense service: $e');
+    setState(() {
+      _isLoadingExpenseData = false;
+    });
+  }
+}
 
    Future<void> _loadUserProfile() async {
     setState(() {
@@ -578,6 +623,7 @@ StreamSubscription? _notificationSubscription;
     _balanceSubscription?.cancel();
     _transactionsSubscription?.cancel();
     _notificationSubscription?.cancel();
+    _expenseAnalyticsSubscription?.cancel();
     super.dispose();
   }
 
@@ -1535,146 +1581,225 @@ Widget _buildDefaultAvatar() {
                 ),
 
                 // Spending Overview
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 20),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Spending Overview',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: themeService.textColor,
+            ),
+          ),
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showChart = !_showChart;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: themeService.subtextColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: themeService.isDarkMode
+                            ? Colors.black.withOpacity(0.3)
+                            : Colors.black.withOpacity(0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    _showChart ? Icons.bar_chart : Icons.pie_chart,
+                    size: 18,
+                    color: themeService.accentColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 20),
+
+      // Chart container with shadow
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: themeService.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: themeService.isDarkMode
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: _isLoadingExpenseData
+          ? Center(
+              child: SizedBox(
+                height: 220,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(themeService.accentColor),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Analyzing your spending...',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: themeService.subtextColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _expenseAnalytics.isEmpty
+            ? SizedBox(
+                height: 220,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.analytics_outlined,
+                      size: 48,
+                      color: themeService.subtextColor.withOpacity(0.5),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'No spending data available',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: themeService.textColor,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Your spending patterns will appear here as you use your account',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: themeService.subtextColor,
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () async {
+                        setState(() {
+                          _isLoadingExpenseData = true;
+                        });
+                        await _expenseService?.refreshData();
+                        setState(() {
+                          _isLoadingExpenseData = false;
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeService.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text('Refresh Data'),
+                    ),
+                  ],
+                ),
+              )
+            : Column(
+                children: [
+                  // Chart view
+                  if (_showChart)
+                    SizedBox(
+                      height: 220,
+                      child: Stack(
+                        alignment: Alignment.center,
                         children: [
-                          Text(
-                            'Spending Overview',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: themeService.textColor,
+                          SizedBox(
+                            height: 200,
+                            width: 200,
+                            child: CustomPaint(
+                              painter: ExpensePieChartPainter(
+                                analytics: _expenseAnalytics,
+                              ),
+                              child: Container(),
                             ),
                           ),
-                          Row(
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _showChart = !_showChart;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: themeService.subtextColor
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: themeService.isDarkMode
-                                            ? Colors.black.withOpacity(0.3)
-                                            : Colors.black.withOpacity(0.03),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    _showChart
-                                        ? Icons.bar_chart
-                                        : Icons.pie_chart,
-                                    size: 18,
-                                    color: themeService.accentColor,
-                                  ),
+                              Text(
+                                'KES ${NumberFormat('#,##0', 'en_US').format(_expenseAnalytics.fold<double>(0, (sum, item) => sum + item.totalAmount).round())}',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: themeService.textColor,
+                                ),
+                              ),
+                              Text(
+                                'Total Expenses',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: themeService.subtextColor,
                                 ),
                               ),
                             ],
                           ),
                         ],
                       ),
-
-                      const SizedBox(height: 20),
-
-                      // Chart container with shadow
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: themeService.cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: themeService.isDarkMode
-                                  ? Colors.black.withOpacity(0.3)
-                                  : Colors.black.withOpacity(0.05),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            // Chart view
-                            if (_showChart)
-                              SizedBox(
-                                height: 220,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    SizedBox(
-                                      height: 200,
-                                      width: 200,
-                                      child: CustomPaint(
-                                        painter: PieChartPainter(
-                                          categoryPercentages:
-                                              _categoryPercentages,
-                                        ),
-                                        child: Container(),
-                                      ),
-                                    ),
-                                    Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          'KES ${NumberFormat('#,##0', 'en_US').format(_currentBalance.round())}',
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            color: themeService.textColor,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Total',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: themeService.subtextColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else
-                              Container(
-                                height: 220,
-                                child: SpendingBarChart(
-                                  weeklyData: _getWeeklySpendingData(),
-                                ),
+                    )
+                  else
+                    SizedBox(
+                      height: 220,
+                      child: _monthlyExpenseData.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No monthly data available',
+                              style: TextStyle(
+                                color: themeService.subtextColor,
                               ),
+                            ),
+                          )
+                        : ExpenseBarChart(
+                            monthlyData: _monthlyExpenseData,
+                            barColor: themeService.accentColor,
+                            labelColor: themeService.subtextColor,
+                          ),
+                    ),
 
-                            const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                            // Expense Categories - Responsive grid/wrap
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              alignment: WrapAlignment.center,
-                              children: _categoryPercentages.entries.map((
-                                entry,
-                              ) {
-                                Color color = _getCategoryColor(entry.key);
-                                return _buildCategoryLegend(
-                                  entry.key,
-                                  color,
-                                  '${entry.value.round()}%',
-                                );
-                              }).toList(),
+                  // Expense Categories - Responsive grid/wrap
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.center,
+                    children: _expenseAnalytics.take(5).map((analytics) {
+                      return _buildCategoryLegend(
+                        analytics.category,
+                        analytics.color,
+                        '${analytics.percentage.round()}%',
+                      );
+                    }).toList(),
                             ),
                           ],
                         ),
@@ -3322,8 +3447,148 @@ Widget _buildDefaultAvatar() {
   }
 }
 
-// ============================ CUSTOM WIDGETS ============================
+class ExpensePieChartPainter extends CustomPainter {
+  final List<ExpenseAnalytics> analytics;
 
+  ExpensePieChartPainter({required this.analytics});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double radius = size.width / 2;
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double strokeWidth = radius * 0.2;
+    
+    // Calculate total amount
+    final double total = analytics.fold<double>(0, (sum, item) => sum + item.totalAmount);
+    
+    // Start from the top (negative y-axis)
+    double startAngle = -math.pi / 2;
+    
+    for (var analytics in this.analytics) {
+      // Skip items with zero or negative amounts
+      if (analytics.totalAmount <= 0) continue;
+      
+      // Calculate the sweep angle based on the percentage
+      final double sweepAngle = (analytics.totalAmount / total) * 2 * math.pi;
+      
+      // Create the paint for this segment
+      final Paint segmentPaint = Paint()
+        ..color = analytics.color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+      
+      // Draw the arc
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius - strokeWidth / 2),
+        startAngle,
+        sweepAngle,
+        false,
+        segmentPaint,
+      );
+      
+      // Update the start angle for the next segment
+      startAngle += sweepAngle;
+    }
+    
+    // Draw inner circle
+    final Paint innerCirclePaint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(center, radius - strokeWidth, innerCirclePaint);
+  }
+
+  @override
+  bool shouldRepaint(ExpensePieChartPainter oldDelegate) {
+    return oldDelegate.analytics != analytics;
+  }
+}
+
+// Expense Bar Chart Widget
+class ExpenseBarChart extends StatelessWidget {
+  final List<MonthlyExpenseData> monthlyData;
+  final Color barColor;
+  final Color labelColor;
+  
+  const ExpenseBarChart({
+    Key? key,
+    required this.monthlyData,
+    required this.barColor,
+    required this.labelColor,
+  }) : super(key: key);
+  
+  @override
+  Widget build(BuildContext context) {
+    // Find maximum value for scaling
+    double maxValue = monthlyData.fold<double>(0, (max, data) => math.max(max, data.amount));
+    if (maxValue == 0) maxValue = 1; // Avoid division by zero
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 16.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: monthlyData.take(6).map((data) {
+          // Calculate bar height (maximum height is 180)
+          double height = (data.amount / maxValue) * 180;
+          if (height < 2 && data.amount > 0) height = 2; // Minimum visible height
+          
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Amount label
+              if (data.amount > 0)
+                Text(
+                  '${(data.amount / 1000).toStringAsFixed(1)}k',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: labelColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                )
+              else
+                SizedBox(height: 14),
+                
+              const SizedBox(height: 4),
+              
+              // Bar
+              Container(
+                width: 30,
+                height: height,
+                decoration: BoxDecoration(
+                  color: barColor.withOpacity(data.amount > 0 ? 0.7 : 0.15),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(4),
+                  ),
+                  boxShadow: data.amount > 0 ? [
+                    BoxShadow(
+                      color: barColor.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ] : null,
+                ),
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Month label
+              Text(
+                data.month,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: labelColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
 class PieChartPainter extends CustomPainter {
   final Map<String, double> categoryPercentages;
 
