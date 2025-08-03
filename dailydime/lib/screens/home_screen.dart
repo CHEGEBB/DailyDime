@@ -1440,7 +1440,7 @@ Widget _buildDefaultAvatar() {
                                   ),
                                   _buildQuickAction(
                                     context,
-                                    iconData: Icons.phone_android,
+                                    iconData: Icons.lightbulb,
                                     iconColor: themeService.successColor,
                                     label: 'Smart Tools',
                                     onTap: () {
@@ -1492,7 +1492,7 @@ Widget _buildDefaultAvatar() {
                                 ),
                                 _buildQuickAction(
                                   context,
-                                  iconData: Icons.phone_android,
+                                  iconData: Icons.lightbulb,
                                   iconColor: themeService.successColor,
                                   label: 'Smart Tools',
                                   onTap: () {
