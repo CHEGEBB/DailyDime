@@ -73,6 +73,9 @@ dev_dependencies:
   flutter_slidable: ^4.0.0
   timeago: ^3.1.0
   syncfusion_flutter_charts: ^30.1.42
+  google_mlkit_text_recognition: ^0.15.0
+  share_plus: ^11.0.0
+  flutter_image_compress: ^2.4.0
 
 flutter:
   uses-material-design: true
