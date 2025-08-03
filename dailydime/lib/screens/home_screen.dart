@@ -1442,12 +1442,12 @@ Widget _buildDefaultAvatar() {
                                     context,
                                     iconData: Icons.phone_android,
                                     iconColor: themeService.successColor,
-                                    label: 'My crypto',
+                                    label: 'More Services',
                                     onTap: () {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => CryptoScreen(),
+                                          builder: (context) => MpesaScreen(),
                                         ),
                                       );
                                     },
