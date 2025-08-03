@@ -170,7 +170,7 @@ class ToolsScreen extends StatefulWidget {
     height: 140,
     decoration: BoxDecoration(
       image: const DecorationImage(
-        image: AssetImage('assets/images/pattern9.png'),
+        image: AssetImage('assets/images/pattern8.png'),
         fit: BoxFit.cover,
       ),
       borderRadius: const BorderRadius.only(
@@ -179,7 +179,7 @@ class ToolsScreen extends StatefulWidget {
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.15),
+          color: Colors.black.withOpacity(0.3),
           blurRadius: 15,
           offset: const Offset(0, 8),
         ),
@@ -191,15 +191,15 @@ class ToolsScreen extends StatefulWidget {
         bottomRight: Radius.circular(24),
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                themeService.primaryColor.withOpacity(0.9),
-                themeService.primaryColor.withOpacity(0.7),
+                themeService.primaryColor.withOpacity(0.4),
+                themeService.primaryColor.withOpacity(0.2),
               ],
             ),
           ),
