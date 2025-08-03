@@ -6,6 +6,7 @@ import 'package:dailydime/services/theme_service.dart';
 import 'package:provider/provider.dart';
 import 'package:dailydime/services/tools_service.dart';
 import 'dart:ui';
+import 'package:dailydime/config/app_config.dart';
 
 class ToolsScreen extends StatefulWidget {
   const ToolsScreen({Key? key}) : super(key: key);
@@ -686,7 +687,7 @@ class _ReceiptScannerToolState extends State<ReceiptScannerTool> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        AppConfig.formatCurrency(extractedTotal),
+                        AppConfig.primaryCurrency,
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
