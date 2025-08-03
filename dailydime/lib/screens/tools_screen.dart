@@ -387,15 +387,19 @@ class ToolsScreen extends StatefulWidget {
               flex: 3, // Takes up 3/5 of the card space
               child: Container(
                 width: double.infinity,
+                margin: const EdgeInsets.all(4), // Small margin to prevent overflow
                 decoration: BoxDecoration(
                   color: tool['color'].withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Lottie.asset(
-                  'assets/${tool['animation']}',
-                  fit: BoxFit.cover, // Fills the entire container
-                  repeat: true,
-                  animate: true,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Lottie.asset(
+                    'assets/${tool['animation']}',
+                    fit: BoxFit.contain, // Changed back to contain to prevent overflow
+                    repeat: true,
+                    animate: true,
+                  ),
                 ),
               ),
             ),
@@ -431,6 +435,38 @@ class ToolsScreen extends StatefulWidget {
                       ),
                     ),
                   ),
+                  // Click indicator
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: tool['color'].withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: tool['color'].withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.touch_app,
+                          size: 16,
+                          color: tool['color'],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tap to open',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: tool['color'],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -440,52 +476,59 @@ class ToolsScreen extends StatefulWidget {
     ),
   );
 }
+
   Widget _buildExpandedToolView(ToolsService toolsService, ThemeService themeService) {
-    final tool = _getFilteredTools()[_selectedToolIndex];
-    
-    return Column(
-      children: [
-        // Tool header
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  setState(() {
-                    _expandedStates.forEach((key, value) {
-                      _expandedStates[key] = false;
-                    });
-                    _selectedToolIndex = -1;
-                  });
-                },
-              ),
-              const SizedBox(width: 16),
-              Icon(
-                tool['icon'],
-                color: tool['color'],
-              ),
-              const SizedBox(width: 8),
-              Text(
-                tool['title'],
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: themeService.textColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-        
-        // Tool content
-        Expanded(
-          child: _buildToolContent(tool['key'], toolsService, themeService),
-        ),
-      ],
-    );
+  // Fix the index issue
+  final filteredTools = _getFilteredTools();
+  if (_selectedToolIndex < 0 || _selectedToolIndex >= filteredTools.length) {
+    return const Center(child: Text('Tool not found'));
   }
+  
+  final tool = filteredTools[_selectedToolIndex];
+  
+  return Column(
+    children: [
+      // Tool header
+      Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                setState(() {
+                  _expandedStates.forEach((key, value) {
+                    _expandedStates[key] = false;
+                  });
+                  _selectedToolIndex = -1;
+                });
+              },
+            ),
+            const SizedBox(width: 16),
+            Icon(
+              tool['icon'] as IconData, // Cast to IconData
+              color: tool['color'] as Color, // Cast to Color
+            ),
+            const SizedBox(width: 8),
+            Text(
+              tool['title'] as String, // Cast to String
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: themeService.textColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+      
+      // Tool content
+      Expanded(
+        child: _buildToolContent(tool['key'] as String, toolsService, themeService),
+      ),
+    ],
+  );
+}
   
   Widget _buildToolContent(String toolKey, ToolsService toolsService, ThemeService themeService) {
     switch (toolKey) {
