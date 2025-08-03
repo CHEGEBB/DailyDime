@@ -1772,139 +1772,90 @@ class _DailySpendingToolState extends State<DailySpendingTool> {
   }
   
   Widget _buildReportContent() {
-    final totalSpent = _reportData?['totalSpent'] ?? 0.0;
-    final transactions = _reportData?['transactions'] as List<dynamic>? ?? [];
-    final categories = _reportData?['categories'] as Map<String, dynamic>? ?? {};
-    final insights = _reportData?['insights'] as List<dynamic>? ?? [];
-    final suggestions = _reportData?['suggestions'] as List<dynamic>? ?? [];
-    
-    return ListView(
-      children: [
-        // Total spent card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: widget.themeService.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              Text(
-                'Total Spent Today',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: widget.themeService.subtextColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                AppConfig.formatCurrency(totalSpent),
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: totalSpent > 0
-                      ? Colors.red
-                      : widget.themeService.textColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${transactions.length} transactions',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: widget.themeService.subtextColor,
-                ),
-              ),
-            ],
-          ),
+  final totalSpent = (_reportData?['totalSpent'] as num?)?.toDouble() ?? 0.0;
+  
+  // Fix the type casting issues
+  final transactionsRaw = _reportData?['transactions'];
+  final List<Map<String, dynamic>> transactions = [];
+  if (transactionsRaw is List) {
+    for (var item in transactionsRaw) {
+      if (item is Map) {
+        transactions.add(Map<String, dynamic>.from(item));
+      }
+    }
+  }
+  
+  final categoriesRaw = _reportData?['categories'];
+  final Map<String, dynamic> categories = {};
+  if (categoriesRaw is Map) {
+    categoriesRaw.forEach((key, value) {
+      categories[key.toString()] = (value as num?)?.toDouble() ?? 0.0;
+    });
+  }
+  
+  final insightsRaw = _reportData?['insights'];
+  final List<String> insights = [];
+  if (insightsRaw is List) {
+    for (var item in insightsRaw) {
+      insights.add(item.toString());
+    }
+  }
+  
+  final suggestionsRaw = _reportData?['suggestions'];
+  final List<String> suggestions = [];
+  if (suggestionsRaw is List) {
+    for (var item in suggestionsRaw) {
+      suggestions.add(item.toString());
+    }
+  }
+  
+  return ListView(
+    children: [
+      // Total spent card
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: widget.themeService.primaryColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
         ),
-        
-        const SizedBox(height: 24),
-        
-        // Category breakdown
-        if (categories.isNotEmpty) ...[
-          Text(
-            'Spending by Category',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: widget.themeService.textColor,
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          ...categories.entries.map((entry) {
-            final categoryName = entry.key;
-            final amount = entry.value as double;
-            final percentage = totalSpent > 0 ? (amount / totalSpent * 100).toStringAsFixed(1) : '0';
-            
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: widget.themeService.isDarkMode
-                      ? Colors.grey[800]
-                      : Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: _getCategoryColor(categoryName),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        categoryName,
-                        style: TextStyle(
-                          color: widget.themeService.textColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppConfig.formatCurrency(amount),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: widget.themeService.textColor,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: widget.themeService.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$percentage%',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: widget.themeService.primaryColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+        child: Column(
+          children: [
+            Text(
+              'Total Spent Today',
+              style: TextStyle(
+                fontSize: 14,
+                color: widget.themeService.subtextColor,
               ),
-            );
-          }).toList(),
-        ],
-        
-        const SizedBox(height: 24),
-        
-        // Transactions list
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppConfig.formatCurrency(totalSpent),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: totalSpent > 0
+                    ? Colors.red
+                    : widget.themeService.textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${transactions.length} transactions',
+              style: TextStyle(
+                fontSize: 14,
+                color: widget.themeService.subtextColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+      
+      const SizedBox(height: 24),
+      
+      // Category breakdown
+      if (categories.isNotEmpty) ...[
         Text(
-          'Transactions',
+          'Spending by Category',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -1913,11 +1864,10 @@ class _DailySpendingToolState extends State<DailySpendingTool> {
         ),
         const SizedBox(height: 12),
         
-        ...transactions.map((transaction) {
-          final title = transaction['title'] ?? 'Unknown';
-          final amount = transaction['amount'] ?? 0.0;
-          final category = transaction['category'] ?? 'Other';
-          final time = transaction['time'] ?? '';
+        ...categories.entries.map((entry) {
+          final categoryName = entry.key;
+          final amount = entry.value;
+          final percentage = totalSpent > 0 ? (amount / totalSpent * 100).toStringAsFixed(1) : '0';
           
           return Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
@@ -1932,44 +1882,46 @@ class _DailySpendingToolState extends State<DailySpendingTool> {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    width: 16,
+                    height: 16,
                     decoration: BoxDecoration(
-                      color: _getCategoryColor(category).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      _getCategoryIcon(category),
-                      color: _getCategoryColor(category),
-                      size: 20,
+                      color: _getCategoryColor(categoryName),
+                      shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: widget.themeService.textColor,
-                          ),
-                        ),
-                        Text(
-                          time,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: widget.themeService.subtextColor,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      categoryName,
+                      style: TextStyle(
+                        color: widget.themeService.textColor,
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     AppConfig.formatCurrency(amount),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.red,
+                      color: widget.themeService.textColor,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: widget.themeService.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$percentage%',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: widget.themeService.primaryColor,
+                      ),
                     ),
                   ),
                 ],
@@ -1977,10 +1929,90 @@ class _DailySpendingToolState extends State<DailySpendingTool> {
             ),
           );
         }).toList(),
+      ],
+      
+      const SizedBox(height: 24),
+      
+      // Transactions list
+      Text(
+        'Transactions',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: widget.themeService.textColor,
+        ),
+      ),
+      const SizedBox(height: 12),
+      
+      ...transactions.map((transaction) {
+        final title = transaction['title']?.toString() ?? 'Unknown';
+        final amount = (transaction['amount'] as num?)?.toDouble() ?? 0.0;
+        final category = transaction['category']?.toString() ?? 'Other';
+        final time = transaction['time']?.toString() ?? '';
         
-        const SizedBox(height: 24),
-        
-        // AI insights
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: widget.themeService.isDarkMode
+                  ? Colors.grey[800]
+                  : Colors.grey[200],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _getCategoryColor(category).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _getCategoryIcon(category),
+                    color: _getCategoryColor(category),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: widget.themeService.textColor,
+                        ),
+                      ),
+                      Text(
+                        time,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: widget.themeService.subtextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  AppConfig.formatCurrency(amount),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+      
+      const SizedBox(height: 24),
+      
+      // AI insights
+      if (insights.isNotEmpty) ...[
         Text(
           'AI Insights',
           style: TextStyle(
@@ -2026,10 +2058,12 @@ class _DailySpendingToolState extends State<DailySpendingTool> {
             ),
           );
         }).toList(),
-        
-        const SizedBox(height: 24),
-        
-        // Suggestions
+      ],
+      
+      const SizedBox(height: 24),
+      
+      // Suggestions
+      if (suggestions.isNotEmpty) ...[
         Text(
           'Suggestions',
           style: TextStyle(
@@ -2075,29 +2109,30 @@ class _DailySpendingToolState extends State<DailySpendingTool> {
             ),
           );
         }).toList(),
-        
-        const SizedBox(height: 24),
-        
-        // Export button
-        ElevatedButton.icon(
-          icon: const Icon(Icons.share),
-          label: const Text('Share Report'),
-          onPressed: () async {
-            try {
-              await widget.toolsService.exportDailyReport(_reportData!);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Report shared successfully')),
-              );
-            } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: ${e.toString()}')),
-              );
-            }
-          },
-        ),
       ],
-    );
-  }
+      
+      const SizedBox(height: 24),
+      
+      // Export button
+      ElevatedButton.icon(
+        icon: const Icon(Icons.share),
+        label: const Text('Share Report'),
+        onPressed: () async {
+          try {
+            await widget.toolsService.exportDailyReport(_reportData!);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Report shared successfully')),
+            );
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: ${e.toString()}')),
+            );
+          }
+        },
+      ),
+    ],
+  );
+}
   
   Color _getCategoryColor(String category) {
     final normalizedCategory = category.toLowerCase();
