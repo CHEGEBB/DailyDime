@@ -2494,7 +2494,7 @@ class _RecurringBillsToolState extends State<RecurringBillsTool> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Lottie.asset(
-                              'assets/animations/search_empty.json',
+                              'assets/animations/empty_search.json',
                               width: 150,
                               height: 150,
                             ),
