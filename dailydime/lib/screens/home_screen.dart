@@ -1442,7 +1442,7 @@ Widget _buildDefaultAvatar() {
                                     context,
                                     iconData: Icons.phone_android,
                                     iconColor: themeService.successColor,
-                                    label: 'More Services',
+                                    label: 'Smart Tools',
                                     onTap: () {
                                       Navigator.push(
                                         context,
@@ -1494,7 +1494,7 @@ Widget _buildDefaultAvatar() {
                                   context,
                                   iconData: Icons.phone_android,
                                   iconColor: themeService.successColor,
-                                  label: 'My Services',
+                                  label: 'Smart Tools',
                                   onTap: () {
                                     Navigator.push(
                                       context,
