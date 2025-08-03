@@ -167,19 +167,19 @@ class ToolsScreen extends StatefulWidget {
   
   Widget _buildHeader(ThemeService themeService) {
   return Container(
-    height: 140, // Increased from 100
+    height: 140,
     decoration: BoxDecoration(
       image: const DecorationImage(
         image: AssetImage('assets/images/pattern9.png'),
         fit: BoxFit.cover,
       ),
       borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(24), // More rounded
+        bottomLeft: Radius.circular(24),
         bottomRight: Radius.circular(24),
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.15), // Slightly stronger shadow
+          color: Colors.black.withOpacity(0.15),
           blurRadius: 15,
           offset: const Offset(0, 8),
         ),
@@ -198,16 +198,41 @@ class ToolsScreen extends StatefulWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                themeService.primaryColor.withOpacity(0.9), // Stronger opacity
+                themeService.primaryColor.withOpacity(0.9),
                 themeService.primaryColor.withOpacity(0.7),
               ],
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 40, 20, 20), // Better padding
+            padding: const EdgeInsets.fromLTRB(8, 40, 20, 20),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // BACK BUTTON - ALWAYS VISIBLE TO GO BACK TO PREVIOUS SCREEN
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      Navigator.of(context).pop(); // Go back to previous screen
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.chevron_left,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(width: 12),
+                
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,10 +241,10 @@ class ToolsScreen extends StatefulWidget {
                       Text(
                         'Smart Tools',
                         style: TextStyle(
-                          fontSize: 28, // Increased from 24
+                          fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          letterSpacing: 0.5, // Better letter spacing
+                          letterSpacing: 0.5,
                           shadows: [
                             Shadow(
                               color: Colors.black.withOpacity(0.4),
@@ -229,13 +254,13 @@ class ToolsScreen extends StatefulWidget {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8), // More spacing
+                      const SizedBox(height: 8),
                       Text(
                         'Boost your financial management',
                         style: TextStyle(
-                          fontSize: 16, // Increased from 14
+                          fontSize: 16,
                           color: Colors.white.withOpacity(0.95),
-                          fontWeight: FontWeight.w500, // Slightly bolder
+                          fontWeight: FontWeight.w500,
                           shadows: [
                             Shadow(
                               color: Colors.black.withOpacity(0.3),
@@ -248,17 +273,19 @@ class ToolsScreen extends StatefulWidget {
                     ],
                   ),
                 ),
+                
                 const SizedBox(width: 16),
+                
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25), // Slightly more visible
-                    borderRadius: BorderRadius.circular(16), // More rounded
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  padding: const EdgeInsets.all(12), // Slightly bigger
+                  padding: const EdgeInsets.all(12),
                   child: const Icon(
                     Icons.lightbulb_outline,
                     color: Colors.white,
-                    size: 32, // Bigger icon
+                    size: 32,
                   ),
                 ),
               ],
