@@ -357,73 +357,78 @@ class ToolsScreen extends StatefulWidget {
           tool['description'].toString().toLowerCase().contains(_searchQuery);
     }).toList();
   }
-  
   Widget _buildToolCard(Map<String, dynamic> tool, ThemeService themeService) {
-    return GestureDetector(
-      onTap: () => _toggleToolExpansion(tool['key']),
-      child: Container(
-        decoration: BoxDecoration(
-          color: themeService.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
+  return GestureDetector(
+    onTap: () => _toggleToolExpansion(tool['key']),
+    child: Container(
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Animation container - much bigger and better positioned
             Container(
-              height: 70,
-              width: 70,
+              height: 100, // Increased from 70
+              width: 100,  // Increased from 70
               decoration: BoxDecoration(
                 color: tool['color'].withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16), // Slightly more rounded
               ),
               child: Center(
                 child: Lottie.asset(
-                  tool['animation'],
-                  height: 50,
-                  width: 50,
+                  'assets/${tool['animation']}', // Make sure path is correct
+                  height: 80, // Increased from 50
+                  width: 80,  // Increased from 50
+                  fit: BoxFit.contain, // Better fit
+                  repeat: true,
+                  animate: true,
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: Text(
-                tool['title'],
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: themeService.textColor,
-                ),
+            const SizedBox(height: 16), // Increased spacing
+            Text(
+              tool['title'],
+              textAlign: TextAlign.center,
+              maxLines: 2, // Allow 2 lines for longer titles
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: themeService.textColor,
+                height: 1.2, // Better line height
               ),
             ),
             const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            Expanded( // Use Expanded to fill remaining space
               child: Text(
                 tool['description'],
                 textAlign: TextAlign.center,
-                maxLines: 2,
+                maxLines: 3, // Allow more lines
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12,
                   color: themeService.subtextColor,
+                  height: 1.3, // Better line spacing
                 ),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-  
+    ),
+  );
+}
   Widget _buildExpandedToolView(ToolsService toolsService, ThemeService themeService) {
     final tool = _getFilteredTools()[_selectedToolIndex];
     
