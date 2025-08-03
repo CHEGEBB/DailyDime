@@ -362,7 +362,8 @@ class ToolsScreen extends StatefulWidget {
           tool['description'].toString().toLowerCase().contains(_searchQuery);
     }).toList();
   }
-  Widget _buildToolCard(Map<String, dynamic> tool, ThemeService themeService) {
+  // Replace your _buildToolCard method with this:
+Widget _buildToolCard(Map<String, dynamic> tool, ThemeService themeService) {
   return GestureDetector(
     onTap: () => _toggleToolExpansion(tool['key']),
     child: Container(
@@ -405,69 +406,73 @@ class ToolsScreen extends StatefulWidget {
             ),
             const SizedBox(height: 12), // Reduced spacing
             Expanded(
-              flex: 2, // Takes up 2/5 of the remaining space
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    tool['title'],
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: themeService.textColor,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Expanded(
-                    child: Text(
-                      tool['description'],
+              flex: 3, // Increased flex for more text space (was 2)
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0), // Small horizontal padding
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start, // Align to start for better spacing
+                  children: [
+                    Text(
+                      tool['title'],
                       textAlign: TextAlign.center,
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
-                        color: themeService.subtextColor,
-                        height: 1.3,
+                        fontSize: 15, // Slightly smaller to fit better
+                        fontWeight: FontWeight.bold,
+                        color: themeService.textColor,
+                        height: 1.2,
                       ),
                     ),
-                  ),
-                  // Click indicator
-                  Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: tool['color'].withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: tool['color'].withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.touch_app,
-                          size: 16,
-                          color: tool['color'],
+                    const SizedBox(height: 8), // More space between title and description
+                    Expanded(
+                      flex: 2, // Give description more space
+                      child: Text(
+                        tool['description'],
+                        textAlign: TextAlign.center,
+                        maxLines: 4, // Allow more lines
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11, // Slightly smaller but still readable
+                          color: themeService.subtextColor,
+                          height: 1.4, // Better line spacing
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Tap to open',
-                          style: TextStyle(
-                            fontSize: 11,
+                      ),
+                    ),
+                    // Click indicator
+                    Container(
+                      margin: const EdgeInsets.only(top: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: tool['color'].withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: tool['color'].withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.touch_app,
+                            size: 14,
                             color: tool['color'],
-                            fontWeight: FontWeight.w500,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 3),
+                          Text(
+                            'Tap to open',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: tool['color'],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -476,6 +481,7 @@ class ToolsScreen extends StatefulWidget {
     ),
   );
 }
+
 
   Widget _buildExpandedToolView(ToolsService toolsService, ThemeService themeService) {
   // Fix the index issue
