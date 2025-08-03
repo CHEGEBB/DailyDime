@@ -320,7 +320,7 @@ class ToolsScreen extends StatefulWidget {
         'description': 'Scan receipts to extract transaction details automatically',
         'icon': Icons.document_scanner,
         'color': Colors.purple,
-        'animation': 'assets/animations/scan.json',
+        'animation': 'animations/scan.json',
       },
       {
         'key': 'budgetCalculator',
@@ -328,7 +328,7 @@ class ToolsScreen extends StatefulWidget {
         'description': 'Get AI-powered budget recommendations based on your spending',
         'icon': Icons.calculate,
         'color': Colors.blue,
-        'animation': 'assets/animations/calculator.json',
+        'animation': 'animations/calculator.json',
       },
       {
         'key': 'dailySpending',
@@ -336,7 +336,7 @@ class ToolsScreen extends StatefulWidget {
         'description': 'Get insights about your daily transactions from SMS',
         'icon': Icons.bar_chart,
         'color': Colors.orange,
-        'animation': 'assets/animations/report.json',
+        'animation': 'animations/report.json',
       },
       {
         'key': 'recurringBills',
@@ -344,7 +344,7 @@ class ToolsScreen extends StatefulWidget {
         'description': 'Auto-detect and manage your recurring bills',
         'icon': Icons.repeat,
         'color': Colors.green,
-        'animation': 'assets/animations/calendar.json',
+        'animation': 'animations/Calendar.json',
       },
     ];
     
@@ -536,7 +536,7 @@ class _ReceiptScannerToolState extends State<ReceiptScannerTool> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Lottie.asset(
-                  'assets/animations/receipt_scan.json',
+                  'assets/animations/scan2.json',
                   height: 200,
                   width: 200,
                 ),
@@ -1645,7 +1645,7 @@ class _DailySpendingToolState extends State<DailySpendingTool> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Lottie.asset(
-                          'assets/animations/loading.json',
+                          'assets/animations/loading3.json',
                           width: 150,
                           height: 150,
                         ),
@@ -2195,7 +2195,7 @@ class _RecurringBillsToolState extends State<RecurringBillsTool> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Lottie.asset(
-                          'assets/animations/loading.json',
+                          'assets/animations/loading2.json',
                           width: 150,
                           height: 150,
                         ),
@@ -2224,7 +2224,7 @@ class _RecurringBillsToolState extends State<RecurringBillsTool> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Lottie.asset(
-            'assets/animations/empty_list.json',
+            'assets/animations/empty.json',
             width: 200,
             height: 200,
           ),
@@ -2289,7 +2289,7 @@ class _RecurringBillsToolState extends State<RecurringBillsTool> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Lottie.asset(
-                              'assets/animations/empty_list.json',
+                              'assets/animations/empty.json',
                               width: 150,
                               height: 150,
                             ),
@@ -2327,7 +2327,7 @@ class _RecurringBillsToolState extends State<RecurringBillsTool> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Lottie.asset(
-                              'assets/animations/calendar_empty.json',
+                              'assets/animations/Calendar.json',
                               width: 150,
                               height: 150,
                             ),
