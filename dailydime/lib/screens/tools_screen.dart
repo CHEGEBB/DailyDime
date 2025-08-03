@@ -170,7 +170,7 @@ class ToolsScreen extends StatefulWidget {
     height: 140,
     decoration: BoxDecoration(
       image: const DecorationImage(
-        image: AssetImage('assets/images/pattern8.png'),
+        image: AssetImage('assets/images/pattern11.png'),
         fit: BoxFit.cover,
       ),
       borderRadius: const BorderRadius.only(
@@ -198,8 +198,8 @@ class ToolsScreen extends StatefulWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                themeService.primaryColor.withOpacity(0.4),
-                themeService.primaryColor.withOpacity(0.2),
+                themeService.primaryColor.withOpacity(0.9),
+                themeService.primaryColor.withOpacity(0.7),
               ],
             ),
           ),
