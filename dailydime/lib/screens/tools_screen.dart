@@ -167,11 +167,13 @@ class ToolsScreen extends StatefulWidget {
   
   Widget _buildHeader(ThemeService themeService) {
   return Container(
-    height: 140,
+    height: 180,
     decoration: BoxDecoration(
       image: const DecorationImage(
         image: AssetImage('assets/images/pattern11.png'),
         fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+    isAntiAlias: true,
       ),
       borderRadius: const BorderRadius.only(
         bottomLeft: Radius.circular(24),
@@ -199,7 +201,7 @@ class ToolsScreen extends StatefulWidget {
               end: Alignment.bottomCenter,
               colors: [
                 themeService.primaryColor.withOpacity(0.9),
-                themeService.primaryColor.withOpacity(0.7),
+                themeService.primaryColor.withOpacity(0.6),
               ],
             ),
           ),
