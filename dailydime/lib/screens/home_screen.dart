@@ -1,7 +1,6 @@
 // lib/screens/home_screen.dart
 import 'dart:async';
 import 'package:appwrite/models.dart';
-import 'package:dailydime/screens/crypto_screen.dart';
 import 'package:dailydime/screens/profile_screen.dart';
 import 'package:dailydime/screens/settings_screen.dart';
 import 'package:dailydime/screens/tools_screen.dart';
