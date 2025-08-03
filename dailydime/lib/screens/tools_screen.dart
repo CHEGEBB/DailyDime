@@ -166,72 +166,76 @@ class ToolsScreen extends StatefulWidget {
   }
   
   Widget _buildHeader(ThemeService themeService) {
-    return Container(
-      height: 100,
-      decoration: BoxDecoration(
-        image: const DecorationImage(
-          image: AssetImage('assets/images/pattern9.png'),
-          fit: BoxFit.cover,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+  return Container(
+    height: 140, // Increased from 100
+    decoration: BoxDecoration(
+      image: const DecorationImage(
+        image: AssetImage('assets/images/pattern9.png'),
+        fit: BoxFit.cover,
       ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(24), // More rounded
+        bottomRight: Radius.circular(24),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.15), // Slightly stronger shadow
+          blurRadius: 15,
+          offset: const Offset(0, 8),
         ),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  themeService.primaryColor.withOpacity(0.8),
-                  themeService.primaryColor.withOpacity(0.6),
-                ],
-              ),
+      ],
+    ),
+    child: ClipRRect(
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(24),
+        bottomRight: Radius.circular(24),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                themeService.primaryColor.withOpacity(0.9), // Stronger opacity
+                themeService.primaryColor.withOpacity(0.7),
+              ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Column(
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 40, 20, 20), // Better padding
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         'Smart Tools',
                         style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 28, // Increased from 24
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
+                          letterSpacing: 0.5, // Better letter spacing
                           shadows: [
                             Shadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 2,
-                              offset: const Offset(0, 1),
+                              color: Colors.black.withOpacity(0.4),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8), // More spacing
                       Text(
                         'Boost your financial management',
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 16, // Increased from 14
+                          color: Colors.white.withOpacity(0.95),
+                          fontWeight: FontWeight.w500, // Slightly bolder
                           shadows: [
                             Shadow(
                               color: Colors.black.withOpacity(0.3),
@@ -243,27 +247,28 @@ class ToolsScreen extends StatefulWidget {
                       ),
                     ],
                   ),
-                  const Spacer(),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.all(8),
-                    child: const Icon(
-                      Icons.lightbulb_outline,
-                      color: Colors.white,
-                      size: 28,
-                    ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25), // Slightly more visible
+                    borderRadius: BorderRadius.circular(16), // More rounded
                   ),
-                ],
-              ),
+                  padding: const EdgeInsets.all(12), // Slightly bigger
+                  child: const Icon(
+                    Icons.lightbulb_outline,
+                    color: Colors.white,
+                    size: 32, // Bigger icon
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
   
   Widget _buildToolsGrid(ToolsService toolsService, ThemeService themeService) {
     final filteredTools = _getFilteredTools();
@@ -377,50 +382,56 @@ class ToolsScreen extends StatefulWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Animation container - much bigger and better positioned
-            Container(
-              height: 100, // Increased from 70
-              width: 100,  // Increased from 70
-              decoration: BoxDecoration(
-                color: tool['color'].withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16), // Slightly more rounded
-              ),
-              child: Center(
+            // Animation container - fills half the card height, no padding
+            Expanded(
+              flex: 3, // Takes up 3/5 of the card space
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: tool['color'].withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: Lottie.asset(
-                  'assets/${tool['animation']}', // Make sure path is correct
-                  height: 80, // Increased from 50
-                  width: 80,  // Increased from 50
-                  fit: BoxFit.contain, // Better fit
+                  'assets/${tool['animation']}',
+                  fit: BoxFit.cover, // Fills the entire container
                   repeat: true,
                   animate: true,
                 ),
               ),
             ),
-            const SizedBox(height: 16), // Increased spacing
-            Text(
-              tool['title'],
-              textAlign: TextAlign.center,
-              maxLines: 2, // Allow 2 lines for longer titles
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: themeService.textColor,
-                height: 1.2, // Better line height
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded( // Use Expanded to fill remaining space
-              child: Text(
-                tool['description'],
-                textAlign: TextAlign.center,
-                maxLines: 3, // Allow more lines
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: themeService.subtextColor,
-                  height: 1.3, // Better line spacing
-                ),
+            const SizedBox(height: 12), // Reduced spacing
+            Expanded(
+              flex: 2, // Takes up 2/5 of the remaining space
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    tool['title'],
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: themeService.textColor,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Expanded(
+                    child: Text(
+                      tool['description'],
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: themeService.subtextColor,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
