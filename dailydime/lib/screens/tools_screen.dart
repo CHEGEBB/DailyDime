@@ -15,7 +15,8 @@ class ToolsScreen extends StatefulWidget {
   _ToolsScreenState createState() => _ToolsScreenState();
 }
 
-class _ToolsScreenState extends State<ToolsScreen> with SingleTickerProviderStateMixin {
+// class _ToolsScreenState extends State<ToolsScreen> with SingleTickerProviderStateMixin {
+  class _ToolsScreenState extends State<ToolsScreen> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
   String _searchQuery = '';
@@ -37,17 +38,17 @@ class _ToolsScreenState extends State<ToolsScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
+    // _animationController = AnimationController(
+    //   vsync: this,
+    //   duration: const Duration(milliseconds: 300),
+    // );
   }
   
   @override
   void dispose() {
     _searchController.dispose();
     _tabController.dispose();
-    _animationController.dispose();
+    // _animationController.dispose();
     super.dispose();
   }
   
