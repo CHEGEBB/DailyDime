@@ -636,6 +636,7 @@ StreamSubscription? _notificationSubscription;
     _transactionsSubscription?.cancel();
     _notificationSubscription?.cancel();
     _expenseAnalyticsSubscription?.cancel();
+    _smsTransactionSubscription?.cancel();
     super.dispose();
   }
 
