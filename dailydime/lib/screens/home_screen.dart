@@ -32,6 +32,8 @@ import 'package:dailydime/config/app_config.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:appwrite/models.dart';
 import '../services/budget_graph_service.dart';
+import '../services/budget_graph_service.dart' show BudgetCategory;
+
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToTransactions;
@@ -185,95 +187,121 @@ Future<void> _loadBudgetData() async {
     
     final databases = Databases(client);
     
-    // Get current user ID
-    final String userId = ''; // Get this from your auth service or preferences
+    // Get current user ID from AppwriteService
+    final AppwriteService appwriteService = AppwriteService();
+    final currentUser = await appwriteService.getCurrentUser();
+    final String userId = currentUser?.$id ?? '';
     
     // Query budgets from Appwrite
     final response = await databases.listDocuments(
       databaseId: AppConfig.databaseId,
       collectionId: AppConfig.budgetsCollection,
       queries: [
-        // Query for user's budgets
-        // If you need to filter by user_id:
+        // Add user filter if you have user_id field
         // Query.equal('user_id', userId),
       ],
     );
     
-    // Convert documents to map
-    final List<Map<String, dynamic>> budgetDocs = response.documents
-        .map((doc) => {
-              ...doc.data,
-              '\$id': doc.$id,
-              'created_at': doc.$createdAt,
-              'updated_at': doc.$updatedAt,
-            })
-        .toList();
+    print('Budget documents found: ${response.documents.length}');
     
-    // Process budget data with our service
+    // If no budgets exist, create some test data for now
+    List<Map<String, dynamic>> budgetDocs;
+    
+    if (response.documents.isEmpty) {
+      print('No budgets found, using test data');
+      // Create test budget data
+      budgetDocs = [
+        {
+          '\$id': 'test_food_budget',
+          'title': 'Food & Dining',
+          'total_amount': 15000.0,
+          'spent_amount': 8500.0,
+          'categories': ['food', 'dining'],
+          'period_type': 'monthly',
+          'start_date': DateTime.now().subtract(Duration(days: 30)).toIso8601String(),
+          'end_date': DateTime.now().add(Duration(days: 30)).toIso8601String(),
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        {
+          '\$id': 'test_transport_budget',
+          'title': 'Transportation',
+          'total_amount': 10000.0,
+          'spent_amount': 6200.0,
+          'categories': ['transport', 'fuel'],
+          'period_type': 'monthly',
+          'start_date': DateTime.now().subtract(Duration(days: 30)).toIso8601String(),
+          'end_date': DateTime.now().add(Duration(days: 30)).toIso8601String(),
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        {
+          '\$id': 'test_entertainment_budget',
+          'title': 'Entertainment',
+          'total_amount': 5000.0,
+          'spent_amount': 2800.0,
+          'categories': ['entertainment', 'movies'],
+          'period_type': 'monthly',
+          'start_date': DateTime.now().subtract(Duration(days: 30)).toIso8601String(),
+          'end_date': DateTime.now().add(Duration(days: 30)).toIso8601String(),
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+      ];
+    } else {
+      // Convert documents to map format
+      budgetDocs = response.documents
+          .map((doc) => {
+                ...doc.data,
+                '\$id': doc.$id,
+                'created_at': doc.$createdAt,
+                'updated_at': doc.$updatedAt,
+              })
+          .toList();
+    }
+    
+    print('Processing ${budgetDocs.length} budget documents');
+    
+    // Process budget data with the service
     final budgetCategories = await _budgetGraphService.processBudgetData(budgetDocs);
     
-    // Convert to our local BudgetCategory model
-    final List<BudgetCategory> localBudgetCategories = budgetCategories.map((category) {
-      // Map icon based on category name
-      IconData icon = Icons.category;
-      Color color = Colors.grey;
-
-      switch (category.name?.toLowerCase() ?? '') {
-        case 'food':
-        case 'food & dining':
-        case 'dining':
-          icon = Icons.restaurant;
-          color = Colors.orange;
-          break;
-        case 'transport':
-        case 'transportation':
-          icon = Icons.directions_car;
-          color = Colors.blue;
-          break;
-        case 'entertainment':
-          icon = Icons.movie;
-          color = Colors.purple;
-          break;
-        case 'shopping':
-          icon = Icons.shopping_bag;
-          color = Colors.teal;
-          break;
-        case 'bills':
-        case 'utilities':
-          icon = Icons.receipt;
-          color = Colors.red;
-          break;
-        default:
-          icon = Icons.category;
-          color = Colors.grey;
-          break;
-      }
-
-      return BudgetCategory(
-        name: category.name ?? 'Unknown',
-        icon: icon,
-        color: color,
-        spent: (category.spent ?? 0).toDouble(),
-        budget: (category.budget ?? 0).toDouble(),
-        dailyData: (category.dailyData ?? []).map<double>((e) => e.toDouble()).toList(),
-      );
-    }).toList();
+    print('Processed budget categories: ${budgetCategories.length}');
     
     setState(() {
-      _budgetCategories = localBudgetCategories;
+      _budgetCategories = budgetCategories;
       _isLoadingBudgets = false;
       // Ensure selected index is valid
       if (_budgetCategories.isNotEmpty && _selectedBudgetCategoryIndex >= _budgetCategories.length) {
         _selectedBudgetCategoryIndex = 0;
       }
     });
+    
+    // Debug output
+    if (_budgetCategories.isNotEmpty) {
+      final selected = _budgetCategories[_selectedBudgetCategoryIndex];
+      print('Selected budget: ${selected.name}');
+      print('Daily data: ${selected.dailyData}');
+      print('Spent: ${selected.spent}, Budget: ${selected.budget}');
+    }
+    
   } catch (e) {
     print('Error loading budget data: $e');
     setState(() {
       _isLoadingBudgets = false;
     });
+    
+    // Show error to user
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load budget data: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
+
    Future<void> _loadUserProfile() async {
     setState(() {
       _isLoadingProfile = true;
@@ -4148,24 +4176,4 @@ class BudgetBarChart extends StatelessWidget {
   Widget _buildDayLabel(String day) {
     return Text(day, style: TextStyle(fontSize: 12, color: Colors.grey[600]));
   }
-}
-
-// ============================ MODELS ============================
-
-class BudgetCategory {
-  final String name;
-  final IconData icon;
-  final Color color;
-  final double spent;
-  final double budget;
-  final List<double> dailyData;
-
-  BudgetCategory({
-    required this.name,
-    required this.icon,
-    required this.color,
-    required this.spent,
-    required this.budget,
-    required this.dailyData,
-  });
 }
