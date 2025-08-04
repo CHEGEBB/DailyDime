@@ -192,25 +192,66 @@ Future<void> _loadBudgetData() async {
     final currentUser = await appwriteService.getCurrentUser();
     final String userId = currentUser?.$id ?? '';
     
+    print('Loading budget data for user: $userId');
+    
     // Query budgets from Appwrite
     final response = await databases.listDocuments(
       databaseId: AppConfig.databaseId,
       collectionId: AppConfig.budgetsCollection,
       queries: [
-        // Add user filter if you have user_id field
+        // Add user filter if you have user_id field in your budget documents
         // Query.equal('user_id', userId),
       ],
     );
     
     print('Budget documents found: ${response.documents.length}');
     
-    // If no budgets exist, create some test data for now
-    List<Map<String, dynamic>> budgetDocs;
+    // Convert documents to map format with proper data handling
+    List<Map<String, dynamic>> budgetDocs = [];
     
-    if (response.documents.isEmpty) {
-      print('No budgets found, using test data');
-      // Create test budget data
-      budgetDocs = [
+    if (response.documents.isNotEmpty) {
+      for (var doc in response.documents) {
+        print('Processing document: ${doc.$id}');
+        print('Document data: ${doc.data}');
+        
+        // Create a clean map with the document data
+        Map<String, dynamic> budgetDoc = {
+          '\$id': doc.$id,
+          'created_at': doc.$createdAt,
+          'updated_at': doc.$updatedAt,
+        };
+        
+        // Add all document data, handling nulls properly
+        doc.data.forEach((key, value) {
+          budgetDoc[key] = value;
+        });
+        
+        // Set default values for missing required fields
+        budgetDoc['title'] ??= 'Budget ${budgetDocs.length + 1}';
+        budgetDoc['total_amount'] ??= 0.0;
+        budgetDoc['spent_amount'] ??= 0.0;
+        budgetDoc['categories'] ??= [];
+        budgetDoc['period_type'] ??= 'monthly';
+        
+        // Handle date fields
+        budgetDoc['start_date'] ??= DateTime.now().subtract(Duration(days: 30)).toIso8601String();
+        budgetDoc['end_date'] ??= DateTime.now().add(Duration(days: 30)).toIso8601String();
+        
+        budgetDocs.add(budgetDoc);
+        
+        print('Processed budget document: ${budgetDoc['title']} - Total: ${budgetDoc['total_amount']}, Spent: ${budgetDoc['spent_amount']}');
+      }
+    }
+    
+    // If no real budgets exist or they're all empty, add some test data
+    if (budgetDocs.isEmpty || budgetDocs.every((doc) => 
+        (doc['total_amount'] == null || doc['total_amount'] == 0) && 
+        (doc['spent_amount'] == null || doc['spent_amount'] == 0))) {
+      
+      print('No valid budgets found, creating test data');
+      
+      // Create test budget data based on your existing budget structure
+      budgetDocs.addAll([
         {
           '\$id': 'test_food_budget',
           'title': 'Food & Dining',
@@ -235,32 +276,10 @@ Future<void> _loadBudgetData() async {
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         },
-        {
-          '\$id': 'test_entertainment_budget',
-          'title': 'Entertainment',
-          'total_amount': 5000.0,
-          'spent_amount': 2800.0,
-          'categories': ['entertainment', 'movies'],
-          'period_type': 'monthly',
-          'start_date': DateTime.now().subtract(Duration(days: 30)).toIso8601String(),
-          'end_date': DateTime.now().add(Duration(days: 30)).toIso8601String(),
-          'created_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-      ];
-    } else {
-      // Convert documents to map format
-      budgetDocs = response.documents
-          .map((doc) => {
-                ...doc.data,
-                '\$id': doc.$id,
-                'created_at': doc.$createdAt,
-                'updated_at': doc.$updatedAt,
-              })
-          .toList();
+      ]);
     }
     
-    print('Processing ${budgetDocs.length} budget documents');
+    print('Processing ${budgetDocs.length} budget documents with BudgetGraphService');
     
     // Process budget data with the service
     final budgetCategories = await _budgetGraphService.processBudgetData(budgetDocs);
@@ -282,10 +301,18 @@ Future<void> _loadBudgetData() async {
       print('Selected budget: ${selected.name}');
       print('Daily data: ${selected.dailyData}');
       print('Spent: ${selected.spent}, Budget: ${selected.budget}');
+      
+      // Check for any NaN values
+      bool hasNaN = selected.dailyData.any((value) => value.isNaN);
+      if (hasNaN) {
+        print('WARNING: NaN values detected in daily data!');
+      }
     }
     
-  } catch (e) {
+  } catch (e, stackTrace) {
     print('Error loading budget data: $e');
+    print('Stack trace: $stackTrace');
+    
     setState(() {
       _isLoadingBudgets = false;
     });
@@ -301,7 +328,6 @@ Future<void> _loadBudgetData() async {
     }
   }
 }
-
    Future<void> _loadUserProfile() async {
     setState(() {
       _isLoadingProfile = true;
