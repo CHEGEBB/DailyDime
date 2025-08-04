@@ -212,8 +212,55 @@ Future<void> _loadBudgetData() async {
     // Process budget data with our service
     final budgetCategories = await _budgetGraphService.processBudgetData(budgetDocs);
     
+    // Convert to our local BudgetCategory model
+    final List<BudgetCategory> localBudgetCategories = budgetCategories.map((category) {
+      // Map icon based on category name
+      IconData icon = Icons.category;
+      Color color = Colors.grey;
+
+      switch (category.name?.toLowerCase() ?? '') {
+        case 'food':
+        case 'food & dining':
+        case 'dining':
+          icon = Icons.restaurant;
+          color = Colors.orange;
+          break;
+        case 'transport':
+        case 'transportation':
+          icon = Icons.directions_car;
+          color = Colors.blue;
+          break;
+        case 'entertainment':
+          icon = Icons.movie;
+          color = Colors.purple;
+          break;
+        case 'shopping':
+          icon = Icons.shopping_bag;
+          color = Colors.teal;
+          break;
+        case 'bills':
+        case 'utilities':
+          icon = Icons.receipt;
+          color = Colors.red;
+          break;
+        default:
+          icon = Icons.category;
+          color = Colors.grey;
+          break;
+      }
+
+      return BudgetCategory(
+        name: category.name ?? 'Unknown',
+        icon: icon,
+        color: color,
+        spent: (category.spent ?? 0).toDouble(),
+        budget: (category.budget ?? 0).toDouble(),
+        dailyData: (category.dailyData ?? []).map<double>((e) => e.toDouble()).toList(),
+      );
+    }).toList();
+    
     setState(() {
-      _budgetCategories = budgetCategories.cast<BudgetCategory>();
+      _budgetCategories = localBudgetCategories;
       _isLoadingBudgets = false;
       // Ensure selected index is valid
       if (_budgetCategories.isNotEmpty && _selectedBudgetCategoryIndex >= _budgetCategories.length) {
@@ -227,7 +274,6 @@ Future<void> _loadBudgetData() async {
     });
   }
 }
-
    Future<void> _loadUserProfile() async {
     setState(() {
       _isLoadingProfile = true;
