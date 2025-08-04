@@ -1970,98 +1970,106 @@ Padding(
       ),
                       const SizedBox(height: 16),
 
-                      // Transactions list
-                      _recentTransactions.isEmpty
-                          ? _buildEmptyTransactionsState()
-                          : Column(
-                              children: [
-                                ..._recentTransactions
-                                    .take(_isExpanded ? 4 : 2)
-                                    .map(
-                                      (transaction) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        child: _buildTransactionItem(
-                                          context,
-                                          logo:
-                                              transaction.iconPath ??
-                                              'default_icon_path.png',
-                                          name: transaction.title,
-                                          date: DateFormat(
-                                            'dd/MM/yyyy',
-                                          ).format(transaction.date),
-                                          amount: transaction.amount.toDouble(),
-                                          logoPlaceholder: _getCategoryIcon(
-                                            transaction.category,
-                                          ),
-                                          logoColor: _getCategoryColor(
-                                            transaction.category,
-                                          ),
-                                          category: transaction.category,
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-
-                                // Show more/less button if we have enough transactions
-                                if (_recentTransactions.length > 2)
-                                  Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      child: GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            _isExpanded = !_isExpanded;
-                                          });
-                                        },
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: themeService.subtextColor
-                                                .withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                _isExpanded
-                                                    ? 'Show less'
-                                                    : 'Show more',
-                                                style: TextStyle(
-                                                  color:
-                                                      themeService.subtextColor,
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              Icon(
-                                                _isExpanded
-                                                    ? Icons.keyboard_arrow_up
-                                                    : Icons.keyboard_arrow_down,
-                                                size: 16,
-                                                color:
-                                                    themeService.subtextColor,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                    ],
+      // Loading state
+      if (_isLoadingTransactions)
+        Container(
+          height: 200,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(themeService.accentColor),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Loading SMS transactions...',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: themeService.subtextColor,
                   ),
                 ),
+              ],
+            ),
+          ),
+        )
+        
+      else if (_recentTransactions.isEmpty)
+        _buildEmptyTransactionsState()
+      else
+        Column(
+          children: [
+            ..._recentTransactions
+                .take(_isExpanded ? 8 : 4) // Show more transactions
+                .map(
+                  (transaction) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildTransactionItem(
+                      context,
+                      logo: transaction.iconPath ?? 'default_icon_path.png',
+                      name: transaction.title,
+                      date: DateFormat('dd/MM/yyyy HH:mm').format(transaction.date), // Include time for SMS transactions
+                      amount: transaction.amount.toDouble(),
+                      logoPlaceholder: _getCategoryIcon(transaction.category),
+                      logoColor: _getCategoryColor(transaction.category),
+                      category: transaction.category,
+                      // Add SMS indicator
+                      isSmsTransaction: transaction.isSms,
+                      mpesaCode: transaction.mpesaCode,
+                    ),
+                  ),
+                )
+                .toList(),
+
+            // Show more/less button if we have enough transactions
+            if (_recentTransactions.length > 4)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isExpanded = !_isExpanded;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: themeService.subtextColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isExpanded ? 'Show less' : 'Show more',
+                            style: TextStyle(
+                              color: themeService.subtextColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Icon(
+                            _isExpanded
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
+                            size: 16,
+                            color: themeService.subtextColor,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+    ],
+  ),
+),
 
                 const SizedBox(height: 30),
 
@@ -3167,7 +3175,7 @@ Padding(
     required double amount,
     required IconData logoPlaceholder,
     required Color logoColor,
-    required String category,
+    required String category, required bool isSmsTransaction, String? mpesaCode,
   }) {
     bool isExpense = amount < 0;
     final formattedAmount = NumberFormat('#,##0', 'en_US').format(amount.abs());
