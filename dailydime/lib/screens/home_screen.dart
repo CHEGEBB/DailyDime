@@ -741,55 +741,51 @@ Future<void> _loadBudgetData() async {
   }
 
   Future<void> _generateAIInsights() async {
-    try {
-      final HomeAIService aiService = HomeAIService();
+  try {
+    final HomeAIService aiService = HomeAIService();
 
-      // Analyze spending patterns
-      final spendingInsight = await aiService.analyzeSpendingPattern(
-        _recentTransactions,
-      );
+    // Analyze spending patterns
+    final spendingInsight = await aiService.analyzeSpendingPattern(
+      _recentTransactions,
+    );
 
-      // Generate savings opportunity
-      final savingsInsight = await aiService.generateSavingsOpportunity(
-        _recentTransactions,
-        _budgetCategories
-            .map(
-              (b) => Budget(
-                id: '',
-                // userId: '',
-                // categoryId: '',
-                // categoryName: b.name,
-                // budgetAmount: b.budget.toDouble(),
-                spent: b.spent.toDouble(),
-                period: BudgetPeriod.monthly,
-                createdAt: DateTime.now(),
-                title: '',
-                category: '',
-                amount: 0.0,
-                startDate: DateTime.now(),
-                endDate: DateTime.now(),
-                color: Colors.transparent,
-                icon: Icons.help,
-              ),
-            )
-            .toList(),
-      );
+    // Generate savings opportunity - FIX THE ENUM ISSUE HERE
+    final savingsInsight = await aiService.generateSavingsOpportunity(
+      _recentTransactions,
+      _budgetCategories
+          .map(
+            (b) => Budget(
+              id: '',
+              spent: b.spent.toDouble(),
+              period: BudgetPeriod.monthly,
+              createdAt: DateTime.now(),
+              title: b.name,
+              category: b.name,
+              amount: b.budget.toDouble(),
+              startDate: DateTime.now().subtract(Duration(days: 30)),
+              endDate: DateTime.now().add(Duration(days: 30)),
+              color: Colors.transparent,
+              icon: Icons.help,
+            ),
+          )
+          .toList(),
+    );
 
-      setState(() {
-        _spendingAlertText = spendingInsight;
-        _savingsOpportunityText = savingsInsight;
-      });
-    } catch (e) {
-      print('Error generating AI insights: $e');
-      // Use mock insights as fallback
-      setState(() {
-        _spendingAlertText =
-            "You've spent KES 2,500 on dining this month, which is 40% higher than last month. Consider setting a budget limit for this category.";
-        _savingsOpportunityText =
-            "Based on your income pattern, you could save KES 3,000 more this month by reducing non-essential expenses. Would you like to try a savings challenge?";
-      });
-    }
+    setState(() {
+      _spendingAlertText = spendingInsight;
+      _savingsOpportunityText = savingsInsight;
+    });
+  } catch (e) {
+    print('Error generating AI insights: $e');
+    // Use mock insights as fallback
+    setState(() {
+      _spendingAlertText =
+          "You've spent KES 2,500 on dining this month, which is 40% higher than last month. Consider setting a budget limit for this category.";
+      _savingsOpportunityText =
+          "Based on your income pattern, you could save KES 3,000 more this month by reducing non-essential expenses. Would you like to try a savings challenge?";
+    });
   }
+}
 
   @override
   void dispose() {
