@@ -231,7 +231,54 @@ class HomeAIService {
       return "The 50/30/20 rule suggests saving 20% of your income for financial goals.";
     }
   }
-  
+  Future<String> generateSavingsOpportunityFromMaps(
+  List<Transaction> transactions,
+  List<Map<String, dynamic>> budgetMaps,
+) async {
+  try {
+    // Calculate total spending
+    double totalSpending = transactions
+        .where((t) => t.amount < 0)
+        .fold(0.0, (sum, t) => sum + t.amount.abs());
+
+    // Calculate total budget
+    double totalBudget = budgetMaps.fold(0.0, (sum, b) => sum + (b['amount'] ?? 0.0));
+
+    // Find categories with highest overspending
+    List<String> overspendingCategories = [];
+    List<String> underBudgetCategories = [];
+    
+    for (var budget in budgetMaps) {
+      double spent = budget['spent'] ?? 0.0;
+      double amount = budget['amount'] ?? 0.0;
+      String category = budget['category'] ?? 'Unknown';
+      
+      if (spent > amount) {
+        overspendingCategories.add(category);
+      } else if (spent < amount * 0.8) { // Under 80% of budget
+        underBudgetCategories.add(category);
+      }
+    }
+
+    // Generate savings insight based on analysis
+    if (overspendingCategories.isNotEmpty) {
+      final category = overspendingCategories.first;
+      final overspendAmount = (totalSpending - totalBudget).abs();
+      return "You're overspending in ${category} by KES ${overspendAmount.toStringAsFixed(0)}. "
+             "Consider setting stricter limits or finding alternatives to save KES ${(overspendAmount * 0.5).toStringAsFixed(0)} monthly.";
+    } else if (underBudgetCategories.isNotEmpty) {
+      final potentialSavings = totalBudget - totalSpending;
+      return "Great job staying within budget! You could save an additional KES ${potentialSavings.toStringAsFixed(0)} "
+             "by maintaining your current spending habits. Consider putting this into a savings goal.";
+    } else {
+      return "Your spending is well-balanced across categories. "
+             "Try the 50/30/20 rule: 50% needs, 30% wants, 20% savings to optimize your finances further.";
+    }
+  } catch (e) {
+    print('Error generating savings opportunity from maps: $e');
+    return "Track your spending regularly and set monthly budgets for each category to identify savings opportunities.";
+  }
+}
   // Use Gemini API for more personalized insights (if needed)
   Future<String> getPersonalizedInsight(
     List<Transaction> transactions,

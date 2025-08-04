@@ -749,26 +749,25 @@ Future<void> _loadBudgetData() async {
       _recentTransactions,
     );
 
-    // Generate savings opportunity - FIX THE ENUM ISSUE HERE
-    final savingsInsight = await aiService.generateSavingsOpportunity(
+    // Create a simplified budget map for AI processing instead of Budget objects
+    final List<Map<String, dynamic>> budgetMaps = _budgetCategories
+        .map((b) => {
+              'id': '',
+              'title': b.name,
+              'category': b.name,
+              'spent': b.spent.toDouble(),
+              'amount': b.budget.toDouble(),
+              'period': 'monthly', // Simple string instead of enum
+              'startDate': DateTime.now().subtract(Duration(days: 30)).toIso8601String(),
+              'endDate': DateTime.now().add(Duration(days: 30)).toIso8601String(),
+              'createdAt': DateTime.now().toIso8601String(),
+            })
+        .toList();
+
+    // Generate savings opportunity with maps instead of Budget objects
+    final savingsInsight = await aiService.generateSavingsOpportunityFromMaps(
       _recentTransactions,
-      _budgetCategories
-          .map(
-            (b) => Budget(
-              id: '',
-              spent: b.spent.toDouble(),
-              period: BudgetPeriod.monthly,
-              createdAt: DateTime.now(),
-              title: b.name,
-              category: b.name,
-              amount: b.budget.toDouble(),
-              startDate: DateTime.now().subtract(Duration(days: 30)),
-              endDate: DateTime.now().add(Duration(days: 30)),
-              color: Colors.transparent,
-              icon: Icons.help,
-            ),
-          )
-          .toList(),
+      budgetMaps,
     );
 
     setState(() {
@@ -786,7 +785,6 @@ Future<void> _loadBudgetData() async {
     });
   }
 }
-
   @override
   void dispose() {
     _tabController.dispose();
