@@ -370,7 +370,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               child: FadeTransition(
                                 opacity: _fadeAnimation,
                                 child: Lottie.asset(
-                                  'animations/Login.json',
+                                  'assets/animations/Login.json',
                                   fit: BoxFit.contain,
                                   repeat: true,
                                   animate: true,
