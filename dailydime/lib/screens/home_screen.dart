@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:dailydime/screens/mpesa_screen.dart';
 import 'package:dailydime/services/balance_service.dart';
 import 'package:dailydime/services/sms_service.dart';
+import 'package:dailydime/services/storage_service.dart';
 import 'package:dailydime/services/home_ai_service.dart';
 import 'package:dailydime/services/appwrite_service.dart';
 import 'package:dailydime/services/theme_service.dart';
@@ -67,6 +68,9 @@ List<ExpenseAnalytics> _expenseAnalytics = [];
 List<MonthlyExpenseData> _monthlyExpenseData = [];
 bool _isLoadingExpenseData = false;
 StreamSubscription<List<ExpenseAnalytics>>? _expenseAnalyticsSubscription;
+
+StreamSubscription<Transaction>? _smsTransactionSubscription;
+bool _isLoadingTransactions = false;
   // Controllers
   late TabController _tabController;
   final TextEditingController _balanceController = TextEditingController();
@@ -364,43 +368,51 @@ StreamSubscription? _notificationSubscription;
         "Based on your income pattern, you could save KES 3,000 more this month by reducing non-essential expenses. Would you like to try a savings challenge?";
   }
 
-  Future<void> _loadRecentTransactions() async {
-    try {
-      final AppwriteService appwrite = AppwriteService();
-      final transactionsList = await appwrite.getRecentTransactions(limit: 10);
+ Future<void> _loadRecentTransactions() async {
+  setState(() {
+    _isLoadingTransactions = true;
+  });
 
-      setState(() {
-        _recentTransactions = transactionsList;
-      });
-    } catch (e) {
-      print('Error loading transactions: $e');
-      // Mock transactions as fallback
-      _recentTransactions = [
-        Transaction(
-          id: '1',
-          title: 'KFC Restaurant',
-          amount: -1250,
-          date: DateTime.now().subtract(Duration(days: 1)),
-          category: 'Food',
-          isExpense: true,
-          icon: Icons.fastfood,
-          color: Colors.transparent,
-          isSms: true,
-        ),
-        Transaction(
-          id: '2',
-          title: 'M-Pesa Transfer',
-          amount: -500,
-          date: DateTime.now().subtract(Duration(days: 1)),
-          category: 'Transfer',
-          isExpense: false,
-          icon: Icons.transfer_within_a_station,
-          color: Colors.grey,
-          isSms: false,
-        ),
-      ];
-    }
+  try {
+    // Initialize SMS Service
+    final smsService = SmsService();
+    await smsService.initialize();
+
+    // Get recent transactions from local storage (populated by SMS service)
+    final transactions = await StorageService.instance.getTransactions();
+    
+    // Sort by date (newest first) and take the most recent ones
+    transactions.sort((a, b) => b.date.compareTo(a.date));
+    
+    setState(() {
+      _recentTransactions = transactions.take(10).toList();
+      _isLoadingTransactions = false;
+    });
+
+    // Listen to new SMS transactions in real-time
+    _smsTransactionSubscription?.cancel();
+    _smsTransactionSubscription = smsService.transactionStream.listen((newTransaction) {
+      if (mounted) {
+        setState(() {
+          // Add new transaction to the beginning of the list
+          _recentTransactions.insert(0, newTransaction);
+          
+          // Keep only the most recent 10 transactions
+          if (_recentTransactions.length > 10) {
+            _recentTransactions = _recentTransactions.take(10).toList();
+          }
+        });
+      }
+    });
+
+  } catch (e) {
+    print('Error loading recent transactions from SMS: $e');
+    setState(() {
+      _recentTransactions = [];
+      _isLoadingTransactions = false;
+    });
   }
+}
 
   Future<void> _loadSavingsGoals() async {
     try {
