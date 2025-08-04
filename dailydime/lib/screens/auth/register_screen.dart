@@ -63,9 +63,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   
   // Animation files for each step
   final List<String> _animationFiles = [
-    'animations/register_step1.json',
-    'animations/register_step2.json',
-    'animations/verification.json',
+    'assets/animations/register_step1.json',
+    'assets/animations/register_step2.json',
+    'assets/animations/verification.json',
   ];
 
   @override

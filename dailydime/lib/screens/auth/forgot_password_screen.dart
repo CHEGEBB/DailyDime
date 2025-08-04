@@ -153,8 +153,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                           opacity: _fadeAnimation,
                           child: Lottie.asset(
                             _emailSent 
-                              ? 'animations/email_sent.json'
-                              : 'animations/forgot_password.json',
+                              ? 'assets/animations/email_sent.json'
+                              : 'assets/animations/forgot_password.json',
                             fit: BoxFit.contain,
                           ),
                         ),
