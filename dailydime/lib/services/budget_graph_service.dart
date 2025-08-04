@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:intl/intl.dart';
-import '../config/app_config.dart';
+import 'package:dailydime/config/app_config.dart';
 
 class BudgetGraphService {
   static final BudgetGraphService _instance = BudgetGraphService._internal();
@@ -25,6 +25,7 @@ class BudgetGraphService {
   Future<List<BudgetCategory>> processBudgetData(List<Map<String, dynamic>> budgetDocuments) async {
     // If no budget documents exist, return empty list
     if (budgetDocuments.isEmpty) {
+      print('No budget documents provided');
       return [];
     }
 
@@ -33,28 +34,63 @@ class BudgetGraphService {
       
       // Process each budget document
       for (var budget in budgetDocuments) {
+        print('Processing budget: ${budget}');
+        
         // Check if we have cached data for this budget
-        String cacheKey = '${budget['id']}_${budget['updated_at']}';
+        String cacheKey = '${budget['\$id'] ?? budget['id']}_${budget['updated_at'] ?? DateTime.now().millisecondsSinceEpoch}';
         if (_cache.containsKey(cacheKey)) {
           budgetCategories.add(_cache[cacheKey]);
           continue;
         }
         
-        // Extract basic budget information
-        String title = budget['title'] ?? 'Unnamed Budget';
-        double totalAmount = (budget['total_amount'] ?? 0).toDouble();
-        double spentAmount = (budget['spent_amount'] ?? 0).toDouble();
-        List<dynamic> categories = budget['categories'] ?? [];
+        // Extract basic budget information with null safety
+        String title = budget['title']?.toString() ?? 'Unnamed Budget';
+        
+        // Handle total_amount - it might be null, string, or number
+        double totalAmount = 0.0;
+        if (budget['total_amount'] != null) {
+          if (budget['total_amount'] is num) {
+            totalAmount = budget['total_amount'].toDouble();
+          } else if (budget['total_amount'] is String) {
+            totalAmount = double.tryParse(budget['total_amount']) ?? 0.0;
+          }
+        }
+        
+        // Handle spent_amount - it might be null, string, or number
+        double spentAmount = 0.0;
+        if (budget['spent_amount'] != null) {
+          if (budget['spent_amount'] is num) {
+            spentAmount = budget['spent_amount'].toDouble();
+          } else if (budget['spent_amount'] is String) {
+            spentAmount = double.tryParse(budget['spent_amount']) ?? 0.0;
+          }
+        }
+        
+        // Handle categories - it might be null, string, or array
+        List<String> categories = [];
+        if (budget['categories'] != null) {
+          if (budget['categories'] is List) {
+            categories = (budget['categories'] as List).map((e) => e.toString()).toList();
+          } else if (budget['categories'] is String) {
+            categories = [budget['categories']];
+          }
+        }
         
         // Default category if none specified
-        String categoryName = categories.isNotEmpty ? categories.first : 'General';
+        String categoryName = categories.isNotEmpty ? categories.first : title.toLowerCase();
+        
+        print('Budget details - Title: $title, Total: $totalAmount, Spent: $spentAmount, Categories: $categories');
         
         // Generate daily spending data based on real or AI prediction
         List<double> dailyData = await _generateDailySpendingData(
           budget: budget,
           totalAmount: totalAmount,
           spentAmount: spentAmount,
+          title: title,
+          categories: categories,
         );
+        
+        print('Generated daily data: $dailyData');
         
         // Create budget category object
         BudgetCategory budgetCategory = BudgetCategory(
@@ -72,6 +108,7 @@ class BudgetGraphService {
         budgetCategories.add(budgetCategory);
       }
       
+      print('Successfully processed ${budgetCategories.length} budget categories');
       return budgetCategories;
     } catch (e) {
       print('Error processing budget data: $e');
@@ -84,11 +121,14 @@ class BudgetGraphService {
     required Map<String, dynamic> budget,
     required double totalAmount,
     required double spentAmount,
+    required String title,
+    required List<String> categories,
   }) async {
+    print('Generating daily spending data for: $title');
+    
     // If we already have AI recommendations, parse them
     if (budget['ai_recommendations'] != null && budget['ai_recommendations'].toString().isNotEmpty) {
       try {
-        // Try to parse existing AI recommendations
         return _parseDailyDataFromRecommendations(budget['ai_recommendations']);
       } catch (e) {
         print('Error parsing existing AI recommendations: $e');
@@ -96,67 +136,98 @@ class BudgetGraphService {
       }
     }
     
+    // If spent amount is 0, return default pattern but with 0 values
+    if (spentAmount <= 0) {
+      print('No spending data, returning zeros');
+      return List.generate(7, (index) => 0.0);
+    }
+    
     try {
       // Create a context for the AI model
       final startDate = budget['start_date'] != null 
-          ? DateTime.parse(budget['start_date']) 
+          ? (budget['start_date'] is String 
+              ? DateTime.tryParse(budget['start_date']) ?? DateTime.now().subtract(Duration(days: 6))
+              : DateTime.now().subtract(Duration(days: 6)))
           : DateTime.now().subtract(Duration(days: 6));
       
       final endDate = budget['end_date'] != null 
-          ? DateTime.parse(budget['end_date']) 
+          ? (budget['end_date'] is String 
+              ? DateTime.tryParse(budget['end_date']) ?? DateTime.now()
+              : DateTime.now())
           : DateTime.now();
       
-      final periodType = budget['period_type'] ?? 'weekly';
-      final title = budget['title'] ?? 'Budget';
-      final categories = budget['categories'] ?? [];
+      final periodType = budget['period_type']?.toString() ?? 'monthly';
       final categoryText = categories.isNotEmpty ? categories.join(', ') : 'general expenses';
       
-      // Calculate the budget duration
-      final budgetDuration = endDate.difference(startDate).inDays + 1;
+      print('AI prompt parameters - Period: $periodType, Categories: $categoryText, Spent: $spentAmount');
       
       // Generate a prompt for the AI model
       final prompt = '''
 I need realistic daily spending data for a ${periodType} budget titled "${title}" for ${categoryText}.
-Total budget amount: ${AppConfig.formatCurrency(totalAmount)}
-Current spent amount: ${AppConfig.formatCurrency(spentAmount)}
-Budget start date: ${DateFormat('yyyy-MM-dd').format(startDate)}
-Budget end date: ${DateFormat('yyyy-MM-dd').format(endDate)}
+Budget details:
+- Total budget amount: KES ${totalAmount.toStringAsFixed(0)}
+- Current spent amount: KES ${spentAmount.toStringAsFixed(0)}
+- Budget period: ${periodType}
 
-Create a JSON array with 7 values representing daily spending for the most recent week (Monday to Sunday).
-The values should:
-1. Add up to approximately the spent amount of ${AppConfig.formatCurrency(spentAmount)}
-2. Follow realistic spending patterns (higher on weekends, etc.)
-3. Only include numbers without currency symbols
-4. Be returned as a JSON array, nothing else
+Create a JSON array with exactly 7 numbers representing daily spending for one week (Monday to Sunday).
+Requirements:
+1. The 7 values should add up to approximately ${spentAmount.toStringAsFixed(0)} (the spent amount)
+2. Use realistic spending patterns (higher on weekends for entertainment, consistent for food, etc.)
+3. Only return numbers without currency symbols
+4. Return ONLY a JSON array with 7 numbers, nothing else
+5. Make sure all numbers are positive integers or zero
 
-Example response: [150, 200, 180, 210, 350, 420, 290]
+Example format: [150, 200, 180, 210, 350, 420, 290]
 ''';
 
+      print('Sending prompt to Gemini AI...');
+      
       // Call the AI model
       final content = [Content.text(prompt)];
       final response = await model.generateContent(content);
       final responseText = response.text ?? '';
       
+      print('AI Response: $responseText');
+      
       // Extract the JSON array from the response
-      final RegExp jsonArrayPattern = RegExp(r'\[\s*\d+(?:\s*,\s*\d+)*\s*\]');
+      final RegExp jsonArrayPattern = RegExp(r'\[\s*\d+(?:\.\d+)?(?:\s*,\s*\d+(?:\.\d+)?)*\s*\]');
       final match = jsonArrayPattern.firstMatch(responseText);
       
       if (match != null) {
         final jsonString = match.group(0)!;
+        print('Extracted JSON: $jsonString');
+        
         // Parse the JSON array
         final List<dynamic> jsonArray = _parseJsonArray(jsonString);
         
         // Convert to List<double>
-        final List<double> dailyData = jsonArray.map((item) => double.parse(item.toString())).toList();
+        final List<double> dailyData = jsonArray.map((item) {
+          if (item is num) {
+            return item.toDouble();
+          } else {
+            return double.tryParse(item.toString()) ?? 0.0;
+          }
+        }).toList();
         
         // Make sure we have exactly 7 values
         while (dailyData.length < 7) {
-          dailyData.add(0);
+          dailyData.add(0.0);
         }
         
-        return dailyData.take(7).toList();
+        // Trim to exactly 7 values
+        final result = dailyData.take(7).toList();
+        
+        // Validate that none are NaN
+        for (int i = 0; i < result.length; i++) {
+          if (result[i].isNaN || result[i].isInfinite) {
+            result[i] = 0.0;
+          }
+        }
+        
+        print('Final daily data: $result');
+        return result;
       } else {
-        // Fallback if we couldn't extract a JSON array
+        print('Could not extract JSON array from AI response, using fallback');
         return _generateRandomDailyData(spentAmount);
       }
     } catch (e) {
@@ -170,28 +241,43 @@ Example response: [150, 200, 180, 210, 350, 420, 290]
     // Clean the JSON string
     final cleanedJson = jsonString.trim();
     
-    // Try to parse the JSON array
     try {
-      return RegExp(r'\d+')
+      // Use regex to extract all numbers from the array
+      final numbers = RegExp(r'\d+(?:\.\d+)?')
           .allMatches(cleanedJson)
-          .map((match) => int.parse(match.group(0)!))
+          .map((match) => double.parse(match.group(0)!))
           .toList();
+      
+      if (numbers.isEmpty) {
+        throw Exception('No numbers found in JSON array');
+      }
+      
+      return numbers;
     } catch (e) {
       print('Error parsing JSON array: $e');
-      throw Exception('Failed to parse AI response');
+      throw Exception('Failed to parse AI response: $e');
     }
   }
   
   List<double> _parseDailyDataFromRecommendations(String recommendations) {
     try {
       // Look for a pattern like [123, 456, 789, ...]
-      final RegExp jsonArrayPattern = RegExp(r'\[\s*\d+(?:\s*,\s*\d+)*\s*\]');
+      final RegExp jsonArrayPattern = RegExp(r'\[\s*\d+(?:\.\d+)?(?:\s*,\s*\d+(?:\.\d+)?)*\s*\]');
       final match = jsonArrayPattern.firstMatch(recommendations);
       
       if (match != null) {
         final jsonString = match.group(0)!;
         final List<dynamic> jsonArray = _parseJsonArray(jsonString);
-        return jsonArray.map((item) => double.parse(item.toString())).toList();
+        final result = jsonArray.map((item) => double.tryParse(item.toString()) ?? 0.0).toList();
+        
+        // Validate no NaN values
+        for (int i = 0; i < result.length; i++) {
+          if (result[i].isNaN || result[i].isInfinite) {
+            result[i] = 0.0;
+          }
+        }
+        
+        return result;
       }
       throw Exception('No daily data found in recommendations');
     } catch (e) {
@@ -201,12 +287,18 @@ Example response: [150, 200, 180, 210, 350, 420, 290]
   }
   
   List<double> _generateRandomDailyData(double totalSpent) {
+    print('Generating random daily data for total spent: $totalSpent');
+    
+    if (totalSpent <= 0) {
+      return List.generate(7, (_) => 0.0);
+    }
+    
     final random = math.Random();
     List<double> dailyData = List.generate(7, (_) => 0.0);
     
     // Create a realistic distribution with higher spending on weekends
-    final weekdayWeight = 0.1;
-    final weekendWeight = 0.25;
+    final weekdayWeight = 0.12; // 12% for weekdays
+    final weekendWeight = 0.20; // 20% for weekends
     final weights = [
       weekdayWeight, // Monday
       weekdayWeight, // Tuesday
@@ -217,7 +309,7 @@ Example response: [150, 200, 180, 210, 350, 420, 290]
       weekendWeight, // Sunday
     ];
     
-    // Normalize weights
+    // Normalize weights to ensure they sum to 1
     final totalWeight = weights.reduce((a, b) => a + b);
     final normalizedWeights = weights.map((w) => w / totalWeight).toList();
     
@@ -226,19 +318,32 @@ Example response: [150, 200, 180, 210, 350, 420, 290]
       dailyData[i] = totalSpent * normalizedWeights[i];
     }
     
-    // Add some randomness
+    // Add some randomness (±30% variation)
     for (int i = 0; i < 7; i++) {
-      dailyData[i] *= 0.7 + random.nextDouble() * 0.6; // 70%-130% of base value
+      final variation = 0.7 + random.nextDouble() * 0.6; // 70%-130% of base value
+      dailyData[i] *= variation;
     }
     
-    // Make sure the sum is close to totalSpent
+    // Ensure the sum matches the total spent amount
     final sum = dailyData.reduce((a, b) => a + b);
-    final adjustmentFactor = totalSpent / sum;
+    if (sum > 0) {
+      final adjustmentFactor = totalSpent / sum;
+      for (int i = 0; i < dailyData.length; i++) {
+        dailyData[i] *= adjustmentFactor;
+        
+        // Ensure no NaN or infinite values
+        if (dailyData[i].isNaN || dailyData[i].isInfinite) {
+          dailyData[i] = 0.0;
+        }
+      }
+    }
     
-    return dailyData.map((value) => (value * adjustmentFactor)).toList();
+    print('Generated random daily data: $dailyData');
+    return dailyData;
   }
   
   List<BudgetCategory> _generateFallbackBudgetData() {
+    print('Using fallback budget data');
     return [
       BudgetCategory(
         name: 'Food & Dining',
@@ -265,6 +370,7 @@ Example response: [150, 200, 180, 210, 350, 420, 290]
       case 'dining':
       case 'restaurant':
       case 'food & dining':
+      case 'comrade special💗': // Handle your specific category
         return Icons.restaurant;
       case 'transport':
       case 'transportation':
@@ -302,6 +408,7 @@ Example response: [150, 200, 180, 210, 350, 420, 290]
       case 'dining':
       case 'restaurant':
       case 'food & dining':
+      case 'comrade special💗': // Handle your specific category
         return Colors.orange;
       case 'transport':
       case 'transportation':
