@@ -3166,121 +3166,129 @@ Padding(
       ),
     );
   }
-
-  Widget _buildTransactionItem(
-    BuildContext context, {
-    required String logo,
-    required String name,
-    required String date,
-    required double amount,
-    required IconData logoPlaceholder,
-    required Color logoColor,
-    required String category, required bool isSmsTransaction, String? mpesaCode,
-  }) {
-    bool isExpense = amount < 0;
-    final formattedAmount = NumberFormat('#,##0', 'en_US').format(amount.abs());
-
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: themeService.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(
-              themeService.isDarkMode ? 0.2 : 0.05,
-            ),
-            blurRadius: 10,
-            offset: Offset(0, 2),
+Widget _buildTransactionItem(
+  BuildContext context, {
+  required String logo,
+  required String name,
+  required String date,
+  required double amount,
+  required IconData logoPlaceholder,
+  required Color logoColor,
+  required String category,
+  bool isSmsTransaction = false,
+  String? mpesaCode,
+}) {
+  final themeService = Provider.of<ThemeService>(context);
+  final isExpense = amount < 0;
+  final displayAmount = amount.abs();
+  
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: themeService.cardColor,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: themeService.isDarkMode
+              ? Colors.black.withOpacity(0.3)
+              : Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        // Transaction icon
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: logoColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Logo/Icon
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: logoColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.asset(
-                  logo,
-                  width: 32,
-                  height: 32,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      Icon(logoPlaceholder, color: logoColor, size: 24),
-                ),
-              ),
-            ),
+          child: Icon(
+            logoPlaceholder,
+            color: logoColor,
+            size: 24,
           ),
-          SizedBox(width: 16),
-          // Transaction details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: themeService.textColor,
+        ),
+
+        const SizedBox(width: 16),
+
+        // Transaction details
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: themeService.textColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 4),
-                Row(
-                  children: [
+                  // SMS indicator
+                  if (isSmsTransaction)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'SMS',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    category,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: themeService.subtextColor,
+                    ),
+                  ),
+                  if (mpesaCode != null) ...[
                     Text(
-                      date,
+                      ' • ',
                       style: TextStyle(
                         fontSize: 12,
                         color: themeService.subtextColor,
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: logoColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        category,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: logoColor,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    Text(
+                      mpesaCode,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: themeService.subtextColor,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
-                ),
-              ],
-            ),
-          ),
-          // Amount
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${isExpense ? '-' : '+'} KES $formattedAmount',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isExpense ? Colors.red : Colors.green,
-                ),
+                ],
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
-                isExpense ? 'Expense' : 'Income',
+                date,
                 style: TextStyle(
                   fontSize: 12,
                   color: themeService.subtextColor,
@@ -3288,10 +3296,28 @@ Padding(
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+
+        // Amount
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '${isExpense ? '-' : '+'}KES ${NumberFormat('#,##0', 'en_US').format(displayAmount.round())}',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isExpense 
+                    ? themeService.errorColor 
+                    : themeService.successColor,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildSmartTipCard({
     required IconData icon,
