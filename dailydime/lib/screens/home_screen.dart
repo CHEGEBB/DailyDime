@@ -3403,34 +3403,77 @@ Widget _buildTransactionItem(
   }
 
   Widget _buildEmptyTransactionsState() {
-    return Container(
-      height: 200,
-      width: double.infinity,
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // You can use Lottie animation here
-          Icon(Icons.receipt_long, size: 48, color: themeService.subtextColor),
-          SizedBox(height: 16),
-          Text(
-            'No transactions yet',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: themeService.textColor,
+  final themeService = Provider.of<ThemeService>(context);
+  
+  return Container(
+    padding: const EdgeInsets.all(32),
+    decoration: BoxDecoration(
+      color: themeService.cardColor,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: themeService.isDarkMode
+              ? Colors.black.withOpacity(0.3)
+              : Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        Icon(
+          Icons.sms_outlined,
+          size: 64,
+          color: themeService.subtextColor.withOpacity(0.5),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'No SMS Transactions Found',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: themeService.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Your M-Pesa transactions will appear here automatically when SMS messages are received.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: themeService.subtextColor,
+          ),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton.icon(
+          onPressed: () async {
+            setState(() {
+              _isLoadingTransactions = true;
+            });
+            final smsService = SmsService();
+            await smsService.initialize();
+            await smsService.loadHistoricalMpesaMessages();
+            await _loadRecentTransactions();
+          },
+          icon: Icon(Icons.refresh, size: 18),
+          label: Text('Scan SMS Messages'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: themeService.primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-          SizedBox(height: 8),
-          Text(
-            'Your transactions will appear here',
-            style: TextStyle(fontSize: 14, color: themeService.subtextColor),
-          ),
-        ],
-      ),
-    );
-  }
-
+        ),
+      ],
+    ),
+  );
+}
   Widget _buildEmptySavingsState() {
     return Container(
       height: 170,
