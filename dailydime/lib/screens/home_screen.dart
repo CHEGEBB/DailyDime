@@ -1,5 +1,6 @@
 // lib/screens/home_screen.dart
 import 'dart:async';
+import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart';
 import 'package:dailydime/screens/profile_screen.dart';
 import 'package:dailydime/screens/settings_screen.dart';
@@ -30,6 +31,7 @@ import 'package:dailydime/services/profile_service.dart';
 import 'package:dailydime/config/app_config.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:appwrite/models.dart';
+import '../services/budget_graph_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToTransactions;
@@ -71,6 +73,10 @@ StreamSubscription<List<ExpenseAnalytics>>? _expenseAnalyticsSubscription;
 
 StreamSubscription<Transaction>? _smsTransactionSubscription;
 bool _isLoadingTransactions = false;
+late BudgetGraphService _budgetGraphService;
+List<BudgetCategory> _budgetCategories = [];
+bool _isLoadingBudgets = true;
+int _selectedBudgetCategoryIndex = 0;
   // Controllers
   late TabController _tabController;
   final TextEditingController _balanceController = TextEditingController();
@@ -95,14 +101,13 @@ StreamSubscription? _notificationSubscription;
   bool _isLoading = true;
 
   // Budget data
-  int _selectedBudgetCategoryIndex = 0;
 
   // Service data
   double _currentBalance = 0.0;
   String _lastUpdateTime = '';
   List<Transaction> _recentTransactions = [];
   List<SavingsGoal> _savingsGoals = [];
-  List<BudgetCategory> _budgetCategories = [];
+  // List<BudgetCategory> _budgetCategories = [];
   Map<String, double> _categoryPercentages = {};
 
   // AI Insights
@@ -125,6 +130,8 @@ StreamSubscription? _notificationSubscription;
   _initializeNotifications();
   _loadUserProfile();
   _initializeExpenseService();
+   _budgetGraphService = BudgetGraphService();
+  _loadBudgetData();
   }
 
   Future<void> _initializeExpenseService() async {
@@ -161,6 +168,62 @@ StreamSubscription? _notificationSubscription;
     print('Error initializing expense service: $e');
     setState(() {
       _isLoadingExpenseData = false;
+    });
+  }
+}
+
+Future<void> _loadBudgetData() async {
+  setState(() {
+    _isLoadingBudgets = true;
+  });
+  
+  try {
+    // Initialize Appwrite client
+    final client = Client()
+      ..setEndpoint(AppConfig.appwriteEndpoint)
+      ..setProject(AppConfig.appwriteProjectId);
+    
+    final databases = Databases(client);
+    
+    // Get current user ID
+    final String userId = ''; // Get this from your auth service or preferences
+    
+    // Query budgets from Appwrite
+    final response = await databases.listDocuments(
+      databaseId: AppConfig.databaseId,
+      collectionId: AppConfig.budgetsCollection,
+      queries: [
+        // Query for user's budgets
+        // If you need to filter by user_id:
+        // Query.equal('user_id', userId),
+      ],
+    );
+    
+    // Convert documents to map
+    final List<Map<String, dynamic>> budgetDocs = response.documents
+        .map((doc) => {
+              ...doc.data,
+              '\$id': doc.$id,
+              'created_at': doc.$createdAt,
+              'updated_at': doc.$updatedAt,
+            })
+        .toList();
+    
+    // Process budget data with our service
+    final budgetCategories = await _budgetGraphService.processBudgetData(budgetDocs);
+    
+    setState(() {
+      _budgetCategories = budgetCategories.cast<BudgetCategory>();
+      _isLoadingBudgets = false;
+      // Ensure selected index is valid
+      if (_budgetCategories.isNotEmpty && _selectedBudgetCategoryIndex >= _budgetCategories.length) {
+        _selectedBudgetCategoryIndex = 0;
+      }
+    });
+  } catch (e) {
+    print('Error loading budget data: $e');
+    setState(() {
+      _isLoadingBudgets = false;
     });
   }
 }
@@ -2074,445 +2137,444 @@ Padding(
                 const SizedBox(height: 30),
 
                 // Budget Status with interactive bar graph
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 20),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Budget Status',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: themeService.textColor,
+            ),
+          ),
+          GestureDetector(
+            onTap: widget.onNavigateToBudget,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: themeService.accentColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'See all',
+                style: TextStyle(
+                  color: themeService.accentColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 16),
+
+      // Budget visualization
+      _isLoadingBudgets
+          ? _buildBudgetLoadingState()
+          : _budgetCategories.isEmpty
+              ? _buildEmptyBudgetState()
+              : Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: themeService.cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(
+                          themeService.isDarkMode ? 0.2 : 0.05,
+                        ),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Budget Period Selector
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Budget Status',
+                            'Budget Period:',
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: themeService.textColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: themeService.subtextColor,
                             ),
                           ),
-                          GestureDetector(
-                            onTap: widget.onNavigateToBudget,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
+                          SizedBox(width: 12),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: themeService.accentColor
+                                  .withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(
+                                20,
                               ),
-                              decoration: BoxDecoration(
-                                color: themeService.accentColor.withOpacity(
-                                  0.1,
+                            ),
+                            child: Row(
+                              children: [
+                                Text(
+                                  DateFormat(
+                                    'MMMM yyyy',
+                                  ).format(DateTime.now()),
+                                  style: TextStyle(
+                                    color: themeService.accentColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                'See all',
-                                style: TextStyle(
+                                SizedBox(width: 4),
+                                Icon(
+                                  Icons.keyboard_arrow_down,
+                                  size: 16,
                                   color: themeService.accentColor,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
                                 ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 24),
+
+                      // Category selector for the chart
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: BouncingScrollPhysics(),
+                        child: Row(
+                          children: List.generate(
+                            _budgetCategories.length,
+                            (index) => GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedBudgetCategoryIndex =
+                                      index;
+                                });
+                              },
+                              child: Container(
+                                margin: EdgeInsets.only(right: 10),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      _selectedBudgetCategoryIndex ==
+                                          index
+                                      ? _budgetCategories[index]
+                                            .color
+                                      : _budgetCategories[index]
+                                            .color
+                                            .withOpacity(0.1),
+                                  borderRadius:
+                                      BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _budgetCategories[index].icon,
+                                      color:
+                                          _selectedBudgetCategoryIndex ==
+                                              index
+                                          ? Colors.white
+                                          : _budgetCategories[index]
+                                                .color,
+                                      size: 16,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      _budgetCategories[index].name,
+                                      style: TextStyle(
+                                        color:
+                                            _selectedBudgetCategoryIndex ==
+                                                index
+                                            ? Colors.white
+                                            : _budgetCategories[index]
+                                                  .color,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: 20),
+
+                      // Budget overview interactive bar chart
+                      Container(
+                        height: 220,
+                        width: double.infinity,
+                        child: BudgetBarChart(
+                          dailyData:
+                              _budgetCategories[_selectedBudgetCategoryIndex]
+                                  .dailyData,
+                          color:
+                              _budgetCategories[_selectedBudgetCategoryIndex]
+                                  .color,
+                        ),
+                      ),
+
+                      SizedBox(height: 20),
+
+                      // Budget category total summary
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: themeService.subtextColor
+                                    .withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(
+                                  12,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Spent',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color:
+                                          themeService.subtextColor,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'KES ',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight:
+                                              FontWeight.w600,
+                                          color: themeService
+                                              .subtextColor,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${_budgetCategories[_selectedBudgetCategoryIndex].spent.toStringAsFixed(0)}',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight:
+                                              FontWeight.bold,
+                                          color:
+                                              _budgetCategories[_selectedBudgetCategoryIndex]
+                                                  .color,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: themeService.subtextColor
+                                    .withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(
+                                  12,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Budget',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color:
+                                          themeService.subtextColor,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'KES ',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight:
+                                              FontWeight.w600,
+                                          color: themeService
+                                              .subtextColor,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${_budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight:
+                                              FontWeight.bold,
+                                          color: themeService
+                                              .textColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: themeService.subtextColor
+                                    .withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(
+                                  12,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Remaining',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color:
+                                          themeService.subtextColor,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'KES ',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight:
+                                              FontWeight.w600,
+                                          color: themeService
+                                              .subtextColor,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${(_budgetCategories[_selectedBudgetCategoryIndex].budget - _budgetCategories[_selectedBudgetCategoryIndex].spent).toStringAsFixed(0)}',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight:
+                                              FontWeight.bold,
+                                          color: themeService
+                                              .accentColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
 
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
 
-                      // Budget visualization
-                      _budgetCategories.isEmpty
-                          ? _buildEmptyBudgetState()
-                          : Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: themeService.cardColor,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(
-                                      themeService.isDarkMode ? 0.2 : 0.05,
-                                    ),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
+                      // Monthly progress bar
+                      Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Monthly Progress',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: themeService.subtextColor,
+                                ),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Budget Period Selector
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Budget Period:',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: themeService.subtextColor,
-                                        ),
-                                      ),
-                                      SizedBox(width: 12),
-                                      Container(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: themeService.accentColor
-                                              .withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Text(
-                                              DateFormat(
-                                                'MMMM yyyy',
-                                              ).format(DateTime.now()),
-                                              style: TextStyle(
-                                                color: themeService.accentColor,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            SizedBox(width: 4),
-                                            Icon(
-                                              Icons.keyboard_arrow_down,
-                                              size: 16,
-                                              color: themeService.accentColor,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  SizedBox(height: 24),
-
-                                  // Category selector for the chart
-                                  SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    physics: BouncingScrollPhysics(),
-                                    child: Row(
-                                      children: List.generate(
-                                        _budgetCategories.length,
-                                        (index) => GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              _selectedBudgetCategoryIndex =
-                                                  index;
-                                            });
-                                          },
-                                          child: Container(
-                                            margin: EdgeInsets.only(right: 10),
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 8,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  _selectedBudgetCategoryIndex ==
-                                                      index
-                                                  ? _budgetCategories[index]
-                                                        .color
-                                                  : _budgetCategories[index]
-                                                        .color
-                                                        .withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  _budgetCategories[index].icon,
-                                                  color:
-                                                      _selectedBudgetCategoryIndex ==
-                                                          index
-                                                      ? Colors.white
-                                                      : _budgetCategories[index]
-                                                            .color,
-                                                  size: 16,
-                                                ),
-                                                SizedBox(width: 6),
-                                                Text(
-                                                  _budgetCategories[index].name,
-                                                  style: TextStyle(
-                                                    color:
-                                                        _selectedBudgetCategoryIndex ==
-                                                            index
-                                                        ? Colors.white
-                                                        : _budgetCategories[index]
-                                                              .color,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  SizedBox(height: 20),
-
-                                  // Budget overview interactive bar chart
-                                  Container(
-                                    height: 220,
-                                    width: double.infinity,
-                                    child: BudgetBarChart(
-                                      dailyData:
-                                          _budgetCategories[_selectedBudgetCategoryIndex]
-                                              .dailyData,
-                                      color:
-                                          _budgetCategories[_selectedBudgetCategoryIndex]
-                                              .color,
-                                    ),
-                                  ),
-
-                                  SizedBox(height: 20),
-
-                                  // Budget category total summary
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Container(
-                                          padding: EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: themeService.subtextColor
-                                                .withOpacity(0.05),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Spent',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color:
-                                                      themeService.subtextColor,
-                                                ),
-                                              ),
-                                              SizedBox(height: 4),
-                                              Row(
-                                                children: [
-                                                  Text(
-                                                    'KES ',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: themeService
-                                                          .subtextColor,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    '${_budgetCategories[_selectedBudgetCategoryIndex].spent.toStringAsFixed(0)}',
-                                                    style: TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color:
-                                                          _budgetCategories[_selectedBudgetCategoryIndex]
-                                                              .color,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(width: 10),
-                                      Expanded(
-                                        child: Container(
-                                          padding: EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: themeService.subtextColor
-                                                .withOpacity(0.05),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Budget',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color:
-                                                      themeService.subtextColor,
-                                                ),
-                                              ),
-                                              SizedBox(height: 4),
-                                              Row(
-                                                children: [
-                                                  Text(
-                                                    'KES ',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: themeService
-                                                          .subtextColor,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    '${_budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
-                                                    style: TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: themeService
-                                                          .textColor,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(width: 10),
-                                      Expanded(
-                                        child: Container(
-                                          padding: EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: themeService.subtextColor
-                                                .withOpacity(0.05),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Remaining',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color:
-                                                      themeService.subtextColor,
-                                                ),
-                                              ),
-                                              SizedBox(height: 4),
-                                              Row(
-                                                children: [
-                                                  Text(
-                                                    'KES ',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: themeService
-                                                          .subtextColor,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    '${(_budgetCategories[_selectedBudgetCategoryIndex].budget - _budgetCategories[_selectedBudgetCategoryIndex].spent).toStringAsFixed(0)}',
-                                                    style: TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: themeService
-                                                          .accentColor,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  SizedBox(height: 16),
-
-                                  // Monthly progress bar
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            'Monthly Progress',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              color: themeService.subtextColor,
-                                            ),
-                                          ),
-                                          Text(
-                                            '${(_budgetCategories[_selectedBudgetCategoryIndex].spent / _budgetCategories[_selectedBudgetCategoryIndex].budget * 100).toStringAsFixed(0)}%',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: themeService.accentColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      SizedBox(height: 8),
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: LinearProgressIndicator(
-                                          value:
-                                              _budgetCategories[_selectedBudgetCategoryIndex]
-                                                  .spent /
-                                              _budgetCategories[_selectedBudgetCategoryIndex]
-                                                  .budget,
-                                          backgroundColor: themeService
-                                              .subtextColor
-                                              .withOpacity(0.1),
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            _budgetCategories[_selectedBudgetCategoryIndex]
-                                                .color,
-                                          ),
-                                          minHeight: 8,
-                                        ),
-                                      ),
-                                      SizedBox(height: 8),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '0',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: themeService.subtextColor,
-                                            ),
-                                          ),
-                                          Text(
-                                            'KES ${_budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: themeService.subtextColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                              Text(
+                                '${(_budgetCategories[_selectedBudgetCategoryIndex].spent / _budgetCategories[_selectedBudgetCategoryIndex].budget * 100).toStringAsFixed(0)}%',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: themeService.accentColor,
+                                ),
                               ),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              value:
+                                  _budgetCategories[_selectedBudgetCategoryIndex]
+                                      .spent /
+                                  _budgetCategories[_selectedBudgetCategoryIndex]
+                                      .budget,
+                              backgroundColor: themeService
+                                  .subtextColor
+                                  .withOpacity(0.1),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _budgetCategories[_selectedBudgetCategoryIndex]
+                                    .color,
+                              ),
+                              minHeight: 8,
                             ),
+                          ),
+                          SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '0',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: themeService.subtextColor,
+                                ),
+                              ),
+                              Text(
+                                'KES ${_budgetCategories[_selectedBudgetCategoryIndex].budget.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: themeService.subtextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-
+    ],
+  ),
+),
                 const SizedBox(height: 30),
 
                 // AI Insights
@@ -2930,6 +2992,45 @@ Padding(
         return Icons.savings;
     }
   }
+  Widget _buildBudgetLoadingState() {
+  return Container(
+    height: 200,
+    width: double.infinity,
+    padding: EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: themeService.cardColor,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(
+            themeService.isDarkMode ? 0.2 : 0.05,
+          ),
+          blurRadius: 15,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(themeService.accentColor),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Loading budget data...',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: themeService.textColor,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   Widget _buildWalletStatItem({
     required IconData icon,
