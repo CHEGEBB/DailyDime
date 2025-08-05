@@ -919,7 +919,7 @@ Future<void> _loadBudgetData() async {
                       backgroundColor: themeService.primaryColor,
                       padding: EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     child: Text(
