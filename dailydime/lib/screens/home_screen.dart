@@ -900,7 +900,7 @@ Future<void> _loadBudgetData() async {
                       labelText: 'Description (Optional)',
                       labelStyle: TextStyle(color: themeService.subtextColor),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       prefixIcon: Icon(
                         Icons.description,
