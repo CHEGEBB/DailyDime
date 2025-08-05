@@ -808,7 +808,7 @@ Future<void> _loadBudgetData() async {
         height: MediaQuery.of(context).size.height * 0.85,
         decoration: BoxDecoration(
           color: themeService.cardColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
