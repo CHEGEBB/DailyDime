@@ -883,7 +883,7 @@ Future<void> _loadBudgetData() async {
                       labelText: 'Amount (KES)',
                       labelStyle: TextStyle(color: themeService.subtextColor),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       prefixIcon: Icon(
                         Icons.attach_money,
