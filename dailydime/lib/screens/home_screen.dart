@@ -953,7 +953,7 @@ Future<void> _loadBudgetData() async {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: themeService.primaryColor,
           width: 2.5,
