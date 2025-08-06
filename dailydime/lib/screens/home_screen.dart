@@ -975,7 +975,7 @@ Future<void> _loadBudgetData() async {
       ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(11), // Slightly smaller to show border
+          borderRadius: BorderRadius.circular(8), // Slightly smaller to show border
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(11),
