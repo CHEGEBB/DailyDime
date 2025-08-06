@@ -1380,7 +1380,7 @@ Widget _buildDefaultAvatar() {
                                 ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   'KES',
@@ -1410,7 +1410,7 @@ Widget _buildDefaultAvatar() {
                                     ),
                                     decoration: BoxDecoration(
                                       color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -1503,7 +1503,7 @@ Widget _buildDefaultAvatar() {
                                 ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(30),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
                                   children: [
