@@ -1265,7 +1265,7 @@ Widget _buildDefaultAvatar() {
               padding: EdgeInsets.all(2),
               decoration: BoxDecoration(
                 color: Colors.red,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: themeService.scaffoldColor,
                   width: 1.5,
@@ -1306,7 +1306,7 @@ Widget _buildDefaultAvatar() {
                                 color: themeService.isDarkMode
                                     ? Colors.white.withOpacity(0.1)
                                     : Colors.grey.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(8),
                                 boxShadow: [
                                   BoxShadow(
                                     color: themeService.isDarkMode
@@ -1343,7 +1343,7 @@ Widget _buildDefaultAvatar() {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
                           color: accentColor.withOpacity(0.3),
