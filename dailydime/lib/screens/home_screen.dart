@@ -1076,7 +1076,7 @@ Widget _buildDefaultAvatar() {
       margin: EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: themeService.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
             color: themeService.isDarkMode
