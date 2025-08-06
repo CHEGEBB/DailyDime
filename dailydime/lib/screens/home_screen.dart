@@ -978,7 +978,7 @@ Future<void> _loadBudgetData() async {
           borderRadius: BorderRadius.circular(8), // Slightly smaller to show border
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(8),
           child: _isLoadingProfile
               ? Container(
                   decoration: BoxDecoration(
@@ -1055,7 +1055,7 @@ Widget _buildDefaultAvatar() {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      borderRadius: BorderRadius.circular(11),
+      borderRadius: BorderRadius.circular(8),
     ),
     child: Icon(
       Icons.person_outline,
