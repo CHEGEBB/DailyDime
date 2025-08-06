@@ -1093,7 +1093,7 @@ Widget _buildDefaultAvatar() {
           padding: EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: iconColor, size: 24),
         ),
@@ -1200,7 +1200,7 @@ Widget _buildDefaultAvatar() {
                             color: themeService.isDarkMode
                                 ? Colors.white.withOpacity(0.1)
                                 : Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(8),
                             boxShadow: [
                               BoxShadow(
                                 color: themeService.isDarkMode
