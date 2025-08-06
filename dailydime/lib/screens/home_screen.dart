@@ -1239,7 +1239,7 @@ Widget _buildDefaultAvatar() {
       color: themeService.isDarkMode
           ? Colors.white.withOpacity(0.1)
           : Colors.grey.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       boxShadow: [
         BoxShadow(
           color: themeService.isDarkMode
