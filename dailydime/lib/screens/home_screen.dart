@@ -33,6 +33,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:appwrite/models.dart';
 import '../services/budget_graph_service.dart';
 import '../services/budget_graph_service.dart' show BudgetCategory;
+import 'package:dailydime/services/home_insights.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -72,6 +73,12 @@ List<ExpenseAnalytics> _expenseAnalytics = [];
 List<MonthlyExpenseData> _monthlyExpenseData = [];
 bool _isLoadingExpenseData = false;
 StreamSubscription<List<ExpenseAnalytics>>? _expenseAnalyticsSubscription;
+late HomeInsightsService _homeInsightsService;
+  List<InsightItem> _insights = [];
+  List<MoneyTip> _moneyTips = [];
+  bool _isLoadingInsights = true;
+  StreamSubscription<List<InsightItem>>? _insightsSubscription;
+  StreamSubscription<List<MoneyTip>>? _tipsSubscription;
 
 StreamSubscription<Transaction>? _smsTransactionSubscription;
 bool _isLoadingTransactions = false;
@@ -132,6 +139,7 @@ StreamSubscription? _notificationSubscription;
   _initializeNotifications();
   _loadUserProfile();
   _initializeExpenseService();
+  _initializeHomeInsights();
    _budgetGraphService = BudgetGraphService();
   _loadBudgetData();
   }
@@ -173,6 +181,54 @@ StreamSubscription? _notificationSubscription;
     });
   }
 }
+  Future<void> _initializeHomeInsights() async {
+    setState(() {
+      _isLoadingInsights = true;
+    });
+
+    try {
+      _homeInsightsService = HomeInsightsService();
+      await _homeInsightsService.initialize();
+
+      // Listen to insights stream
+      _insightsSubscription = _homeInsightsService.insightsStream.listen((insights) {
+        if (mounted) {
+          setState(() {
+            _insights = insights;
+            _isLoadingInsights = false;
+          });
+        }
+      });
+
+      // Listen to tips stream
+      _tipsSubscription = _homeInsightsService.tipsStream.listen((tips) {
+        if (mounted) {
+          setState(() {
+            _moneyTips = tips;
+          });
+        }
+      });
+
+      // Get initial data
+      setState(() {
+        _insights = _homeInsightsService.cachedInsights;
+        _moneyTips = _homeInsightsService.cachedTips;
+        _isLoadingInsights = false;
+      });
+
+      // Generate fresh insights
+      await _homeInsightsService.generateInsights(forceRefresh: true);
+
+    } catch (e) {
+      print('Error initializing home insights: $e');
+      setState(() {
+        _isLoadingInsights = false;
+      });
+    }
+  }
+  Future<void> _dismissInsight(String insightId) async {
+    await _homeInsightsService.dismissInsight(insightId);
+  }
 
 Future<void> _loadBudgetData() async {
   setState(() {
