@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'package:dailydime/config/app_config.dart';
 import 'package:dailydime/services/sms_service.dart';
@@ -827,7 +828,10 @@ extension InsightsStorageExtension on StorageService {
 extension InsightsAppwriteExtension on AppwriteService {
   Future<List<Map<String, dynamic>>> getBudgets() async {
     try {
-      final response = await client.databases.listDocuments(
+      // Create a Databases instance from the client
+      final databases = Databases(client);
+      
+      final response = await databases.listDocuments(
         databaseId: AppConfig.databaseId,
         collectionId: AppConfig.budgetsCollection,
       );
@@ -841,7 +845,10 @@ extension InsightsAppwriteExtension on AppwriteService {
 
   Future<List<Map<String, dynamic>>> getSavingsGoals() async {
     try {
-      final response = await client.databases.listDocuments(
+      // Create a Databases instance from the client
+      final databases = Databases(client);
+      
+      final response = await databases.listDocuments(
         databaseId: AppConfig.databaseId,
         collectionId: AppConfig.savingsGoalsCollection,
       );

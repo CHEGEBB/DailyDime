@@ -46,6 +46,7 @@ class StorageService {
   late Box _budgetsBox; // Using dynamic box for budgets
   late Box _balanceMetadataBox; // For balance metadata
   late Box _balanceHistoryBox; // For balance history
+  late Box _generalDataBox; // For general data storage (insights, tips, etc.)
   
   bool _isInitialized = false;
   
@@ -82,8 +83,107 @@ class StorageService {
     _budgetsBox = await Hive.openBox('budgets');
     _balanceMetadataBox = await Hive.openBox('balance_metadata');
     _balanceHistoryBox = await Hive.openBox('balance_history');
+    _generalDataBox = await Hive.openBox('general_data');
     
     _isInitialized = true;
+  }
+  
+  // GENERAL DATA STORAGE OPERATIONS
+  
+  /// Save any data with a key-value pair
+  Future<void> saveData(String key, dynamic value) async {
+    await _ensureInitialized();
+    try {
+      await _generalDataBox.put(key, value);
+    } catch (e) {
+      print('Error saving data for key $key: $e');
+      throw Exception('Failed to save data: $e');
+    }
+  }
+  
+  /// Get data by key
+  Future<dynamic> getData(String key) async {
+    await _ensureInitialized();
+    try {
+      return _generalDataBox.get(key);
+    } catch (e) {
+      print('Error getting data for key $key: $e');
+      return null;
+    }
+  }
+  
+  /// Delete data by key
+  Future<void> deleteData(String key) async {
+    await _ensureInitialized();
+    try {
+      await _generalDataBox.delete(key);
+    } catch (e) {
+      print('Error deleting data for key $key: $e');
+      throw Exception('Failed to delete data: $e');
+    }
+  }
+  
+  /// Check if key exists
+  Future<bool> hasData(String key) async {
+    await _ensureInitialized();
+    return _generalDataBox.containsKey(key);
+  }
+  
+  /// Get all keys
+  Future<List<String>> getAllKeys() async {
+    await _ensureInitialized();
+    return _generalDataBox.keys.cast<String>().toList();
+  }
+  
+  /// Clear all general data
+  Future<void> clearGeneralData() async {
+    await _ensureInitialized();
+    await _generalDataBox.clear();
+  }
+  
+  // INSIGHTS AND TIPS SPECIFIC METHODS
+  
+  /// Save insights data
+  Future<void> saveInsights(String insightsJson) async {
+    await saveData('insights_cache', insightsJson);
+  }
+  
+  /// Get insights data
+  Future<String?> getInsights() async {
+    final data = await getData('insights_cache');
+    return data?.toString();
+  }
+  
+  /// Save money tips data
+  Future<void> saveMoneyTips(String tipsJson) async {
+    await saveData('money_tips_cache', tipsJson);
+  }
+  
+  /// Get money tips data
+  Future<String?> getMoneyTips() async {
+    final data = await getData('money_tips_cache');
+    return data?.toString();
+  }
+  
+  /// Save insights generation metadata
+  Future<void> saveInsightsMetadata(Map<String, dynamic> metadata) async {
+    await saveData('insights_metadata', metadata);
+  }
+  
+  /// Get insights generation metadata
+  Future<Map<String, dynamic>?> getInsightsMetadata() async {
+    final data = await getData('insights_metadata');
+    if (data != null && data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+    return null;
+  }
+  
+  /// Clear insights cache
+  Future<void> clearInsightsCache() async {
+    await deleteData('insights_cache');
+    await deleteData('money_tips_cache');
+    await deleteData('insights_metadata');
   }
   
   // BUDGET OPERATIONS
@@ -133,6 +233,42 @@ class StorageService {
     }
   }
   
+  // Save a single budget
+  Future<void> saveBudget(Budget budget) async {
+    await _ensureInitialized();
+    try {
+      await _budgetsBox.put(budget.id, budget.toMap());
+    } catch (e) {
+      print('Error saving budget: $e');
+      throw Exception('Failed to save budget: $e');
+    }
+  }
+  
+  // Delete a budget by ID
+  Future<void> deleteBudget(String budgetId) async {
+    await _ensureInitialized();
+    try {
+      await _budgetsBox.delete(budgetId);
+    } catch (e) {
+      print('Error deleting budget: $e');
+      throw Exception('Failed to delete budget: $e');
+    }
+  }
+  
+  // Get budget by ID
+  Future<Budget?> getBudgetById(String budgetId) async {
+    await _ensureInitialized();
+    try {
+      final budgetData = _budgetsBox.get(budgetId);
+      if (budgetData != null && budgetData is Map) {
+        return Budget.fromMap(Map<String, dynamic>.from(budgetData));
+      }
+    } catch (e) {
+      print('Error getting budget by ID: $e');
+    }
+    return null;
+  }
+  
   // TRANSACTION OPERATIONS
   Future<void> saveTransaction(Transaction transaction) async {
     await _ensureInitialized();
@@ -169,6 +305,27 @@ class StorageService {
     final transactions = _transactionsBox.values.toList();
     transactions.sort((a, b) => b.date.compareTo(a.date)); // Sort by date (newest first)
     return transactions.take(limit).toList();
+  }
+  
+  Future<List<Transaction>> getTransactionsByDateRange(DateTime startDate, DateTime endDate) async {
+    await _ensureInitialized();
+    return _transactionsBox.values
+        .where((transaction) => 
+            transaction.date.isAfter(startDate.subtract(const Duration(days: 1))) &&
+            transaction.date.isBefore(endDate.add(const Duration(days: 1))))
+        .toList();
+  }
+  
+  Future<Transaction?> getTransactionById(String id) async {
+    await _ensureInitialized();
+    return _transactionsBox.get(id);
+  }
+  
+  Future<List<Transaction>> getTransactionsByMpesaCode(String mpesaCode) async {
+    await _ensureInitialized();
+    return _transactionsBox.values
+        .where((transaction) => transaction.mpesaCode == mpesaCode)
+        .toList();
   }
   
   // BALANCE OPERATIONS
@@ -319,6 +476,11 @@ class StorageService {
     await _transactionsBox.clear();
   }
   
+  Future<void> clearAllBudgets() async {
+    await _ensureInitialized();
+    await _budgetsBox.clear();
+  }
+  
   Future<void> clearAllData() async {
     await _ensureInitialized();
     await _transactionsBox.clear();
@@ -326,6 +488,7 @@ class StorageService {
     await _budgetsBox.clear();
     await _balanceMetadataBox.clear();
     await _balanceHistoryBox.clear();
+    await _generalDataBox.clear();
   }
   
   // UTILITY METHODS
@@ -341,14 +504,23 @@ class StorageService {
     await _budgetsBox.close();
     await _balanceMetadataBox.close();
     await _balanceHistoryBox.close();
+    await _generalDataBox.close();
     _isInitialized = false;
   }
   
   // Statistics and analytics methods
-  Future<Map<String, double>> getTransactionsByCategoryTotals() async {
+  Future<Map<String, double>> getTransactionsByCategoryTotals({DateTime? startDate, DateTime? endDate}) async {
     await _ensureInitialized();
     
-    final transactions = await getTransactions();
+    List<Transaction> transactions = await getTransactions();
+    
+    // Filter by date range if provided
+    if (startDate != null && endDate != null) {
+      transactions = transactions.where((transaction) =>
+          transaction.date.isAfter(startDate.subtract(const Duration(days: 1))) &&
+          transaction.date.isBefore(endDate.add(const Duration(days: 1)))).toList();
+    }
+    
     final Map<String, double> categoryTotals = {};
     
     for (final transaction in transactions) {
@@ -395,6 +567,78 @@ class StorageService {
     return total;
   }
   
+  Future<Map<String, double>> getMonthlySpendingSummary(int year, int month) async {
+    await _ensureInitialized();
+    
+    final startDate = DateTime(year, month, 1);
+    final endDate = DateTime(year, month + 1, 0);
+    
+    final transactions = await getTransactionsByDateRange(startDate, endDate);
+    
+    double totalIncome = 0.0;
+    double totalExpenses = 0.0;
+    
+    for (final transaction in transactions) {
+      if (transaction.isExpense) {
+        totalExpenses += transaction.amount;
+      } else {
+        totalIncome += transaction.amount;
+      }
+    }
+    
+    return {
+      'income': totalIncome,
+      'expenses': totalExpenses,
+      'savings': totalIncome - totalExpenses,
+    };
+  }
+  
+  Future<List<Map<String, dynamic>>> getTopSpendingCategories(int limit, {DateTime? startDate, DateTime? endDate}) async {
+    final categoryTotals = await getTransactionsByCategoryTotals(startDate: startDate, endDate: endDate);
+    
+    final sortedCategories = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    return sortedCategories.take(limit).map((entry) => {
+      'category': entry.key,
+      'amount': entry.value,
+    }).toList();
+  }
+  
+  Future<double> getAverageTransactionAmount({bool expensesOnly = true, DateTime? startDate, DateTime? endDate}) async {
+    await _ensureInitialized();
+    
+    List<Transaction> transactions = await getTransactions();
+    
+    // Filter by date range if provided
+    if (startDate != null && endDate != null) {
+      transactions = transactions.where((transaction) =>
+          transaction.date.isAfter(startDate.subtract(const Duration(days: 1))) &&
+          transaction.date.isBefore(endDate.add(const Duration(days: 1)))).toList();
+    }
+    
+    // Filter by expense type if needed
+    if (expensesOnly) {
+      transactions = transactions.where((t) => t.isExpense).toList();
+    }
+    
+    if (transactions.isEmpty) return 0.0;
+    
+    final total = transactions.fold(0.0, (sum, t) => sum + t.amount);
+    return total / transactions.length;
+  }
+  
+  Future<int> getTransactionCount({DateTime? startDate, DateTime? endDate}) async {
+    await _ensureInitialized();
+    
+    if (startDate == null || endDate == null) {
+      return _transactionsBox.length;
+    }
+    
+    final transactions = await getTransactionsByDateRange(startDate, endDate);
+    return transactions.length;
+  }
+  
   // Export/Import methods
   Future<Map<String, dynamic>> exportAllData() async {
     await _ensureInitialized();
@@ -405,7 +649,11 @@ class StorageService {
       'balance': await getCurrentBalance(),
       'balanceMetadata': await getBalanceMetadata(),
       'balanceHistory': (await getBalanceHistory()).map((h) => h.toJson()).toList(),
+      'insights': await getInsights(),
+      'moneyTips': await getMoneyTips(),
+      'insightsMetadata': await getInsightsMetadata(),
       'exportDate': DateTime.now().toIso8601String(),
+      'version': '1.0',
     };
   }
   
@@ -449,10 +697,54 @@ class StorageService {
             .toList();
         await saveBalanceHistory(history);
       }
+      
+      // Import insights
+      if (data['insights'] != null) {
+        await saveInsights(data['insights'].toString());
+      }
+      
+      // Import money tips
+      if (data['moneyTips'] != null) {
+        await saveMoneyTips(data['moneyTips'].toString());
+      }
+      
+      // Import insights metadata
+      if (data['insightsMetadata'] != null) {
+        await saveInsightsMetadata(Map<String, dynamic>.from(data['insightsMetadata']));
+      }
+      
     } catch (e) {
       print('Error importing data: $e');
       throw Exception('Failed to import data: $e');
     }
+  }
+  
+  // Database maintenance methods
+  Future<void> compactDatabase() async {
+    await _ensureInitialized();
+    
+    try {
+      await _transactionsBox.compact();
+      await _balanceBox.compact();
+      await _budgetsBox.compact();
+      await _balanceMetadataBox.compact();
+      await _balanceHistoryBox.compact();
+      await _generalDataBox.compact();
+    } catch (e) {
+      print('Error compacting database: $e');
+    }
+  }
+  
+  Future<Map<String, int>> getDatabaseStats() async {
+    await _ensureInitialized();
+    
+    return {
+      'transactions': _transactionsBox.length,
+      'budgets': _budgetsBox.length,
+      'balanceHistory': _balanceHistoryBox.length,
+      'generalData': _generalDataBox.length,
+      'balanceMetadata': _balanceMetadataBox.length,
+    };
   }
 }
 
@@ -576,5 +868,24 @@ class BalanceHistoryAdapter extends TypeAdapter<BalanceHistory> {
     writer.writeInt(obj.timestamp.millisecondsSinceEpoch);
     writer.writeString(obj.transactionId ?? '');
     writer.writeString(obj.source);
+  }
+}
+
+// Extensions for the StorageService to handle insights and tips
+extension InsightsStorageExtension on StorageService {
+  Future<void> saveInsights(String insightsJson) async {
+    await saveData('insights_cache', insightsJson);
+  }
+
+  Future<String?> getInsights() async {
+    return await getData('insights_cache');
+  }
+
+  Future<void> saveMoneyTips(String tipsJson) async {
+    await saveData('money_tips_cache', tipsJson);
+  }
+
+  Future<String?> getMoneyTips() async {
+    return await getData('money_tips_cache');
   }
 }
