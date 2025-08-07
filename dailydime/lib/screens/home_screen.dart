@@ -2727,254 +2727,160 @@ Padding(
 ),
                 const SizedBox(height: 30),
 
-                // AI Insights
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'AI Insights',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: themeService.textColor,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: widget.onNavigateToAI,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: themeService.accentColor.withOpacity(
-                                  0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                'More',
-                                style: TextStyle(
-                                  color: themeService.accentColor,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // AI Insights container
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: themeService.primaryColor,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: themeService.accentColor.withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            // Spending Alert
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.yellow.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    Icons.warning_rounded,
-                                    color: Colors.yellow,
-                                    size: 24,
-                                  ),
-                                ),
-                                SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Spending Alert',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        _spendingAlertText,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.white.withOpacity(0.9),
-                                        ),
-                                      ),
-                                      SizedBox(height: 12),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: ElevatedButton(
-                                          onPressed: widget.onNavigateToBudget,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.white,
-                                            foregroundColor:
-                                                themeService.accentColor,
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 8,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                            ),
-                                          ),
-                                          child: Text('Set Budget'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            SizedBox(height: 24),
-                            Divider(
-                              color: Colors.white.withOpacity(0.2),
-                              height: 1,
-                            ),
-                            SizedBox(height: 24),
-
-                            // Savings Opportunity
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    Icons.lightbulb_outline,
-                                    color: Colors.white,
-                                    size: 24,
-                                  ),
-                                ),
-                                SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Savings Opportunity',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        _savingsOpportunityText,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.white.withOpacity(0.9),
-                                        ),
-                                      ),
-                                      SizedBox(height: 12),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            // Start savings challenge
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.white,
-                                            foregroundColor:
-                                                themeService.accentColor,
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 8,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                            ),
-                                          ),
-                                          child: Text('Start Challenge'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Smart Money Tips
-                      Text(
-                        'Smart Money Tips',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: themeService.textColor,
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Smart Money Tips Cards - Horizontal scroll
-                      SizedBox(
-                        height: 180,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          physics: BouncingScrollPhysics(),
-                          children: [
-                            _buildSmartTipCard(
-                              icon: Icons.savings,
-                              title: 'Save 20% of your income',
-                              content:
-                                  'The 50/30/20 rule suggests saving 20% of your income for financial goals.',
-                              color: themeService.accentColor,
-                            ),
-                            _buildSmartTipCard(
-                              icon: Icons.track_changes,
-                              title: 'Track all expenses',
-                              content:
-                                  'People who track expenses save 15% more than those who don\'t.',
-                              color: Colors.purple,
-                            ),
-                            _buildSmartTipCard(
-                              icon: Icons.credit_card,
-                              title: 'Pay off high-interest debt first',
-                              content:
-                                  'Focus on clearing debts with the highest interest rates to save money long-term.',
-                              color: Colors.orange,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                // AI Insights Section
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 20),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'AI Insights',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: themeService.textColor,
+            ),
+          ),
+          Row(
+            children: [
+              // Refresh insights button
+              GestureDetector(
+                onTap: () async {
+                  await _homeInsightsService.generateInsights(forceRefresh: true);
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: themeService.subtextColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.refresh,
+                    size: 16,
+                    color: themeService.accentColor,
                   ),
                 ),
+              ),
+              GestureDetector(
+                onTap: widget.onNavigateToAI,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: themeService.accentColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'More',
+                    style: TextStyle(
+                      color: themeService.accentColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 16),
+
+      // Dynamic AI Insights container
+      _isLoadingInsights 
+        ? _buildInsightsLoadingState()
+        : _insights.isEmpty 
+          ? _buildEmptyInsightsState()
+          : Column(
+              children: _insights.take(2).map((insight) => 
+                _buildInsightCard(insight)
+              ).toList(),
+            ),
+    ],
+  ),
+),
+
+const SizedBox(height: 30),
+
+                      // Smart Money Tips Section
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 20),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Smart Money Tips',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: themeService.textColor,
+            ),
+          ),
+          if (_moneyTips.length > 3)
+            GestureDetector(
+              onTap: () {
+                // Navigate to tips screen or show all tips
+                _showAllTipsBottomSheet();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: themeService.accentColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'See all',
+                  style: TextStyle(
+                    color: themeService.accentColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+
+      const SizedBox(height: 16),
+
+      // Dynamic Smart Money Tips Cards - Horizontal scroll
+      _isLoadingInsights 
+        ? _buildTipsLoadingState()
+        : _moneyTips.isEmpty 
+          ? _buildEmptyTipsState()
+          : SizedBox(
+              height: 180,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: BouncingScrollPhysics(),
+                itemCount: _moneyTips.length,
+                itemBuilder: (context, index) {
+                  final tip = _moneyTips[index];
+                  return _buildDynamicSmartTipCard(
+                    icon: tip.icon,
+                    title: tip.title,
+                    content: tip.description,
+                    color: tip.color,
+                  );
+                },
+              ),
+            ),
+    ],
+  ),
+),
 
                 const SizedBox(
                   height: 100,
@@ -3174,6 +3080,527 @@ Padding(
               fontSize: 16,
               fontWeight: FontWeight.w500,
               color: themeService.textColor,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Build individual insight card
+Widget _buildInsightCard(InsightItem insight) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: themeService.primaryColor,
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color: insight.color.withOpacity(0.3),
+          blurRadius: 15,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: insight.color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                insight.icon,
+                color: insight.color,
+                size: 24,
+              ),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          insight.title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      if (insight.isDismissible)
+                        GestureDetector(
+                          onTap: () async {
+                            await _dismissInsight(insight.id);
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    insight.description,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                  if (insight.actionText != null) ...[
+                    SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          _handleInsightAction(insight);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: themeService.primaryColor,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: Text(insight.actionText!),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+// Build dynamic smart tip card
+Widget _buildDynamicSmartTipCard({
+  required IconData icon,
+  required String title,
+  required String content,
+  required Color color,
+}) {
+  return Container(
+    width: 260,
+    margin: EdgeInsets.only(right: 16),
+    padding: EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: themeService.cardColor,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: color.withOpacity(0.2),
+        width: 1,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(
+            themeService.isDarkMode ? 0.3 : 0.05,
+          ),
+          blurRadius: 10,
+          offset: Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 28,
+          ),
+        ),
+        SizedBox(height: 16),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: themeService.textColor,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        SizedBox(height: 8),
+        Expanded(
+          child: Text(
+            content,
+            style: TextStyle(
+              fontSize: 14,
+              color: themeService.subtextColor,
+              height: 1.4,
+            ),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Build loading state for insights
+Widget _buildInsightsLoadingState() {
+  return Container(
+    height: 160,
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: themeService.cardColor,
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(
+            themeService.isDarkMode ? 0.2 : 0.05,
+          ),
+          blurRadius: 15,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(themeService.accentColor),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Generating insights...',
+            style: TextStyle(
+              fontSize: 16,
+              color: themeService.subtextColor,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Build empty state for insights
+Widget _buildEmptyInsightsState() {
+  return Container(
+    height: 160,
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: themeService.cardColor,
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(
+            themeService.isDarkMode ? 0.2 : 0.05,
+          ),
+          blurRadius: 15,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.insights_outlined,
+            size: 48,
+            color: themeService.subtextColor.withOpacity(0.5),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'No insights available',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: themeService.textColor,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Keep using the app to get personalized insights',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: themeService.subtextColor,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Build loading state for tips
+Widget _buildTipsLoadingState() {
+  return SizedBox(
+    height: 180,
+    child: ListView.builder(
+      scrollDirection: Axis.horizontal,
+      physics: BouncingScrollPhysics(),
+      itemCount: 3,
+      itemBuilder: (context, index) {
+        return Container(
+          width: 260,
+          margin: EdgeInsets.only(right: 16),
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: themeService.cardColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(
+                  themeService.isDarkMode ? 0.3 : 0.05,
+                ),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: themeService.subtextColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              SizedBox(height: 16),
+              Container(
+                height: 20,
+                decoration: BoxDecoration(
+                  color: themeService.subtextColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              SizedBox(height: 8),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: themeService.subtextColor.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+// Build empty state for tips
+Widget _buildEmptyTipsState() {
+  return Container(
+    height: 180,
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: themeService.cardColor,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(
+            themeService.isDarkMode ? 0.2 : 0.05,
+          ),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.lightbulb_outlined,
+            size: 48,
+            color: themeService.subtextColor.withOpacity(0.5),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'No tips available',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: themeService.textColor,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Smart money tips will appear here',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: themeService.subtextColor,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Handle insight actions
+void _handleInsightAction(InsightItem insight) {
+  switch (insight.type) {
+    case 'alert':
+      // Navigate to budget screen
+      if (widget.onNavigateToBudget != null) {
+        widget.onNavigateToBudget!();
+      }
+      break;
+    case 'opportunity':
+      // Navigate to savings screen
+      if (widget.onNavigateToSavings != null) {
+        widget.onNavigateToSavings!();
+      }
+      break;
+    case 'status':
+      // Navigate to transactions screen
+      if (widget.onNavigateToTransactions != null) {
+        widget.onNavigateToTransactions!();
+      }
+      break;
+    default:
+      // Default action - show more details or navigate to AI screen
+      if (widget.onNavigateToAI != null) {
+        widget.onNavigateToAI!();
+      }
+      break;
+  }
+}
+
+// Show all tips in bottom sheet
+void _showAllTipsBottomSheet() {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: BoxDecoration(
+        color: themeService.cardColor,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Sheet handle
+          Center(
+            child: Container(
+              margin: EdgeInsets.only(top: 16),
+              width: 60,
+              height: 5,
+              decoration: BoxDecoration(
+                color: themeService.subtextColor,
+                borderRadius: BorderRadius.circular(5),
+              ),
+            ),
+          ),
+
+          Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Smart Money Tips',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: themeService.textColor,
+              ),
+            ),
+          ),
+
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              itemCount: _moneyTips.length,
+              itemBuilder: (context, index) {
+                final tip = _moneyTips[index];
+                return Container(
+                  margin: EdgeInsets.only(bottom: 16),
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: themeService.scaffoldColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: tip.color.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: tip.color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          tip.icon,
+                          color: tip.color,
+                          size: 24,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tip.title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: themeService.textColor,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              tip.description,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: themeService.subtextColor,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ],
