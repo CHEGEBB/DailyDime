@@ -591,7 +591,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
               _buildStatCard(
                 'Net Flow',
                 AppConfig.formatCurrency(
-                  ((keyMetrics['netFlow'] ?? 0.0) * 100).toInt(),
+                  ((keyMetrics['netFlow'] ?? 0.0) * 100).toInt().toDouble(),
                 ),
                 quickStats['spendingTrend'] == 'positive' 
                   ? Icons.trending_up 
@@ -604,7 +604,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
               _buildStatCard(
                 'Daily Average',
                 AppConfig.formatCurrency(
-                  ((quickStats['avgDailySpending'] ?? 0.0) * 100).toInt(),
+                  ((quickStats['avgDailySpending'] ?? 0.0) * 100).toInt().toDouble(),
                 ),
                 Icons.calendar_today,
                 themeService.infoColor,
@@ -1656,7 +1656,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        AppConfig.formatCurrency((avgDailyIncome * 100).toInt() as double),
+                        AppConfig.formatCurrency((avgDailyIncome * 100).toInt().toDouble()),
                         style: TextStyle(
     fontFamily: 'DMsans',
                           fontSize: 16,
@@ -1690,7 +1690,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        AppConfig.formatCurrency((avgDailyExpense * 100).toInt() as double),
+                        AppConfig.formatCurrency((avgDailyExpense * 100).toInt().toDouble()),
                         style: TextStyle(
     fontFamily: 'DMsans',
                           fontSize: 16,
@@ -1735,7 +1735,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      AppConfig.formatCurrency((netDaily * 100).toInt() as double),
+                      AppConfig.formatCurrency((netDaily * 100).toInt().toDouble()),
                       style: TextStyle(
     fontFamily: 'DMsans',
                         fontSize: 18,
