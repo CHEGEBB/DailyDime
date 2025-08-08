@@ -1858,12 +1858,12 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
     
     switch (trend) {
       case 'growing':
-        return 'Your balance is projected to grow to ${AppConfig.formatCurrency((projectedBalance * 100).toInt() as double)}';
+        return 'Your balance is projected to grow to ${AppConfig.formatCurrency((projectedBalance * 100).toInt().toDouble())}';
       case 'declining':
-        return 'Your balance is projected to decline to ${AppConfig.formatCurrency((projectedBalance * 100).toInt() as double)}';
+        return 'Your balance is projected to decline to ${AppConfig.formatCurrency((projectedBalance * 100).toInt().toDouble())}';
       case 'stable':
       default:
-        return 'Your balance is projected to remain stable at ${AppConfig.formatCurrency((projectedBalance * 100).toInt() as double)}';
+        return 'Your balance is projected to remain stable at ${AppConfig.formatCurrency((projectedBalance * 100).toInt().toDouble())}';
     }
   }
 
