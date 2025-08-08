@@ -1009,7 +1009,7 @@ Future<void> _loadBudgetData() async {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(50),
         border: Border.all(
           color: themeService.primaryColor,
           width: 2.5,
@@ -1031,10 +1031,10 @@ Future<void> _loadBudgetData() async {
       ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8), // Slightly smaller to show border
+          borderRadius: BorderRadius.circular(50), // Slightly smaller to show border
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(50),
           child: _isLoadingProfile
               ? Container(
                   decoration: BoxDecoration(
