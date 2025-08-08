@@ -15,273 +15,378 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  late AnimationController _fadeController;
+  late AnimationController _mainController;
   late AnimationController _pulseController;
+  late AnimationController _backgroundAnimController;
   
   late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _logoScale;
-  late Animation<double> _textFade;
-
+  late Animation<double> _logoScaleAnimation;
+  late Animation<double> _textSlideAnimation;
+  late Animation<double> _backgroundAnimation;
+  late Animation<double> _shapeAnimation;
+  
   @override
   void initState() {
     super.initState();
     _setupAnimations();
-    _startSequence();
+    _startAnimations();
   }
 
   void _setupAnimations() {
-    _fadeController = AnimationController(
+    // Main animation controller
+    _mainController = AnimationController(
+      duration: const Duration(milliseconds: 2200),
+      vsync: this,
+    );
+    
+    // Pulse animation for subtle elements
+    _pulseController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+    
+    // Background animation controller
+    _backgroundAnimController = AnimationController(
+      duration: const Duration(milliseconds: 6000),
       vsync: this,
     );
-
+    
+    // Fade animation for most elements
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _fadeController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+        parent: _mainController,
+        curve: const Interval(0.1, 0.6, curve: Curves.easeOut),
       ),
     );
-
-    _scaleAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
+    
+    // Scale animation for logo
+    _logoScaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 1.2).chain(
+          CurveTween(curve: Curves.easeOutCubic),
+        ),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.2, end: 1.0).chain(
+          CurveTween(curve: Curves.easeInOut),
+        ),
+        weight: 50,
+      ),
+    ]).animate(
       CurvedAnimation(
-        parent: _fadeController,
-        curve: const Interval(0.2, 0.8, curve: Curves.easeOutBack),
+        parent: _mainController,
+        curve: const Interval(0.1, 0.5),
       ),
     );
-
-    _logoScale = Tween<double>(begin: 0.95, end: 1.05).animate(
+    
+    // Slide animation for text
+    _textSlideAnimation = Tween<double>(begin: 30.0, end: 0.0).animate(
       CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
+        parent: _mainController,
+        curve: const Interval(0.3, 0.7, curve: Curves.easeOutCubic),
       ),
     );
-
-    _textFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+    
+    // Continuous background animation
+    _backgroundAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _fadeController,
-        curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+        parent: _backgroundAnimController,
+        curve: Curves.linear,
+      ),
+    );
+    
+    // Shape animation for decorative elements
+    _shapeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.2, 0.9, curve: Curves.easeOut),
       ),
     );
   }
 
-  void _startSequence() async {
+  void _startAnimations() {
+    _mainController.forward();
     _pulseController.repeat(reverse: true);
+    _backgroundAnimController.repeat();
     
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) {
-      _fadeController.forward();
-    }
-
-    await Future.delayed(const Duration(milliseconds: 3000));
-    
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => 
-              const OnboardingScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.0, 0.05),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: animation, 
-                  curve: Curves.easeOut
-                )),
+    // Navigate to next screen after a delay
+    Future.delayed(const Duration(milliseconds: 3200), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => 
+                const OnboardingScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
                 child: child,
-              ),
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 600),
-        ),
-      );
-    }
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 800),
+          ),
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
-    _fadeController.dispose();
+    _mainController.dispose();
     _pulseController.dispose();
+    _backgroundAnimController.dispose();
     super.dispose();
   }
 
-  Widget _buildStaticBackground(ThemeService themeService) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: themeService.isDarkMode ? [
-            // Dark mode - sophisticated dark gradient
-            const Color(0xFF0F172A), // Deep navy
-            Color.lerp(const Color(0xFF0F172A), themeService.primaryColor.withOpacity(0.08), 0.3)!,
-            Color.lerp(const Color(0xFF1E293B), themeService.secondaryColor.withOpacity(0.05), 0.4)!,
-            const Color(0xFF1E293B), // Slate
-          ] : [
-            // Light mode - clean premium gradient
-            Colors.white,
-            Color.lerp(Colors.white, themeService.primaryColor.withOpacity(0.04), 0.5)!,
-            Color.lerp(const Color(0xFFF8FAFC), themeService.secondaryColor.withOpacity(0.03), 0.6)!,
-            const Color(0xFFF1F5F9), // Very light slate
-          ],
-          stops: const [0.0, 0.3, 0.7, 1.0],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubtleAccents(ThemeService themeService) {
-    return Stack(
-      children: [
-        // Top accent
-        Positioned(
-          top: -100,
-          right: -50,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  themeService.primaryColor.withOpacity(0.06),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        
-        // Bottom accent
-        Positioned(
-          bottom: -80,
-          left: -40,
-          child: Container(
-            width: 160,
-            height: 160,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  themeService.secondaryColor.withOpacity(0.04),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPremiumLogo(ThemeService themeService) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_fadeController, _pulseController]),
-      builder: (context, child) {
-        final fadeValue = _fadeAnimation.value.clamp(0.0, 1.0);
-        final scaleValue = _scaleAnimation.value.clamp(0.5, 1.2);
-        final pulseValue = _logoScale.value.clamp(0.9, 1.1);
-        
-        return Transform.scale(
-          scale: scaleValue * pulseValue,
-          child: Opacity(
-            opacity: fadeValue,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Outer subtle glow
-                Container(
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        themeService.primaryColor.withOpacity(0.1),
-                        themeService.secondaryColor.withOpacity(0.05),
-                        Colors.transparent,
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ThemeService>(
+      builder: (context, themeService, child) {
+        return Scaffold(
+          body: Stack(
+            children: [
+              // Animated gradient background
+              _buildAnimatedBackground(themeService),
+              
+              // Decorative shapes
+              _buildDecorativeShapes(themeService),
+              
+              // Content container
+              SafeArea(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Spacer(flex: 2),
+                        
+                        // Logo & brand section
+                        _buildLogoSection(themeService),
+                        
+                        const SizedBox(height: 30),
+                        
+                        // Animated text section
+                        _buildTextSection(themeService),
+                        
+                        const Spacer(flex: 3),
+                        
+                        // Loading indicator
+                        _buildLoadingIndicator(themeService),
+                        
+                        const SizedBox(height: 50),
                       ],
-                      stops: const [0.0, 0.6, 1.0],
                     ),
                   ),
                 ),
-                
-                // Main logo container
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildAnimatedBackground(ThemeService themeService) {
+    return AnimatedBuilder(
+      animation: _backgroundAnimation,
+      builder: (context, child) {
+        return Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: themeService.isDarkMode
+                  ? [
+                      const Color(0xFF0F172A),
+                      Color.lerp(const Color(0xFF0F172A), themeService.primaryColor.withOpacity(0.12), 
+                        0.3 + (0.05 * math.sin(_backgroundAnimation.value * 2 * math.pi)))!,
+                      Color.lerp(const Color(0xFF1E293B), themeService.secondaryColor.withOpacity(0.08),
+                        0.3 + (0.05 * math.cos(_backgroundAnimation.value * 2 * math.pi)))!,
+                    ]
+                  : [
+                      Colors.white,
+                      Color.lerp(Colors.white, themeService.primaryColor.withOpacity(0.06),
+                        0.3 + (0.05 * math.sin(_backgroundAnimation.value * 2 * math.pi)))!,
+                      Color.lerp(const Color(0xFFF8FAFC), themeService.secondaryColor.withOpacity(0.05),
+                        0.3 + (0.05 * math.cos(_backgroundAnimation.value * 2 * math.pi)))!,
+                    ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDecorativeShapes(ThemeService themeService) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_shapeAnimation, _pulseController]),
+      builder: (context, child) {
+        final pulseValue = 0.98 + (0.04 * math.sin(_pulseController.value * math.pi));
+        
+        return Stack(
+          children: [
+            // Top right shape
+            Positioned(
+              top: -60,
+              right: -30,
+              child: Transform.scale(
+                scale: _shapeAnimation.value * pulseValue,
+                child: Transform.rotate(
+                  angle: -0.2,
+                  child: Opacity(
+                    opacity: _shapeAnimation.value * 0.85,
+                    child: Container(
+                      width: 180,
+                      height: 180,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(40),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            themeService.primaryColor.withOpacity(0.5),
+                            themeService.primaryColor.withOpacity(0.2),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Bottom left shape
+            Positioned(
+              bottom: -70,
+              left: -40,
+              child: Transform.scale(
+                scale: _shapeAnimation.value * pulseValue,
+                child: Transform.rotate(
+                  angle: 0.3,
+                  child: Opacity(
+                    opacity: _shapeAnimation.value * 0.7,
+                    child: Container(
+                      width: 220,
+                      height: 220,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(50),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            themeService.secondaryColor.withOpacity(0.5),
+                            themeService.secondaryColor.withOpacity(0.2),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Center-left accent
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.3,
+              left: -25,
+              child: Opacity(
+                opacity: _shapeAnimation.value * 0.6,
+                child: Container(
+                  width: 70,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(35),
+                    color: themeService.accentColor.withOpacity(0.3),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Center-right small accent
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.45,
+              right: -15,
+              child: Opacity(
+                opacity: _shapeAnimation.value * 0.5,
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: themeService.primaryColor.withOpacity(0.2),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLogoSection(ThemeService themeService) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_logoScaleAnimation, _fadeAnimation, _pulseController]),
+      builder: (context, child) {
+        final pulseValue = 0.98 + (0.04 * math.sin(_pulseController.value * math.pi));
+        
+        return Opacity(
+          opacity: _fadeAnimation.value,
+          child: Transform.scale(
+            scale: _logoScaleAnimation.value,
+            child: Column(
+              children: [
+                // Logo container
                 Container(
-                  width: 85,
-                  height: 85,
+                  width: 110,
+                  height: 110,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        themeService.surfaceColor,
-                        Color.lerp(themeService.surfaceColor, themeService.primaryColor.withOpacity(0.08), 0.4)!,
+                        themeService.primaryColor,
+                        themeService.secondaryColor,
                       ],
-                    ),
-                    border: Border.all(
-                      width: 2.5,
-                      color: themeService.primaryColor.withOpacity(0.25),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: themeService.primaryColor.withOpacity(0.15),
-                        blurRadius: 25,
-                        spreadRadius: 2,
+                        color: themeService.primaryColor.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 5),
+                        spreadRadius: 1,
                       ),
                       BoxShadow(
-                        color: Colors.black.withOpacity(themeService.isDarkMode ? 0.3 : 0.08),
-                        blurRadius: 15,
-                        offset: const Offset(0, 6),
+                        color: themeService.secondaryColor.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 5),
+                        spreadRadius: 1,
                       ),
                     ],
                   ),
                   child: Center(
-                    child: ShaderMask(
-                      shaderCallback: (bounds) => LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          themeService.primaryColor,
-                          themeService.secondaryColor,
-                        ],
-                      ).createShader(bounds),
-                      child: const Text(
+                    child: Transform.scale(
+                      scale: pulseValue,
+                      child: Text(
                         '\$',
                         style: TextStyle(
-                          fontSize: 38,
                           color: Colors.white,
+                          fontSize: 64,
                           fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black26,
+                              blurRadius: 2,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ),
-                ),
-                
-                // Subtle inner highlight
-                Container(
-                  width: 65,
-                  height: 65,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.4, -0.4),
-                      colors: [
-                        Colors.white.withOpacity(themeService.isDarkMode ? 0.1 : 0.3),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 1.0],
                     ),
                   ),
                 ),
@@ -293,163 +398,100 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _buildElegantBrandText(ThemeService themeService) {
+  Widget _buildTextSection(ThemeService themeService) {
     return AnimatedBuilder(
-      animation: _fadeController,
+      animation: Listenable.merge([_fadeAnimation, _textSlideAnimation]),
       builder: (context, child) {
-        final textFadeValue = _textFade.value.clamp(0.0, 1.0);
-        
         return Opacity(
-          opacity: textFadeValue,
-          child: Column(
-            children: [
-              // App name
-              Text(
-                'DailyDime',
-                style: TextStyle(
-                  fontSize: 46,
-                  color: themeService.textColor,
-                  fontFamily: 'Pacifico',
-                  fontWeight: FontWeight.w400,
-                  letterSpacing: 1.2,
-                  shadows: [
-                    Shadow(
-                      color: themeService.primaryColor.withOpacity(0.1),
-                      offset: const Offset(0, 2),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Elegant tagline
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  color: themeService.surfaceColor.withOpacity(0.7),
-                  border: Border.all(
-                    color: themeService.primaryColor.withOpacity(0.15),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(themeService.isDarkMode ? 0.2 : 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  'smart money, daily wins',
+          opacity: _fadeAnimation.value,
+          child: Transform.translate(
+            offset: Offset(0, _textSlideAnimation.value),
+            child: Column(
+              children: [
+                // App name with Pacifico font
+                Text(
+                  'DailyDime',
                   style: TextStyle(
-                    fontSize: 13,
-                    color: themeService.subtextColor,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.8,
+                    fontFamily: 'Pacifico',
+                    fontSize: 44,
+                    color: themeService.textColor,
+                    shadows: [
+                      Shadow(
+                        color: themeService.primaryColor.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                
+                const SizedBox(height: 20),
+                
+                // Tagline in container
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    color: themeService.isDarkMode
+                        ? themeService.surfaceColor.withOpacity(0.5)
+                        : themeService.primaryColor.withOpacity(0.1),
+                    border: Border.all(
+                      color: themeService.primaryColor.withOpacity(0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Text(
+                    'Your finances, simplified',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: themeService.isDarkMode
+                          ? Colors.white
+                          : themeService.primaryColor,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildMinimalLoader(ThemeService themeService) {
+  Widget _buildLoadingIndicator(ThemeService themeService) {
     return AnimatedBuilder(
-      animation: _fadeController,
+      animation: _fadeAnimation,
       builder: (context, child) {
-        final fadeValue = _fadeAnimation.value.clamp(0.0, 1.0);
-        
         return Opacity(
-          opacity: fadeValue * 0.7,
+          opacity: _fadeAnimation.value,
           child: Column(
             children: [
-              // Simple elegant progress indicator
+              // Modern loading indicator
               SizedBox(
-                width: 32,
-                height: 32,
+                width: 50,
+                height: 50,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
+                  strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    themeService.primaryColor.withOpacity(0.6),
+                    themeService.primaryColor,
                   ),
-                  backgroundColor: themeService.primaryColor.withOpacity(0.1),
+                  backgroundColor: themeService.surfaceColor,
                 ),
               ),
               
               const SizedBox(height: 20),
               
+              // Loading text
               Text(
-                'Initializing...',
+                'Loading your financial future...',
                 style: TextStyle(
-                  fontSize: 12,
-                  color: themeService.subtextColor.withOpacity(0.8),
-                  fontWeight: FontWeight.w400,
-                  letterSpacing: 1.0,
+                  fontSize: 14,
+                  color: themeService.subtextColor,
+                  fontWeight: FontWeight.w500,
                 ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<ThemeService>(
-      builder: (context, themeService, child) {
-        SystemChrome.setSystemUIOverlayStyle(
-          SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: themeService.isDarkMode 
-                ? Brightness.light 
-                : Brightness.dark,
-            systemNavigationBarColor: themeService.isDarkMode 
-                ? const Color(0xFF1E293B)
-                : const Color(0xFFF1F5F9),
-            systemNavigationBarIconBrightness: themeService.isDarkMode 
-                ? Brightness.light 
-                : Brightness.dark,
-          ),
-        );
-
-        return Scaffold(
-          body: Stack(
-            children: [
-              // Static elegant background
-              _buildStaticBackground(themeService),
-              
-              // Subtle accent elements
-              _buildSubtleAccents(themeService),
-              
-              // Main content
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Premium logo (no rotation)
-                    _buildPremiumLogo(themeService),
-                    
-                    const SizedBox(height: 65),
-                    
-                    // Elegant brand text
-                    _buildElegantBrandText(themeService),
-                    
-                    const SizedBox(height: 85),
-                    
-                    // Minimal loader
-                    _buildMinimalLoader(themeService),
-                  ],
-                ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
