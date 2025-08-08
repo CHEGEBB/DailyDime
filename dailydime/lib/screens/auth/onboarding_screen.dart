@@ -1,4 +1,6 @@
 // lib/screens/auth/onboarding_screen.dart
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:dailydime/screens/auth/login_screen.dart';
@@ -28,79 +30,80 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late AnimationController _fadeController;
   late AnimationController _scaleController;
   late AnimationController _buttonAnimationController;
+  late AnimationController _pulseController;
   
   // Animations
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _buttonScaleAnimation;
+  late Animation<double> _pulseAnimation;
   
   // Define the onboarding items with their specific color schemes
   final List<OnboardingItem> _onboardingItems = [
     OnboardingItem(
-      title: 'Track Your Expenses',
-      description: 'Monitor your spending habits and get insights into where your money goes with powerful analytics',
+      title: 'Track Expenses',
+      description: 'Monitor spending habits with powerful analytics',
       lottieAsset: 'assets/animations/money_coins.json',
       iconData: Icons.bar_chart_rounded,
       primaryColor: const Color(0xFF3B82F6), // Blue
       secondaryColor: const Color(0xFF1D4ED8), // Blue variant
       featureTexts: [
-        'Smart expense categorization',
-        'Real-time transaction monitoring',
-        'Spending pattern analysis'
+        'Smart categorization',
+        'Real-time monitoring',
+        'Pattern analysis'
       ],
     ),
     OnboardingItem(
       title: 'Smart Budgeting',
-      description: 'Set personalized budgets with AI-powered recommendations based on your spending habits',
+      description: 'Set personalized budgets with AI recommendations',
       lottieAsset: 'assets/animations/budgeting.json',
       iconData: Icons.account_balance_wallet_rounded,
       primaryColor: const Color(0xFF8B5CF6), // Purple
       secondaryColor: const Color(0xFF7C3AED), // Purple variant
       featureTexts: [
-        'Customizable budget categories',
-        'AI-powered spending recommendations',
-        'Budget alert notifications'
+        'Custom categories',
+        'AI recommendations',
+        'Budget alerts'
       ],
     ),
     OnboardingItem(
-      title: 'Achieve Your Goals',
-      description: 'Set savings goals and track your progress with visual indicators and milestone celebrations',
+      title: 'Achieve Goals',
+      description: 'Set savings goals with visual progress tracking',
       lottieAsset: 'assets/animations/goals.json',
       iconData: Icons.emoji_events_rounded,
       primaryColor: const Color(0xFFF59E0B), // Amber/Gold
       secondaryColor: const Color(0xFFD97706), // Amber variant
       featureTexts: [
-        'Visual progress trackers',
+        'Visual trackers',
         'Milestone celebrations',
-        'Smart saving recommendations'
+        'Smart recommendations'
       ],
     ),
     OnboardingItem(
-      title: 'Seamless Payments',
-      description: 'Connect with M-Pesa and other payment platforms for automatic transaction tracking',
+      title: 'Easy Payments',
+      description: 'Connect payment platforms for automatic tracking',
       lottieAsset: 'assets/animations/payment.json',
       iconData: Icons.sync_rounded,
       primaryColor: const Color(0xFFEF4444), // Red/Orange
       secondaryColor: const Color(0xFFDC2626), // Red variant
       featureTexts: [
-        'M-Pesa integration',
-        'Automated transaction syncing',
-        'Receipt scanning capabilities'
+        'Payment integration',
+        'Auto-sync transactions',
+        'Receipt scanning'
       ],
     ),
   ];
   
-  // For returning users - teal/emerald colors only
+  // For returning users - simplified content
   final ReturningUserContent _returningUserContent = ReturningUserContent(
     mainLottieAsset: 'assets/animations/Welcome.json',
     welcomeText: 'Welcome Back!',
-    subtitle: 'Continue your journey to financial freedom',
-    description: 'Your financial insights and budgets are ready for you. Sign in to access your DailyDime dashboard.',
-    recentUpdates: [
-      'New AI-powered insights',
-      'Enhanced budget tracking',
-      'Improved M-Pesa integration'
+    subtitle: 'Continue your financial journey',
+    highlightPoints: [
+      'Your insights are ready',
+      'New features await',
+      'Pick up where you left off'
     ],
   );
   
@@ -128,6 +131,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+    
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
     
     // Create animations
     _slideAnimation = Tween<Offset>(
@@ -162,6 +170,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       curve: Curves.easeInOut,
     ));
     
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.05,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
+    
     _checkUserStatus();
   }
   
@@ -192,6 +208,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _fadeController.dispose();
     _scaleController.dispose();
     _buttonAnimationController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
   
@@ -342,34 +359,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             child: SafeArea(
               child: Stack(
                 children: [
-                  // Top right decorative element
-                  Positioned(
-                    top: -20,
-                    right: -20,
-                    child: Container(
-                      width: 140,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: primaryColor.withOpacity(0.1),
-                      ),
-                    ),
-                  ),
-                  
-                  // Bottom left decorative element (only for new users)
-                  if (!_isReturningUser)
-                    Positioned(
-                      bottom: -40,
-                      left: -40,
-                      child: Container(
-                        width: 200,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: secondaryColor.withOpacity(0.1),
-                        ),
-                      ),
-                    ),
+                  // Animated background elements
+                  _buildAnimatedBackgroundElements(primaryColor, secondaryColor),
                   
                   // Main content
                   Column(
@@ -393,17 +384,32 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 opacity: _fadeAnimation,
                                 child: Row(
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: primaryColor.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Icon(
-                                        Icons.account_balance_wallet,
-                                        color: primaryColor,
-                                        size: 20,
-                                      ),
+                                    AnimatedBuilder(
+                                      animation: _pulseAnimation,
+                                      builder: (context, child) {
+                                        return Transform.scale(
+                                          scale: _pulseAnimation.value,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: primaryColor.withOpacity(0.2),
+                                              borderRadius: BorderRadius.circular(8),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: primaryColor.withOpacity(0.2),
+                                                  blurRadius: 10,
+                                                  spreadRadius: 0,
+                                                )
+                                              ],
+                                            ),
+                                            child: Icon(
+                                              Icons.account_balance_wallet,
+                                              color: primaryColor,
+                                              size: 20,
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
@@ -484,7 +490,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         padding: const EdgeInsets.all(24.0),
                         child: Column(
                           children: [
-                            // Page indicators (only for new users)
+                            // Interactive page indicators (only for new users)
                             if (!_isReturningUser)
                               FadeTransition(
                                 opacity: _fadeAnimation,
@@ -492,16 +498,25 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: List.generate(
                                     _onboardingItems.length,
-                                    (index) => AnimatedContainer(
-                                      duration: const Duration(milliseconds: 300),
-                                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                                      width: _currentPage == index ? 24 : 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        color: _currentPage == index
-                                            ? primaryColor
-                                            : primaryColor.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(4),
+                                    (index) => GestureDetector(
+                                      onTap: () {
+                                        _pageController.animateToPage(
+                                          index,
+                                          duration: const Duration(milliseconds: 400),
+                                          curve: Curves.easeInOut,
+                                        );
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 300),
+                                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                                        width: _currentPage == index ? 24 : 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          color: _currentPage == index
+                                              ? primaryColor
+                                              : primaryColor.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -510,7 +525,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             
                             const SizedBox(height: 24),
                             
-                            // Action button
+                            // Animated action button
                             FadeTransition(
                               opacity: _fadeAnimation,
                               child: ScaleTransition(
@@ -553,7 +568,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                             children: [
                                               Text(
                                                 _isReturningUser
-                                                    ? 'Continue to Login'
+                                                    ? 'Sign In'
                                                     : (_currentPage < _onboardingItems.length - 1
                                                         ? 'Next'
                                                         : 'Get Started'),
@@ -585,72 +600,40 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               ),
                             ),
                             
-                            // Login/Signup option (modified for new users on last page)
-                            if (!_isReturningUser && _currentPage == _onboardingItems.length - 1)
-                              FadeTransition(
-                                opacity: _fadeAnimation,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 16),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'Already have an account? ',
+                            // Login/Signup option
+                            FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      _isReturningUser 
+                                          ? 'Need a new account? '
+                                          : 'Already have an account? ',
+                                      style: TextStyle(
+                                        color: themeService.subtextColor,
+                                        fontSize: 14,
+                                        fontFamily: 'DMsans',
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: _isReturningUser ? _navigateToSignup : _navigateToLogin,
+                                      child: Text(
+                                        _isReturningUser ? 'Sign Up' : 'Login',
                                         style: TextStyle(
-                                          color: themeService.subtextColor,
+                                          color: primaryColor,
+                                          fontWeight: FontWeight.w600,
                                           fontSize: 14,
                                           fontFamily: 'DMsans',
                                         ),
                                       ),
-                                      GestureDetector(
-                                        onTap: _navigateToLogin,
-                                        child: Text(
-                                          'Login',
-                                          style: TextStyle(
-                                            color: primaryColor,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14,
-                                            fontFamily: 'DMsans',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            
-                            // Sign up option (only for returning users)
-                            if (_isReturningUser)
-                              FadeTransition(
-                                opacity: _fadeAnimation,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 16),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'Need a new account? ',
-                                        style: TextStyle(
-                                          color: themeService.subtextColor,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      GestureDetector(
-                                        onTap: _navigateToSignup,
-                                        child: Text(
-                                          'Sign Up',
-                                          style: TextStyle(
-                                            color: primaryColor,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14,
-                                            fontFamily: 'DMsans',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -662,6 +645,99 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         );
       },
+    );
+  }
+  
+  Widget _buildAnimatedBackgroundElements(Color primaryColor, Color secondaryColor) {
+    return Stack(
+      children: [
+        // Top right decorative element with animation
+        Positioned(
+          top: -20,
+          right: -20,
+          child: AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _pulseAnimation.value,
+                child: Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: primaryColor.withOpacity(0.1),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        
+        // Additional floating elements
+        Positioned(
+          top: MediaQuery.of(context).size.height * 0.3,
+          left: 20,
+          child: AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, 5 * sin(_pulseController.value * 2 * 3.14159)),
+                child: Container(
+                  width: 15,
+                  height: 15,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: primaryColor.withOpacity(0.2),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        
+        Positioned(
+          bottom: MediaQuery.of(context).size.height * 0.25,
+          right: 40,
+          child: AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, 8 * cos(_pulseController.value * 2 * 3.14159)),
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: secondaryColor.withOpacity(0.15),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        
+        // Bottom decorative element
+        Positioned(
+          bottom: -40,
+          left: -40,
+          child: AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: 1 + (1 - _pulseAnimation.value),
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: secondaryColor.withOpacity(0.1),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
   
@@ -687,52 +763,87 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Main Lottie animation
-                  SizedBox(
-                    height: screenSize.height * 0.35,
-                    child: Lottie.asset(
-                      item.lottieAsset,
-                      fit: BoxFit.contain,
-                      repeat: true,
-                      animate: true,
-                      frameRate: FrameRate.max,
+                  // Interactive animated Lottie
+                  GestureDetector(
+                    onTap: () {
+                      // Restart animation on tap for interactivity
+                      _scaleController.reset();
+                      _scaleController.forward();
+                    },
+                    child: AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: 1.0 + (_pulseAnimation.value - 1.0) * 0.05,
+                          child: SizedBox(
+                            height: screenSize.height * 0.35,
+                            child: Lottie.asset(
+                              item.lottieAsset,
+                              fit: BoxFit.contain,
+                              repeat: true,
+                              animate: true,
+                              frameRate: FrameRate.max,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   
-                  // Feature icon
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      item.iconData,
-                      color: primaryColor,
-                      size: 28,
-                    ),
+                  // Feature icon with animation
+                  AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primaryColor.withOpacity(0.2),
+                              blurRadius: 8 * _pulseAnimation.value,
+                              spreadRadius: 2 * _pulseAnimation.value,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          item.iconData,
+                          color: primaryColor,
+                          size: 28,
+                        ),
+                      );
+                    },
                   ),
                   
                   const SizedBox(height: 16),
                   
-                  // Title
-                  Text(
-                    item.title,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'DMsans',
-                      color: themeService.textColor,
-                      letterSpacing: -0.5,
+                  // Title with gradient
+                  ShaderMask(
+                    shaderCallback: (bounds) => LinearGradient(
+                      colors: [
+                        primaryColor,
+                        secondaryColor,
+                      ],
+                    ).createShader(bounds),
+                    child: Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'DMsans',
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                   
                   const SizedBox(height: 12),
                   
-                  // Description
+                  // Description - simplified
                   Text(
                     item.description,
                     style: TextStyle(
@@ -746,40 +857,54 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   
                   const SizedBox(height: 24),
                   
-                  // Feature bullets
+                  // Feature bullets with animations
                   if (item.featureTexts != null && item.featureTexts!.isNotEmpty)
-                    Column(
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 10,
+                      runSpacing: 10,
                       children: item.featureTexts!.map((feature) => 
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: primaryColor.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.check,
-                                  color: primaryColor,
-                                  size: 14,
-                                ),
+                        AnimatedBuilder(
+                          animation: _pulseAnimation,
+                          builder: (context, child) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14, 
+                                vertical: 8,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  feature,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontFamily: 'DMsans',
-                                    color: themeService.subtextColor,
+                              decoration: BoxDecoration(
+                                color: primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: primaryColor.withOpacity(
+                                    0.1 + 0.1 * sin(_pulseController.value * 3.14159),
                                   ),
+                                  width: 1,
                                 ),
                               ),
-                            ],
-                          ),
-                        )
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_outline,
+                                    color: primaryColor,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    feature,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontFamily: 'DMsans',
+                                      color: themeService.textColor,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ).toList(),
                     ),
                 ],
@@ -804,19 +929,34 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
-                  // Main Lottie animation
-                  SizedBox(
-                    height: screenSize.height * 0.35,
-                    child: Lottie.asset(
-                      _returningUserContent.mainLottieAsset,
-                      fit: BoxFit.contain,
-                      repeat: true,
-                      animate: true,
-                      frameRate: FrameRate.max,
+                  // Interactive Lottie animation
+                  GestureDetector(
+                    onTap: () {
+                      // Restart animation on tap
+                      _scaleController.reset();
+                      _scaleController.forward();
+                    },
+                    child: AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _pulseAnimation.value,
+                          child: SizedBox(
+                            height: screenSize.height * 0.35,
+                            child: Lottie.asset(
+                              _returningUserContent.mainLottieAsset,
+                              fit: BoxFit.contain,
+                              repeat: true,
+                              animate: true,
+                              frameRate: FrameRate.max,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   
                   // Welcome back text with animation
                   ShaderMask(
@@ -839,7 +979,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     ),
                   ),
                   
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   
                   // Subtitle
                   Text(
@@ -853,92 +993,71 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     textAlign: TextAlign.center,
                   ),
                   
-                  const SizedBox(height: 16),
-                  
-                  // Description
-                  Text(
-                    _returningUserContent.description,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: themeService.subtextColor,
-                      fontFamily: 'DMsans',
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  
                   const SizedBox(height: 32),
                   
-                  // Card with what's new - removed white background
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: primaryColor.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.new_releases_outlined,
-                              color: primaryColor,
+                  // Highlight points with interactive elements
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: _returningUserContent.highlightPoints.map((point) =>
+                      AnimatedBuilder(
+                        animation: _pulseAnimation,
+                        builder: (context, child) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              "What's New",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'DMsans',
-                                color: primaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Column(
-                          children: _returningUserContent.recentUpdates.map((update) => 
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    margin: const EdgeInsets.only(top: 4),
-                                    width: 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      color: secondaryColor,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      update,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontFamily: 'DMsans',
-                                        color: themeService.subtextColor,
-                                      ),
-                                    ),
-                                  ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  primaryColor.withOpacity(0.1),
+                                  secondaryColor.withOpacity(0.15),
                                 ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                            )
-                          ).toList(),
-                        ),
-                      ],
-                    ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: primaryColor.withOpacity(
+                                  0.1 + 0.1 * sin(_pulseController.value * 3.14159),
+                                ),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: primaryColor.withOpacity(0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.star_outline_rounded,
+                                  color: primaryColor,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  point,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontFamily: 'DMsans',
+                                    color: themeService.textColor,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ).toList(),
                   ),
-                  
-                  const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -973,14 +1092,12 @@ class ReturningUserContent {
   final String mainLottieAsset;
   final String welcomeText;
   final String subtitle;
-  final String description;
-  final List<String> recentUpdates;
+  final List<String> highlightPoints;
 
   ReturningUserContent({
     required this.mainLottieAsset,
     required this.welcomeText,
     required this.subtitle,
-    required this.description,
-    required this.recentUpdates,
+    required this.highlightPoints,
   });
 }
