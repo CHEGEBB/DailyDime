@@ -967,7 +967,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
           ),
           children: [
             TextSpan(
-              text: AppConfig.formatCurrency((value * 100).toInt().toDouble()),
+              text: AppConfig.formatCurrency((value * 100)),
               style: TextStyle(
                 fontFamily: 'DMsans',
                 color: themeService.primaryColor,
