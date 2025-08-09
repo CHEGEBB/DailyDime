@@ -1271,7 +1271,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          AppConfig.formatCurrency((spent * 100).toInt() as double),
+                          AppConfig.formatCurrency((spent * 100)),
                           style: TextStyle(
     fontFamily: 'DMsans',
                             fontSize: 12,
