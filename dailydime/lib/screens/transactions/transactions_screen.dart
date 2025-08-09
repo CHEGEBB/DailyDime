@@ -1301,7 +1301,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                 child: Column(
                   children: [
                     Lottie.asset(
-                      'assets/animations/animation1.json',
+                      'assets/animations/No-Data.json',
                       width: 120,
                       height: 120,
                     ),
@@ -1541,7 +1541,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Lottie.asset(
-              'assets/animations/animation1.json',
+              'assets/animations/notrans.json',
               width: 200,
               height: 200,
             ),
@@ -1835,7 +1835,7 @@ final transactions = transactionProvider.filteredTransactions.where((tx) {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Lottie.asset(
-                'assets/animations/animation1.json',
+                'assets/animations/notrans.json',
                 width: 150,
                 height: 150,
               ),
