@@ -1656,7 +1656,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        AppConfig.formatCurrency((avgDailyIncome * 100).toInt().toDouble()),
+                        AppConfig.formatCurrency((avgDailyIncome * 100)),
                         style: TextStyle(
     fontFamily: 'DMsans',
                           fontSize: 16,
@@ -1690,7 +1690,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        AppConfig.formatCurrency((avgDailyExpense * 100).toInt().toDouble()),
+                        AppConfig.formatCurrency((avgDailyExpense * 100)),
                         style: TextStyle(
     fontFamily: 'DMsans',
                           fontSize: 16,
@@ -1735,7 +1735,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      AppConfig.formatCurrency((netDaily * 100).toInt().toDouble()),
+                      AppConfig.formatCurrency((netDaily * 100)),
                       style: TextStyle(
     fontFamily: 'DMsans',
                         fontSize: 18,
@@ -1858,12 +1858,12 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
     
     switch (trend) {
       case 'growing':
-        return 'Your balance is projected to grow to ${AppConfig.formatCurrency((projectedBalance * 100).toInt().toDouble())}';
+        return 'Your balance is projected to grow to ${AppConfig.formatCurrency((projectedBalance * 100))}';
       case 'declining':
-        return 'Your balance is projected to decline to ${AppConfig.formatCurrency((projectedBalance * 100).toInt().toDouble())}';
+        return 'Your balance is projected to decline to ${AppConfig.formatCurrency((projectedBalance * 100))}';
       case 'stable':
       default:
-        return 'Your balance is projected to remain stable at ${AppConfig.formatCurrency((projectedBalance * 100).toInt().toDouble())}';
+        return 'Your balance is projected to remain stable at ${AppConfig.formatCurrency((projectedBalance * 100))}';
     }
   }
 
