@@ -21,25 +21,72 @@ class AIInsightsService {
   final String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
   final Map<String, dynamic> _cachedInsights = {};
   
-  // Cache duration in minutes
-  static const int _cacheMinutes = 30;
+  // Cache duration in minutes - reduced for better refresh
+  static const int _cacheMinutes = 15;
+  
+  // Flag to track if data is currently being loaded
+  bool _isLoading = false;
+  
+  // Flag to enable/disable debug logging
+  final bool _debugMode = true;
 
-  Future<Map<String, dynamic>> getSmartInsights() async {
+  Future<Map<String, dynamic>> getSmartInsights({bool forceRefresh = false}) async {
     final cacheKey = 'smart_insights';
     
-    // Check cache first
-    if (_isCacheValid(cacheKey)) {
+    // Check cache first, only if not forcing refresh
+    if (!forceRefresh && _isCacheValid(cacheKey)) {
+      _logDebug('Using cached smart insights');
       return _cachedInsights[cacheKey]['data'];
     }
 
+    if (_isLoading) {
+      _logDebug('Already loading data, returning default insights');
+      return _getDefaultInsights();
+    }
+    
+    _isLoading = true;
+
     try {
-      // Get transaction data
-      final transactions = await _getTransactions();
-      final budgets = await _getBudgets();
-      final savingsGoals = await _getSavingsGoals();
-      final currentBalance = await SmsService().getCurrentBalance();
+      _logDebug('Fetching fresh smart insights');
+      
+      // Get transaction data with timeout
+      final transactions = await _getTransactions().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          _logDebug('Transactions fetch timed out');
+          return [];
+        }
+      );
+      
+      final budgets = await _getBudgets().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          _logDebug('Budgets fetch timed out');
+          return [];
+        }
+      );
+      
+      final savingsGoals = await _getSavingsGoals().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          _logDebug('Savings goals fetch timed out');
+          return [];
+        }
+      );
+      
+      final currentBalance = await SmsService().getCurrentBalance().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          _logDebug('Balance fetch timed out');
+          return 0.0;
+        }
+      );
+      
+      _logDebug('Fetched ${transactions.length} transactions, ${budgets.length} budgets, ${savingsGoals.length} goals');
       
       if (transactions.isEmpty) {
+        _logDebug('No transactions available, returning default insights');
+        _isLoading = false;
         return _getDefaultInsights();
       }
 
@@ -51,7 +98,7 @@ class AIInsightsService {
         currentBalance
       );
       
-      // Get AI insights
+      // Get AI insights with timeout
       final aiResponse = await _callGeminiAI(
         '''Analyze my financial data and provide personalized insights:
         1. Spending patterns and trends
@@ -62,6 +109,12 @@ class AIInsightsService {
         
         Make insights specific, data-driven and personalized to my situation.''',
         analysisData
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          _logDebug('Gemini AI call timed out');
+          return 'Unable to generate insights due to timeout. Please try again later.';
+        }
       );
       
       final insights = _parseAIResponse(
@@ -75,26 +128,37 @@ class AIInsightsService {
       // Cache the results
       _cacheInsights(cacheKey, insights);
       
+      _logDebug('Successfully generated smart insights');
+      _isLoading = false;
       return insights;
-    } catch (e) {
-      debugPrint('Error getting smart insights: $e');
-      return _getDefaultInsights();
+    } catch (e, stackTrace) {
+      _logDebug('Error getting smart insights: $e');
+      _logDebug('Stack trace: $stackTrace');
+      _isLoading = false;
+      
+      // Generate a basic insight with error info for better debugging
+      final errorInsights = _getDefaultInsights();
+      errorInsights['aiInsight'] = 'Unable to generate insights at this time. Error: ${e.toString().substring(0, min(100, e.toString().length))}';
+      return errorInsights;
     }
   }
 
-  Future<List<Map<String, dynamic>>> getPredictiveAlerts() async {
+  Future<List<Map<String, dynamic>>> getPredictiveAlerts({bool forceRefresh = false}) async {
     final cacheKey = 'predictive_alerts';
     
-    if (_isCacheValid(cacheKey)) {
+    if (!forceRefresh && _isCacheValid(cacheKey)) {
+      _logDebug('Using cached predictive alerts');
       return List<Map<String, dynamic>>.from(_cachedInsights[cacheKey]['data']);
     }
 
     try {
+      _logDebug('Fetching fresh predictive alerts');
       final transactions = await _getTransactions();
       final budgets = await _getBudgets();
       final currentBalance = await SmsService().getCurrentBalance();
       
       if (transactions.isEmpty) {
+        _logDebug('No transactions available for alerts');
         return [];
       }
 
@@ -106,7 +170,7 @@ class AIInsightsService {
         'currency': AppConfig.primaryCurrency,
       };
 
-      // Get AI alerts
+      // Get AI alerts with timeout
       final aiResponse = await _callGeminiAI(
         '''Analyze my financial data and generate personalized alerts:
         1. Potential budget overspending
@@ -123,6 +187,12 @@ class AIInsightsService {
 
         Format as JSON array with objects containing title, message, severity, and action.''',
         alertsData
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          _logDebug('Gemini AI alerts call timed out');
+          return '[]'; // Return empty JSON array on timeout
+        }
       );
       
       List<Map<String, dynamic>> alerts = [];
@@ -132,10 +202,13 @@ class AIInsightsService {
         final parsedJson = jsonDecode(aiResponse);
         if (parsedJson is List) {
           alerts = List<Map<String, dynamic>>.from(parsedJson);
+          _logDebug('Successfully parsed ${alerts.length} alerts from JSON');
         }
       } catch (e) {
+        _logDebug('Failed to parse AI response as JSON: $e');
         // Fallback to manually creating alerts if JSON parsing fails
         alerts = _generateDefaultAlerts(transactions, budgets, currentBalance);
+        _logDebug('Generated ${alerts.length} default alerts');
       }
       
       // Enrich alerts with UI metadata
@@ -172,29 +245,36 @@ class AIInsightsService {
       _cacheInsights(cacheKey, enrichedAlerts);
       return enrichedAlerts;
     } catch (e) {
-      debugPrint('Error getting predictive alerts: $e');
-      return _generateDefaultAlerts(await _getTransactions(), await _getBudgets(), await SmsService().getCurrentBalance());
+      _logDebug('Error getting predictive alerts: $e');
+      return _generateDefaultAlerts(
+        await _getTransactions(), 
+        await _getBudgets(), 
+        await SmsService().getCurrentBalance()
+      );
     }
   }
 
-  Future<Map<String, dynamic>> getCashflowForecast() async {
+  Future<Map<String, dynamic>> getCashflowForecast({bool forceRefresh = false}) async {
     final cacheKey = 'cashflow_forecast';
     
-    if (_isCacheValid(cacheKey)) {
+    if (!forceRefresh && _isCacheValid(cacheKey)) {
+      _logDebug('Using cached cashflow forecast');
       return _cachedInsights[cacheKey]['data'];
     }
 
     try {
+      _logDebug('Fetching fresh cashflow forecast');
       final transactions = await _getTransactions();
       final currentBalance = await SmsService().getCurrentBalance();
       
       if (transactions.isEmpty) {
+        _logDebug('No transactions available for forecast');
         return {'forecast': [], 'trend': 'stable'};
       }
 
       // Calculate daily average spending and income
       final recentTransactions = _getRecentTransactions(transactions, 30);
-      final totalDays = 30; // Days to analyze
+      final totalDays = max(1, 30); // Days to analyze
       
       // Group transactions by day
       final Map<String, List<Transaction>> dailyTransactions = {};
@@ -229,8 +309,8 @@ class AIInsightsService {
       final totalExpenses = dailyData.fold(0.0, (sum, day) => sum + (day['expenses'] ?? 0.0));
       final totalIncome = dailyData.fold(0.0, (sum, day) => sum + (day['income'] ?? 0.0));
       
-      final dailyExpenseAvg = totalExpenses / totalDays;
-      final dailyIncomeAvg = totalIncome / totalDays;
+      final dailyExpenseAvg = totalDays > 0 ? totalExpenses / totalDays : 0.0;
+      final dailyIncomeAvg = totalDays > 0 ? totalIncome / totalDays : 0.0;
       
       // Detect recurring expenses and income
       final recurringTransactions = _detectRecurringTransactions(transactions);
@@ -302,21 +382,24 @@ class AIInsightsService {
       };
       
       _cacheInsights(cacheKey, result);
+      _logDebug('Successfully generated cashflow forecast');
       return result;
     } catch (e) {
-      debugPrint('Error getting cashflow forecast: $e');
+      _logDebug('Error getting cashflow forecast: $e');
       return {'forecast': [], 'trend': 'stable'};
     }
   }
 
-  Future<List<Map<String, dynamic>>> getSmartRecommendations() async {
+  Future<List<Map<String, dynamic>>> getSmartRecommendations({bool forceRefresh = false}) async {
     final cacheKey = 'smart_recommendations';
     
-    if (_isCacheValid(cacheKey)) {
+    if (!forceRefresh && _isCacheValid(cacheKey)) {
+      _logDebug('Using cached smart recommendations');
       return List<Map<String, dynamic>>.from(_cachedInsights[cacheKey]['data']);
     }
 
     try {
+      _logDebug('Fetching fresh smart recommendations');
       final transactions = await _getTransactions();
       final budgets = await _getBudgets();
       final savingsGoals = await _getSavingsGoals();
@@ -331,7 +414,7 @@ class AIInsightsService {
         'currency': AppConfig.primaryCurrency,
       };
       
-      // Get AI recommendations
+      // Get AI recommendations with timeout
       final aiResponse = await _callGeminiAI(
         '''Based on my financial data, provide personalized financial recommendations:
         1. Savings opportunities
@@ -349,6 +432,12 @@ class AIInsightsService {
         
         Format response as JSON array with objects containing title, description, type, priority, and action.''',
         recommendationsData
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          _logDebug('Gemini AI recommendations call timed out');
+          return '[]'; // Return empty JSON array on timeout
+        }
       );
       
       List<Map<String, dynamic>> recommendations = [];
@@ -358,8 +447,10 @@ class AIInsightsService {
         final parsedJson = jsonDecode(aiResponse);
         if (parsedJson is List) {
           recommendations = List<Map<String, dynamic>>.from(parsedJson);
+          _logDebug('Successfully parsed ${recommendations.length} recommendations from JSON');
         }
       } catch (e) {
+        _logDebug('Failed to parse AI response as JSON: $e');
         // Fallback to creating default recommendations
         recommendations = _generateDefaultRecommendations(
           transactions, 
@@ -367,6 +458,7 @@ class AIInsightsService {
           savingsGoals, 
           currentBalance
         );
+        _logDebug('Generated ${recommendations.length} default recommendations');
       }
       
       // Enrich recommendations with UI metadata
@@ -394,7 +486,7 @@ class AIInsightsService {
       _cacheInsights(cacheKey, enrichedRecommendations);
       return enrichedRecommendations;
     } catch (e) {
-      debugPrint('Error getting smart recommendations: $e');
+      _logDebug('Error getting smart recommendations: $e');
       return _generateDefaultRecommendations(
         await _getTransactions(), 
         await _getBudgets(), 
@@ -404,19 +496,22 @@ class AIInsightsService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getChartData() async {
+  Future<List<Map<String, dynamic>>> getChartData({bool forceRefresh = false}) async {
     final cacheKey = 'chart_data';
     
-    if (_isCacheValid(cacheKey)) {
+    if (!forceRefresh && _isCacheValid(cacheKey)) {
+      _logDebug('Using cached chart data');
       return List<Map<String, dynamic>>.from(_cachedInsights[cacheKey]['data']);
     }
 
     try {
+      _logDebug('Fetching fresh chart data');
       final transactions = await _getTransactions();
       final budgets = await _getBudgets();
       final savingsGoals = await _getSavingsGoals();
       
       if (transactions.isEmpty) {
+        _logDebug('No transactions available for chart data');
         return _getEmptyChartData();
       }
 
@@ -463,9 +558,10 @@ class AIInsightsService {
       });
       
       _cacheInsights(cacheKey, chartData);
+      _logDebug('Successfully generated chart data');
       return chartData;
     } catch (e) {
-      debugPrint('Error getting chart data: $e');
+      _logDebug('Error getting chart data: $e');
       return _getEmptyChartData();
     }
   }
@@ -473,9 +569,11 @@ class AIInsightsService {
   Future<Map<String, dynamic>> getTransactionCategorizationSuggestions(List<Transaction> unassignedTransactions) async {
     try {
       if (unassignedTransactions.isEmpty) {
+        _logDebug('No unassigned transactions for categorization');
         return {'suggestions': []};
       }
 
+      _logDebug('Generating categorization for ${unassignedTransactions.length} transactions');
       // Format unassigned transactions for Gemini
       final transactionsForAI = unassignedTransactions.map((t) => {
         'id': t.id,
@@ -485,7 +583,7 @@ class AIInsightsService {
         'isExpense': t.isExpense,
       }).toList();
 
-      // Call Gemini AI
+      // Call Gemini AI with timeout
       final aiResponse = await _callGeminiAI(
         '''Analyze these transactions and suggest appropriate categories for each one.
         Choose from these categories: Food, Transport, Shopping, Bills, Entertainment, Health, Education, Travel, Housing, Other.
@@ -493,6 +591,12 @@ class AIInsightsService {
         Also add a confidence score between 0.0 and 1.0 for each suggestion.
         Format the response as a JSON array of objects with id, category, and confidence fields.''',
         {'transactions': transactionsForAI}
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          _logDebug('Gemini AI categorization call timed out');
+          return '[]'; // Return empty JSON array on timeout
+        }
       );
 
       List<Map<String, dynamic>> suggestions = [];
@@ -502,8 +606,10 @@ class AIInsightsService {
         final parsedJson = jsonDecode(aiResponse);
         if (parsedJson is List) {
           suggestions = List<Map<String, dynamic>>.from(parsedJson);
+          _logDebug('Successfully parsed ${suggestions.length} categorization suggestions');
         }
       } catch (e) {
+        _logDebug('Failed to parse categorization response as JSON: $e');
         // Fallback to simple suggestions if parsing fails
         suggestions = unassignedTransactions.map((t) {
           String suggestedCategory = 'Other';
@@ -525,17 +631,19 @@ class AIInsightsService {
             'confidence': 0.7,
           };
         }).toList();
+        _logDebug('Generated ${suggestions.length} fallback categorization suggestions');
       }
       
       return {'suggestions': suggestions};
     } catch (e) {
-      debugPrint('Error getting categorization suggestions: $e');
+      _logDebug('Error getting categorization suggestions: $e');
       return {'suggestions': []};
     }
   }
 
-  Future<Map<String, dynamic>> getFinancialGoalSuggestions() async {
+  Future<Map<String, dynamic>> getFinancialGoalSuggestions({bool forceRefresh = false}) async {
     try {
+      _logDebug('Generating financial goal suggestions');
       final transactions = await _getTransactions();
       final currentBalance = await SmsService().getCurrentBalance();
       
@@ -546,7 +654,7 @@ class AIInsightsService {
         'currency': AppConfig.primaryCurrency,
       };
       
-      // Call Gemini AI
+      // Call Gemini AI with timeout
       final aiResponse = await _callGeminiAI(
         '''Based on my financial data, suggest realistic savings goals:
         1. Emergency fund goal
@@ -563,6 +671,12 @@ class AIInsightsService {
         
         Format as JSON array with objects containing name, amount, monthlyContribution, timeframeMonths, and priority.''',
         savingsData
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          _logDebug('Gemini AI goals suggestions call timed out');
+          return '[]'; // Return empty JSON array on timeout
+        }
       );
       
       List<Map<String, dynamic>> goals = [];
@@ -572,12 +686,14 @@ class AIInsightsService {
         final parsedJson = jsonDecode(aiResponse);
         if (parsedJson is List) {
           goals = List<Map<String, dynamic>>.from(parsedJson);
+          _logDebug('Successfully parsed ${goals.length} goal suggestions from JSON');
         }
       } catch (e) {
+        _logDebug('Failed to parse goal suggestions as JSON: $e');
         // Generate fallback goals if parsing fails
         final monthlyIncome = transactions
             .where((t) => !t.isExpense)
-            .fold(0.0, (sum, t) => sum + t.amount) / 3; // Rough estimate
+            .fold(0.0, (sum, t) => sum + t.amount) / max(1, transactions.where((t) => !t.isExpense).length);
         
         goals = [
           {
@@ -602,17 +718,19 @@ class AIInsightsService {
             'priority': 'low',
           },
         ];
+        _logDebug('Generated ${goals.length} fallback goal suggestions');
       }
       
       return {'goals': goals};
     } catch (e) {
-      debugPrint('Error getting goal suggestions: $e');
+      _logDebug('Error getting goal suggestions: $e');
       return {'goals': []};
     }
   }
 
   Future<void> generateFinancialReport(DateTime startDate, DateTime endDate) async {
     try {
+      _logDebug('Generating financial report from $startDate to $endDate');
       final transactions = await _getTransactions();
       final budgets = await _getBudgets();
       final savingsGoals = await _getSavingsGoals();
@@ -631,7 +749,7 @@ class AIInsightsService {
         'currency': AppConfig.primaryCurrency,
       };
       
-      // Call Gemini AI
+      // Call Gemini AI with timeout
       final aiResponse = await _callGeminiAI(
         '''Generate a comprehensive financial report for the period ${DateFormat('MMM d, yyyy').format(startDate)} to ${DateFormat('MMM d, yyyy').format(endDate)}.
 
@@ -645,19 +763,32 @@ class AIInsightsService {
 
         Make the report data-driven, personalized, and actionable.''',
         reportData
+      ).timeout(
+        const Duration(seconds: 20),
+        onTimeout: () {
+          _logDebug('Financial report generation timed out');
+          return 'Financial report generation timed out. Please try again later.';
+        }
       );
       
       // Here we would typically save the report or make it available to the user
-      debugPrint('Financial report generated: ${aiResponse.substring(0, min(100, aiResponse.length))}...');
+      _logDebug('Financial report generated: ${aiResponse.substring(0, min(100, aiResponse.length))}...');
     } catch (e) {
-      debugPrint('Error generating financial report: $e');
+      _logDebug('Error generating financial report: $e');
     }
   }
 
   // Private helper methods
   Future<String> _callGeminiAI(String prompt, Map<String, dynamic> data) async {
     try {
+      _logDebug('Calling Gemini AI API');
       final url = '$_baseUrl/${AppConfig.geminiModel}:generateContent?key=${AppConfig.geminiApiKey}';
+      
+      // Validate API key
+      if (AppConfig.geminiApiKey.isEmpty || AppConfig.geminiApiKey == 'YOUR_API_KEY') {
+        _logDebug('Invalid Gemini API key');
+        return 'Error: API key not configured. Please set a valid Gemini API key in app settings.';
+      }
       
       final requestBody = {
         'contents': [{
@@ -680,59 +811,76 @@ class AIInsightsService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['candidates']?[0]?['content']?['parts']?[0]?['text'] ?? 'No insights available';
+        final responseData = jsonDecode(response.body);
+        
+        if (responseData['candidates'] == null || 
+            responseData['candidates'].isEmpty || 
+            responseData['candidates'][0]['content'] == null) {
+          _logDebug('Empty response from Gemini API: ${response.body}');
+          return 'Received empty response from AI service';
+        }
+        
+        return responseData['candidates'][0]['content']['parts'][0]['text'] ?? 'No insights available';
       } else {
-        debugPrint('Gemini API error: ${response.statusCode} - ${response.body}');
-        return 'Unable to generate insights at this time';
+        _logDebug('Gemini API error: ${response.statusCode} - ${response.body}');
+        return 'Unable to generate insights at this time. Error code: ${response.statusCode}';
       }
     } catch (e) {
-      debugPrint('Error calling Gemini AI: $e');
-      return 'Error generating insights';
+      _logDebug('Error calling Gemini AI: $e');
+      return 'Error generating insights: ${e.toString()}';
     }
   }
 
   Future<List<Transaction>> _getTransactions() async {
     try {
+      _logDebug('Getting transactions');
       // Try to get from local storage first
       final localTransactions = await StorageService.instance.getTransactions();
       if (localTransactions.isNotEmpty) {
+        _logDebug('Found ${localTransactions.length} transactions in local storage');
         return localTransactions;
       }
       
       // If local storage is empty, fetch from Appwrite
+      _logDebug('Local storage empty, fetching from Appwrite');
       final appwriteTransactions = await _appwriteService.getTransactions();
       if (appwriteTransactions.isNotEmpty) {
+        _logDebug('Found ${appwriteTransactions.length} transactions in Appwrite');
         // Cache in local storage
         await StorageService.instance.saveTransactions(appwriteTransactions);
         return appwriteTransactions;
       }
       
+      _logDebug('No transactions found');
       return [];
     } catch (e) {
-      debugPrint('Error getting transactions: $e');
+      _logDebug('Error getting transactions: $e');
       return [];
     }
   }
 
   Future<List<Budget>> _getBudgets() async {
     try {
+      _logDebug('Getting budgets');
       // Try from AppWrite
       final budgets = await _appwriteService.getBudgets();
+      _logDebug('Found ${budgets.length} budgets');
       return budgets;
     } catch (e) {
-      debugPrint('Error getting budgets: $e');
+      _logDebug('Error getting budgets: $e');
       return [];
     }
   }
 
   Future<List<SavingsGoal>> _getSavingsGoals() async {
     try {
+      _logDebug('Getting savings goals');
       // Try from AppWrite
       final goals = await _appwriteService.getSavingsGoals();
+      _logDebug('Found ${goals.length} savings goals');
       return goals;
     } catch (e) {
-      debugPrint('Error getting savings goals: $e');
+      _logDebug('Error getting savings goals: $e');
       return [];
     }
   }
@@ -756,8 +904,8 @@ class AIInsightsService {
       'categoryBreakdown': _getCategoryBreakdownMap(recentTransactions),
       'budgets': _serializeBudgets(budgets),
       'savingsGoals': _serializeSavingsGoals(savingsGoals),
-      'transactionSamples': _serializeTransactions(recentTransactions.take(20).toList()),
-      'timespan': '${transactions.isNotEmpty ? DateFormat('MMM d, yyyy').format(transactions.first.date) : 'N/A'} to ${DateFormat('MMM d, yyyy').format(DateTime.now())}',
+      'transactionSamples': _serializeTransactions(recentTransactions.take(min(20, recentTransactions.length)).toList()),
+      'timespan': '${transactions.isNotEmpty ? DateFormat('MMM d, yyyy').format(transactions.map((t) => t.date).reduce((a, b) => a.isBefore(b) ? a : b)) : 'N/A'} to ${DateFormat('MMM d, yyyy').format(DateTime.now())}',
       'currency': AppConfig.primaryCurrency,
     };
   }
@@ -781,7 +929,7 @@ class AIInsightsService {
     
     // Calculate savings progress
     final savingsProgress = savingsGoals.isNotEmpty
-        ? savingsGoals.map((g) => g.currentAmount / g.targetAmount).reduce((a, b) => a + b) / savingsGoals.length
+        ? savingsGoals.map((g) => g.currentAmount / max(1.0, g.targetAmount)).reduce((a, b) => a + b) / savingsGoals.length
         : 0.0;
     
     return {
@@ -838,12 +986,21 @@ class AIInsightsService {
     if (expenses.isEmpty) return 0.0;
     
     final totalSpending = expenses.fold(0.0, (sum, t) => sum + t.amount);
-    final days = max(1, (DateTime.now().difference(expenses.map((e) => e.date).reduce((a, b) => a.isBefore(b) ? a : b)).inDays) + 1);
+    
+    // Get the earliest transaction date
+    final earliestDate = expenses.isNotEmpty 
+        ? expenses.map((e) => e.date).reduce((a, b) => a.isBefore(b) ? a : b) 
+        : DateTime.now().subtract(const Duration(days: 1));
+    
+    final days = max(1, (DateTime.now().difference(earliestDate).inDays) + 1);
     return totalSpending / days;
   }
 
   String _getTopSpendingCategory(List<Transaction> transactions) {
-    final categorySpending = _getCategoryBreakdownMap(transactions);
+    final expenseTransactions = transactions.where((t) => t.isExpense).toList();
+    if (expenseTransactions.isEmpty) return 'None';
+    
+    final categorySpending = _getCategoryBreakdownMap(expenseTransactions);
     if (categorySpending.isEmpty) return 'None';
     
     return categorySpending.entries.reduce((a, b) => a.value > b.value ? a : b).key;
@@ -851,9 +1008,12 @@ class AIInsightsService {
 
   Map<String, double> _getCategoryBreakdownMap(List<Transaction> transactions) {
     final breakdown = <String, double>{};
+    
     for (var transaction in transactions.where((t) => t.isExpense)) {
-      breakdown[transaction.category] = (breakdown[transaction.category] ?? 0) + transaction.amount;
+      final category = transaction.category.isNotEmpty ? transaction.category : 'Uncategorized';
+      breakdown[category] = (breakdown[category] ?? 0) + transaction.amount;
     }
+    
     return breakdown;
   }
 
@@ -886,12 +1046,32 @@ class AIInsightsService {
   }
 
   Future<List<Map<String, dynamic>>> _getCategoryBreakdown(List<Transaction> transactions) async {
-    final categoryData = await SmsService().getExpensesByCategory();
-    
-    if (categoryData.isEmpty) {
-      // Fallback if SMS service fails
-      final manualCategoryData = _getCategoryBreakdownMap(transactions);
+    try {
+      final categoryData = await SmsService().getExpensesByCategory();
       
+      if (categoryData.isEmpty) {
+        // Fallback if SMS service fails
+        final manualCategoryData = _getCategoryBreakdownMap(transactions);
+        
+        return manualCategoryData.entries.map((entry) {
+          return {
+            'label': entry.key,
+            'value': entry.value,
+          };
+        }).toList();
+      }
+      
+      return categoryData.entries.map((entry) {
+        return {
+          'label': entry.key,
+          'value': entry.value,
+        };
+      }).toList();
+    } catch (e) {
+      _logDebug('Error getting category breakdown: $e');
+      // Fallback
+      final manualCategoryData = _getCategoryBreakdownMap(transactions);
+        
       return manualCategoryData.entries.map((entry) {
         return {
           'label': entry.key,
@@ -899,13 +1079,6 @@ class AIInsightsService {
         };
       }).toList();
     }
-    
-    return categoryData.entries.map((entry) {
-      return {
-        'label': entry.key,
-        'value': entry.value,
-      };
-    }).toList();
   }
 
   List<Map<String, dynamic>> _getMonthlyIncomeVsExpenses(List<Transaction> transactions) {
@@ -1035,7 +1208,7 @@ class AIInsightsService {
           alerts.add({
             'type': 'budget_warning',
             'title': '${budget.category} Budget Alert',
-            'message': 'You\'ve spent ${AppConfig.formatCurrency((spent * 100).toInt() as double)} of your ${AppConfig.formatCurrency((budget.amount * 100).toInt() as double)} budget',
+            'message': 'You\'ve spent ${AppConfig.formatCurrency(spent)} of your ${AppConfig.formatCurrency(budget.amount)} budget',
             'severity': spent > budget.amount ? 'high' : 'medium',
             'action': 'Review your spending'
           });
@@ -1048,7 +1221,7 @@ class AIInsightsService {
       alerts.add({
         'type': 'low_balance',
         'title': 'Low Balance Warning',
-        'message': 'Your balance is below ${AppConfig.formatCurrency(100000)} (${AppConfig.formatCurrency((currentBalance * 100).toInt() as double)})',
+        'message': 'Your balance is below ${AppConfig.formatCurrency(1000)} (${AppConfig.formatCurrency(currentBalance)})',
         'severity': 'high',
         'action': 'Add funds to your account'
       });
@@ -1062,13 +1235,13 @@ class AIInsightsService {
     
     if (recentTransactions.isNotEmpty && olderTransactions.isNotEmpty) {
       final recentDaily = recentTransactions.where((t) => t.isExpense).fold(0.0, (sum, t) => sum + t.amount) / 7;
-      final olderDaily = olderTransactions.where((t) => t.isExpense).fold(0.0, (sum, t) => sum + t.amount) / 23;
+      final olderDaily = olderTransactions.where((t) => t.isExpense).fold(0.0, (sum, t) => sum + t.amount) / max(1, 23);
       
       if (recentDaily > olderDaily * 1.5) {
         alerts.add({
           'type': 'unusual_spending',
           'title': 'Unusual Spending',
-          'message': 'Your spending has increased by ${((recentDaily / olderDaily - 1) * 100).toInt()}% recently',
+          'message': 'Your spending has increased by ${((recentDaily / max(0.01, olderDaily) - 1) * 100).toInt()}% recently',
           'severity': 'medium',
           'action': 'Check your recent transactions'
         });
@@ -1100,13 +1273,13 @@ class AIInsightsService {
     // Calculate key metrics
     final totalExpenses = transactions.where((t) => t.isExpense).fold(0.0, (sum, t) => sum + t.amount);
     final totalIncome = transactions.where((t) => !t.isExpense).fold(0.0, (sum, t) => sum + t.amount);
-    final avgMonthlyIncome = totalIncome / 3; // Rough estimate
+    final avgMonthlyIncome = totalIncome / max(1, min(3, transactions.where((t) => !t.isExpense).length)); // Safer estimate
     
     // 1. Emergency fund recommendation
-    if (savingsGoals.where((g) => g.title.contains('Emergency')).isEmpty) {
+    if (savingsGoals.where((g) => g.title.toLowerCase().contains('emergency')).isEmpty) {
       recommendations.add({
         'title': 'Build an Emergency Fund',
-        'description': 'Save ${AppConfig.formatCurrency((avgMonthlyIncome * 300).toInt() as double)} (3 months of expenses) for unexpected needs.',
+        'description': 'Save ${AppConfig.formatCurrency(avgMonthlyIncome * 3)} (3 months of expenses) for unexpected needs.',
         'type': 'emergency',
         'priority': 'high',
         'action': 'Start an emergency fund'
@@ -1120,7 +1293,7 @@ class AIInsightsService {
       
       recommendations.add({
         'title': 'Reduce ${topCategory.key} Spending',
-        'description': 'This is your highest spending category at ${AppConfig.formatCurrency((topCategory.value * 100).toInt() as double)}. Try to reduce it by 10%.',
+        'description': 'This is your highest spending category at ${AppConfig.formatCurrency(topCategory.value)}. Try to reduce it by 10%.',
         'type': 'spending',
         'priority': 'medium',
         'action': 'Set a budget for ${topCategory.key}'
@@ -1132,7 +1305,7 @@ class AIInsightsService {
       final savingsPotential = (totalIncome - totalExpenses) * 0.2;
       recommendations.add({
         'title': 'Increase Your Savings',
-        'description': 'You could save an additional ${AppConfig.formatCurrency((savingsPotential * 100).toInt() as double)} per month.',
+        'description': 'You could save an additional ${AppConfig.formatCurrency(savingsPotential)} per month.',
         'type': 'savings',
         'priority': 'medium',
         'action': 'Set up automatic savings'
@@ -1216,12 +1389,13 @@ class AIInsightsService {
     
     // Group transactions by description
     for (var transaction in transactions) {
-      if (!transactionsByDescription.containsKey(transaction.description)) {
-        if (transaction.description != null) {
-          transactionsByDescription[transaction.description!] = [];
+      if (transaction.description != null && transaction.description!.isNotEmpty) {
+        final key = transaction.description!;
+        if (!transactionsByDescription.containsKey(key)) {
+          transactionsByDescription[key] = [];
         }
+        transactionsByDescription[key]!.add(transaction);
       }
-      transactionsByDescription[transaction.description]!.add(transaction);
     }
     
     // Find recurring patterns
@@ -1236,7 +1410,7 @@ class AIInsightsService {
         
         bool amountsSimilar = true;
         for (var amount in amounts) {
-          if ((amount - avgAmount).abs() / avgAmount > 0.1) { // 10% variance allowed
+          if ((amount - avgAmount).abs() / max(0.01, avgAmount) > 0.1) { // 10% variance allowed
             amountsSimilar = false;
             break;
           }
@@ -1382,18 +1556,39 @@ class AIInsightsService {
   }
 
   void clearCache() {
+    _logDebug('Clearing insights cache');
     _cachedInsights.clear();
+  }
+
+  // Debug logging helper
+  void _logDebug(String message) {
+    if (_debugMode) {
+      debugPrint('AIInsightsService: $message');
+    }
   }
 
   // Public method to refresh all insights
   Future<void> refreshAllInsights() async {
+    _logDebug('Refreshing all insights');
     clearCache();
-    await Future.wait([
-      getSmartInsights(),
-      getPredictiveAlerts(),
-      getCashflowForecast(),
-      getSmartRecommendations(),
-      getChartData(),
-    ]);
+    _isLoading = false;
+    
+    try {
+      await getSmartInsights(forceRefresh: true);
+      await getPredictiveAlerts(forceRefresh: true);
+      await getCashflowForecast(forceRefresh: true);
+      await getSmartRecommendations(forceRefresh: true);
+      await getChartData(forceRefresh: true);
+      _logDebug('All insights refreshed successfully');
+    } catch (e) {
+      _logDebug('Error refreshing all insights: $e');
+    }
+  }
+  
+  // Check if Gemini API is properly configured
+  Future<bool> isGeminiConfigured() async {
+    return AppConfig.geminiApiKey.isNotEmpty && 
+           AppConfig.geminiApiKey != 'YOUR_API_KEY' &&
+           AppConfig.geminiModel.isNotEmpty;
   }
 }
