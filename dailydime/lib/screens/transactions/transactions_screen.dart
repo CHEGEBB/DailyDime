@@ -1879,8 +1879,28 @@ final transactions = transactionProvider.filteredTransactions.where((tx) {
           ),
           ...transactions.map((tx) => Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
-            child: TransactionCard(transaction: tx),
-          )).toList(),
+            child: TransactionCard(
+    title: tx.title,
+    category: tx.category,
+    amount: tx.amount,
+    date: tx.date,
+    isExpense: tx.isExpense,
+    icon: tx.icon,
+    color: tx.color,
+    isSms: tx.isSms,
+    onTap: () {
+      // Handle transaction tap - navigate to details, edit, etc.
+      // Example:
+      // Navigator.push(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (context) => TransactionDetailsPage(transaction: tx),
+      //   ),
+      // );
+    },
+  ),
+)).toList(),
+
         ],
       ),
     );
@@ -2235,7 +2255,7 @@ final transactions = transactionProvider.filteredTransactions.where((tx) {
           color: isSelected ? themeService.primaryColor : themeService.backgroundColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? themeService.primaryColor : themeService.borderColor,
+            color: isSelected ? themeService.primaryColor : themeService.subtextColor.withOpacity(0.5)
           ),
         ),
         child: Text(
