@@ -756,7 +756,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                             border: Border.all(
                               color: isSelected
                                   ? themeService.primaryColor
-                                  : themeService.borderColor,
+                                  : themeService.accentColor,
                               width: 1,
                             ),
                           ),
@@ -1634,10 +1634,29 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
                       ),
                     ),
                   ),
-                  ...txGroup.map((tx) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: TransactionCard(transaction: tx),
-                  )).toList(),
+              ...txGroup.map((tx) => Padding(
+  padding: const EdgeInsets.only(bottom: 8.0),
+  child: TransactionCard(
+    title: tx.title,
+    category: tx.category,
+    amount: tx.amount,
+    date: tx.date,
+    isExpense: tx.isExpense,
+    icon: tx.icon,
+    color: tx.color,
+    isSms: tx.isSms,
+    onTap: () {
+      // Handle transaction tap - navigate to details, edit, etc.
+      // Example:
+      // Navigator.push(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (context) => TransactionDetailsPage(transaction: tx),
+      //   ),
+      // );
+    },
+  ),
+)).toList(),
                 ],
               );
             },
@@ -1795,13 +1814,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> with SingleTick
       );
     }
     
-    final query = _searchController.text.toLowerCase();
-    final transactions = transactionProvider.filteredTransactions.where((tx) {
-      return tx.title.toLowerCase().contains(query) ||
-             tx.category.toLowerCase().contains(query) ||
-             tx.recipient?.toLowerCase().contains(query) == true ||
-             tx.notes?.toLowerCase().contains(query) == true;
-    }).toList();
+final query = _searchController.text.toLowerCase();
+final transactions = transactionProvider.filteredTransactions.where((tx) {
+  return tx.title.toLowerCase().contains(query) ||
+         tx.category.toLowerCase().contains(query) ||
+         (tx.recipient?.toLowerCase().contains(query) ?? false) ||
+         (tx.description?.toLowerCase().contains(query) ?? false) ||
+         (tx.sender?.toLowerCase().contains(query) ?? false) ||
+         (tx.agent?.toLowerCase().contains(query) ?? false) ||
+         (tx.business?.toLowerCase().contains(query) ?? false) ||
+         (tx.mpesaCode?.toLowerCase().contains(query) ?? false);
+}).toList();
     
     if (transactions.isEmpty) {
       return Container(
