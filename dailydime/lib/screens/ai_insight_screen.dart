@@ -591,7 +591,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
               _buildStatCard(
                 'Net Flow',
                 AppConfig.formatCurrency(
-                  ((keyMetrics['netFlow'] ?? 0.0) * 100).toInt().toDouble(),
+                  ((keyMetrics['netFlow'] ?? 0.0) * 100),
                 ),
                 quickStats['spendingTrend'] == 'positive' 
                   ? Icons.trending_up 
@@ -604,7 +604,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
               _buildStatCard(
                 'Daily Average',
                 AppConfig.formatCurrency(
-                  ((quickStats['avgDailySpending'] ?? 0.0) * 100).toInt().toDouble(),
+                  ((quickStats['avgDailySpending'] ?? 0.0) * 100),
                 ),
                 Icons.calendar_today,
                 themeService.infoColor,
