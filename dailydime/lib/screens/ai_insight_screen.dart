@@ -1279,7 +1279,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
                           ),
                         ),
                         Text(
-                          AppConfig.formatCurrency((total * 100).toInt() as double),
+                          AppConfig.formatCurrency((total * 100)),
                           style: TextStyle(
     fontFamily: 'DMsans',
                             fontSize: 12,
@@ -1598,7 +1598,7 @@ class _AIInsightsScreenState extends State<AIInsightsScreen>
             ),
             children: [
               TextSpan(
-                text: AppConfig.formatCurrency((balance * 100).toInt().toDouble()),
+                text: AppConfig.formatCurrency((balance * 100)),
                 style: TextStyle(
                   fontFamily: 'DMsans',
                   color: _getForecastTrendColor(themeService),
